@@ -533,11 +533,7 @@ fn e2e_command_execute_returns_display() {
             }
         });
 
-    assert!(
-        result.is_ok(),
-        "ext-hello execution should succeed: {result:?}"
-    );
-    let value = result.unwrap();
+    let value = result.unwrap_or_else(|e| panic!("ext-hello execution should succeed: {e:?}"));
     assert_eq!(
         value.get("display").and_then(|v| v.as_str()),
         Some("Hello from ext-hello!")
@@ -571,11 +567,7 @@ fn e2e_command_execute_with_args() {
             }
         });
 
-    assert!(
-        result.is_ok(),
-        "ext-echo execution should succeed: {result:?}"
-    );
-    let value = result.unwrap();
+    let value = result.unwrap_or_else(|e| panic!("ext-echo execution should succeed: {e:?}"));
     assert_eq!(
         value.get("display").and_then(|v| v.as_str()),
         Some("Echo: world")
@@ -613,11 +605,7 @@ fn e2e_shortcut_execute() {
             }
         });
 
-    assert!(
-        result.is_ok(),
-        "ctrl+e shortcut execution should succeed: {result:?}"
-    );
-    let value = result.unwrap();
+    let value = result.unwrap_or_else(|e| panic!("ctrl+e shortcut execution should succeed: {e:?}"));
     assert_eq!(
         value.get("display").and_then(|v| v.as_str()),
         Some("Ctrl+E triggered")
