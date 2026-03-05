@@ -1029,7 +1029,9 @@ fn is_alias(model_id: &str) -> bool {
         let y = parts[parts.len() - 3];
         let m = parts[parts.len() - 2];
         let d = parts[parts.len() - 1];
-        if y.len() == 4 && m.len() == 2 && d.len() == 2
+        if y.len() == 4
+            && m.len() == 2
+            && d.len() == 2
             && y.chars().all(|c| c.is_ascii_digit())
             && m.chars().all(|c| c.is_ascii_digit())
             && d.chars().all(|c| c.is_ascii_digit())
