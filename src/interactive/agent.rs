@@ -54,6 +54,9 @@ const UI_STREAM_DELTA_FLUSH_INTERVAL: std::time::Duration = std::time::Duration:
 const UI_STREAM_DELTA_MAX_BUFFER_BYTES: usize = 2 * 1024;
 const EXTENSION_CUSTOM_WIDGET_KEY: &str = "__pi_custom_overlay";
 const EXTENSION_CUSTOM_MIN_WIDTH: usize = 20;
+// Interactive slash commands may host long-running custom UIs (e.g. games).
+// Keep the command budget long enough to avoid timing out active sessions.
+const EXTENSION_INTERACTIVE_COMMAND_TIMEOUT_MS: u64 = 24 * 60 * 60 * 1000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StreamDeltaKind {
@@ -977,7 +980,7 @@ impl PiApp {
                     command_name,
                     args_str,
                     std::sync::Arc::new(ctx_payload),
-                    crate::extensions::EXTENSION_EVENT_TIMEOUT_MS,
+                    EXTENSION_INTERACTIVE_COMMAND_TIMEOUT_MS,
                 )
                 .await;
 
@@ -1040,7 +1043,7 @@ impl PiApp {
                 .execute_shortcut(
                     key_id_owned,
                     std::sync::Arc::new(ctx_payload),
-                    crate::extensions::EXTENSION_EVENT_TIMEOUT_MS,
+                    crate::extensions::EXTENSION_SHORTCUT_BUDGET_MS,
                 )
                 .await;
 
