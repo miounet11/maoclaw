@@ -1461,9 +1461,10 @@ mod tests {
         ];
 
         let out = collect_events(&events);
-        assert!(out.iter().any(
-            |event| matches!(event, StreamEvent::ToolCallStart { .. })
-        ));
+        assert!(
+            out.iter()
+                .any(|event| matches!(event, StreamEvent::ToolCallStart { .. }))
+        );
         assert!(out.iter().any(
             |event| matches!(event, StreamEvent::ToolCallDelta { delta, .. } if delta == "{\"text\":\"buffered\"}")
         ));
