@@ -125,6 +125,7 @@ impl WasmBridgeState {
 
 const ERRNO_BADF: i32 = 8;
 const ERRNO_EXIST: i32 = 20;
+const ERRNO_FBIG: i32 = 27;
 const ERRNO_INVAL: i32 = 28;
 const ERRNO_NOENT: i32 = 44;
 
@@ -135,6 +136,9 @@ const O_CREAT: i32 = 0o100;
 const O_EXCL: i32 = 0o200;
 const O_TRUNC: i32 = 0o1000;
 const O_APPEND: i32 = 0o2000;
+
+/// Hard cap on per-instance virtual file growth to avoid unbounded host allocation.
+const MAX_VIRTUAL_FILE_BYTES: usize = 64 * 1024 * 1024;
 
 const fn descriptor_access(flags: i32) -> Option<(bool, bool)> {
     match flags & O_ACCMODE {
@@ -715,18 +719,35 @@ fn register_host_imports(
                                     .map_err(|_| anyhow!("Negative iov count"))?;
                                 let pnum = usize::try_from(val_i32(params, 3, "pnum")?)
                                     .map_err(|_| anyhow!("Negative pnum pointer"))?;
-                                let (path, mut position, append) =
-                                    if let Some(handle) = caller.data().open_files.get(&fd) {
+                                let (path, mut position, append, file_len) = {
+                                    let host = caller.data();
+                                    if let Some(handle) = host.open_files.get(&fd) {
                                         if !handle.writable {
                                             set_i32_result(results, ERRNO_BADF);
                                             return Ok(());
                                         }
-                                        (handle.path.clone(), handle.position, handle.append)
+                                        let Some(file_len) = host
+                                            .staged_files
+                                            .get(&handle.path)
+                                            .map(std::vec::Vec::len)
+                                        else {
+                                            set_i32_result(results, ERRNO_NOENT);
+                                            return Ok(());
+                                        };
+                                        (
+                                            handle.path.clone(),
+                                            handle.position,
+                                            handle.append,
+                                            file_len,
+                                        )
                                     } else {
                                         set_i32_result(results, ERRNO_BADF);
                                         return Ok(());
-                                    };
+                                    }
+                                };
+                                let base_position = if append { file_len } else { position };
                                 let mut total = 0_usize;
+                                let mut chunks = Vec::new();
                                 for index in 0..iovcnt {
                                     let base = iov
                                         .checked_add(index.saturating_mul(8))
@@ -739,32 +760,68 @@ fn register_host_imports(
                                     if len == 0 {
                                         continue;
                                     }
+                                    let next_total = total
+                                        .checked_add(len)
+                                        .ok_or_else(|| anyhow!("fd_write byte count overflow"))?;
+                                    if base_position
+                                        .checked_add(next_total)
+                                        .ok_or_else(|| anyhow!("fd_write overflow"))?
+                                        > MAX_VIRTUAL_FILE_BYTES
+                                    {
+                                        set_i32_result(results, ERRNO_FBIG);
+                                        return Ok(());
+                                    }
 
                                     let bytes = caller_read_bytes(&mut caller, ptr, len)?;
+                                    total = next_total;
+                                    chunks.push(bytes);
+                                }
+                                if total == 0 {
+                                    caller_write_u32(&mut caller, pnum, 0)?;
+                                    if let Some(handle) = caller.data_mut().open_files.get_mut(&fd)
                                     {
-                                        let host = caller.data_mut();
-                                        let Some(file) = host.staged_files.get_mut(&path) else {
-                                            set_i32_result(results, ERRNO_NOENT);
-                                            return Ok(());
-                                        };
-                                        if append {
-                                            position = file.len();
-                                        }
-                                        if position > file.len() {
-                                            file.resize(position, 0);
-                                        }
-                                        let end = position
+                                        handle.position = position;
+                                    } else {
+                                        set_i32_result(results, ERRNO_BADF);
+                                        return Ok(());
+                                    }
+                                    set_i32_result(results, 0);
+                                    return Ok(());
+                                }
+                                {
+                                    let host = caller.data_mut();
+                                    let Some(file) = host.staged_files.get_mut(&path) else {
+                                        set_i32_result(results, ERRNO_NOENT);
+                                        return Ok(());
+                                    };
+                                    if append {
+                                        position = base_position;
+                                    }
+                                    let end = position
+                                        .checked_add(total)
+                                        .ok_or_else(|| anyhow!("fd_write overflow"))?;
+                                    if end > MAX_VIRTUAL_FILE_BYTES {
+                                        set_i32_result(results, ERRNO_FBIG);
+                                        return Ok(());
+                                    }
+                                    if position > file.len() {
+                                        file.resize(position, 0);
+                                    }
+                                    if end > file.len() {
+                                        file.resize(end, 0);
+                                    }
+
+                                    // Stage guest buffers before mutating the virtual file so
+                                    // size-limit failures do not commit a partial multi-iov write.
+                                    let mut write_position = position;
+                                    for bytes in &chunks {
+                                        let chunk_end = write_position
                                             .checked_add(bytes.len())
                                             .ok_or_else(|| anyhow!("fd_write overflow"))?;
-                                        if end > file.len() {
-                                            file.resize(end, 0);
-                                        }
-                                        file[position..end].copy_from_slice(&bytes);
-                                        position = end;
+                                        file[write_position..chunk_end].copy_from_slice(bytes);
+                                        write_position = chunk_end;
                                     }
-                                    total = total
-                                        .checked_add(bytes.len())
-                                        .ok_or_else(|| anyhow!("fd_write byte count overflow"))?;
+                                    position = write_position;
                                 }
                                 caller_write_u32(
                                     &mut caller,
@@ -920,6 +977,17 @@ pub(crate) fn inject_wasm_globals(
             Func::from(
                 move |ctx: Ctx<'_>, path: String, bytes_val: Value<'_>| -> rquickjs::Result<u32> {
                     let bytes = extract_bytes(&ctx, &bytes_val)?;
+                    if bytes.len() > MAX_VIRTUAL_FILE_BYTES {
+                        return Err(throw_wasm(
+                            &ctx,
+                            "RangeError",
+                            &format!(
+                                "Virtual file exceeds PiWasm limit ({} > {} bytes)",
+                                bytes.len(),
+                                MAX_VIRTUAL_FILE_BYTES
+                            ),
+                        ));
+                    }
                     let len = u32::try_from(bytes.len()).unwrap_or(u32::MAX);
                     debug!(path = %path, len_bytes = bytes.len(), "wasm: staged file");
                     st.borrow_mut().staged_files.insert(path, bytes);
@@ -2421,6 +2489,244 @@ mod tests {
                 )
                 .expect("read-only descriptor write rejection");
             assert_eq!(summary, "8,0");
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_reject_write_past_virtual_file_limit() {
+        let wasm_bytes = wat_to_wasm(&format!(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_seek" (func $fd_seek (param i32 i64 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/tmp/too-big.bin\00")
+              (data (i32.const 160) "\07")
+              (func (export "seek_then_write_too_large") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 1
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 577
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i64.const {MAX_VIRTUAL_FILE_BYTES}
+                i32.const 0
+                i32.const 144
+                call $fd_seek
+                drop
+                local.get $fd
+                i32.const 128
+                i32.const 1
+                i32.const 136
+                call $fd_write)
+              (func (export "bytes_written") (result i32)
+                i32.const 136
+                i32.load)
+            )"#,
+        ));
+        run_wasm_test(|ctx, state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let instance_id: u32 = ctx
+                .eval(
+                    r"
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    __pi_wasm_instantiate_native(mid);
+                ",
+                )
+                .expect("instantiate large seek virtual file module");
+
+            let summary: String = ctx
+                .eval(format!(
+                    r#"
+                    var result = __pi_wasm_call_export_native({instance_id}, "seek_then_write_too_large", []);
+                    var bytes = __pi_wasm_call_export_native({instance_id}, "bytes_written", []);
+                    [result, bytes].join(",");
+                "#
+                ))
+                .expect("reject oversize virtual file write");
+            assert_eq!(summary, "27,0");
+
+            let bridge = state.borrow();
+            let len = bridge
+                .instances
+                .get(&instance_id)
+                .and_then(|inst| inst.store.data().staged_files.get("/tmp/too-big.bin"))
+                .map(std::vec::Vec::len);
+            assert_eq!(len, Some(0));
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_reject_multi_iov_limit_overflow_atomically() {
+        let near_limit = MAX_VIRTUAL_FILE_BYTES - 1;
+        let wasm_bytes = wat_to_wasm(&format!(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_seek" (func $fd_seek (param i32 i64 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/tmp/too-big-split.bin\00")
+              (data (i32.const 160) "\07\08")
+              (func (export "split_write_too_large") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 1
+                i32.store
+                i32.const 136
+                i32.const 161
+                i32.store
+                i32.const 140
+                i32.const 1
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 577
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i64.const {near_limit}
+                i32.const 0
+                i32.const 152
+                call $fd_seek
+                drop
+                local.get $fd
+                i32.const 128
+                i32.const 2
+                i32.const 144
+                call $fd_write)
+              (func (export "bytes_written") (result i32)
+                i32.const 144
+                i32.load)
+            )"#,
+        ));
+        run_wasm_test(|ctx, state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let instance_id: u32 = ctx
+                .eval(
+                    r"
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    __pi_wasm_instantiate_native(mid);
+                ",
+                )
+                .expect("instantiate split oversize virtual file module");
+
+            let summary: String = ctx
+                .eval(format!(
+                    r#"
+                    var result = __pi_wasm_call_export_native({instance_id}, "split_write_too_large", []);
+                    var bytes = __pi_wasm_call_export_native({instance_id}, "bytes_written", []);
+                    [result, bytes].join(",");
+                "#
+                ))
+                .expect("reject split oversize virtual file write");
+            assert_eq!(summary, "27,0");
+
+            let bridge = state.borrow();
+            let len = bridge
+                .instances
+                .get(&instance_id)
+                .and_then(|inst| inst.store.data().staged_files.get("/tmp/too-big-split.bin"))
+                .map(std::vec::Vec::len);
+            assert_eq!(len, Some(0));
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_allow_zero_length_write_past_virtual_file_limit() {
+        let past_limit = MAX_VIRTUAL_FILE_BYTES + 1;
+        let wasm_bytes = wat_to_wasm(&format!(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_seek" (func $fd_seek (param i32 i64 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/tmp/too-big-zero.bin\00")
+              (func (export "zero_write_after_large_seek") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 0
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 577
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i64.const {past_limit}
+                i32.const 0
+                i32.const 144
+                call $fd_seek
+                drop
+                local.get $fd
+                i32.const 128
+                i32.const 1
+                i32.const 136
+                call $fd_write)
+              (func (export "bytes_written") (result i32)
+                i32.const 136
+                i32.load)
+            )"#,
+        ));
+        run_wasm_test(|ctx, state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let instance_id: u32 = ctx
+                .eval(
+                    r"
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    __pi_wasm_instantiate_native(mid);
+                ",
+                )
+                .expect("instantiate zero-write virtual file module");
+
+            let summary: String = ctx
+                .eval(format!(
+                    r#"
+                    var result = __pi_wasm_call_export_native({instance_id}, "zero_write_after_large_seek", []);
+                    var bytes = __pi_wasm_call_export_native({instance_id}, "bytes_written", []);
+                    [result, bytes].join(",");
+                "#
+                ))
+                .expect("allow zero-length write after large seek");
+            assert_eq!(summary, "0,0");
+
+            let bridge = state.borrow();
+            let len = bridge
+                .instances
+                .get(&instance_id)
+                .and_then(|inst| inst.store.data().staged_files.get("/tmp/too-big-zero.bin"))
+                .map(std::vec::Vec::len);
+            assert_eq!(len, Some(0));
         });
     }
 }
