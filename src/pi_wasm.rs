@@ -53,6 +53,9 @@ struct InstanceState {
 struct VirtualFileHandle {
     path: String,
     position: usize,
+    readable: bool,
+    writable: bool,
+    append: bool,
 }
 
 #[derive(Serialize)]
@@ -117,6 +120,28 @@ impl WasmBridgeState {
     fn set_limits_for_test(&mut self, max_modules: usize, max_instances: usize) {
         self.max_modules = max_modules.max(1);
         self.max_instances = max_instances.max(1);
+    }
+}
+
+const ERRNO_BADF: i32 = 8;
+const ERRNO_EXIST: i32 = 20;
+const ERRNO_INVAL: i32 = 28;
+const ERRNO_NOENT: i32 = 44;
+
+const O_ACCMODE: i32 = 0o3;
+const O_WRONLY: i32 = 0o1;
+const O_RDWR: i32 = 0o2;
+const O_CREAT: i32 = 0o100;
+const O_EXCL: i32 = 0o200;
+const O_TRUNC: i32 = 0o1000;
+const O_APPEND: i32 = 0o2000;
+
+const fn descriptor_access(flags: i32) -> Option<(bool, bool)> {
+    match flags & O_ACCMODE {
+        0 => Some((true, false)),
+        O_WRONLY => Some((false, true)),
+        O_RDWR => Some((true, true)),
+        _ => None,
     }
 }
 
@@ -430,18 +455,45 @@ fn register_host_imports(
                             move |mut caller, params, results| {
                                 let path_ptr = usize::try_from(val_i32(params, 1, "path")?)
                                     .map_err(|_| anyhow!("Negative path pointer"))?;
+                                let flags = val_i32(params, 2, "flags")?;
                                 let path = caller_read_c_string(&mut caller, path_ptr)?;
-                                let Some(bytes_len) = caller
-                                    .data()
-                                    .staged_files
-                                    .get(&path)
-                                    .map(std::vec::Vec::len)
-                                else {
-                                    set_i32_result(results, -44);
+                                let Some((readable, writable)) = descriptor_access(flags) else {
+                                    set_i32_result(results, -ERRNO_INVAL);
                                     return Ok(());
                                 };
-                                let fd = {
+                                if flags & O_TRUNC != 0 && !writable {
+                                    set_i32_result(results, -ERRNO_INVAL);
+                                    return Ok(());
+                                }
+
+                                let append = flags & O_APPEND != 0;
+                                let (fd, bytes_len) = {
                                     let host = caller.data_mut();
+                                    let path_exists = host.staged_files.contains_key(&path);
+                                    if !path_exists {
+                                        if flags & O_CREAT == 0 {
+                                            set_i32_result(results, -ERRNO_NOENT);
+                                            return Ok(());
+                                        }
+                                        host.staged_files.insert(path.clone(), Vec::new());
+                                    } else if flags & O_CREAT != 0 && flags & O_EXCL != 0 {
+                                        set_i32_result(results, -ERRNO_EXIST);
+                                        return Ok(());
+                                    }
+
+                                    let (position, bytes_len) = {
+                                        let file =
+                                            host.staged_files.get_mut(&path).ok_or_else(|| {
+                                                anyhow!("Virtual file disappeared during open")
+                                            })?;
+                                        if flags & O_TRUNC != 0 {
+                                            file.clear();
+                                        }
+                                        let bytes_len = file.len();
+                                        let position = if append { bytes_len } else { 0 };
+                                        (position, bytes_len)
+                                    };
+
                                     if host.next_fd == u32::MAX {
                                         return Err(anyhow!("Synthetic fd space exhausted"));
                                     }
@@ -451,12 +503,23 @@ fn register_host_imports(
                                         fd,
                                         VirtualFileHandle {
                                             path: path.clone(),
-                                            position: 0,
+                                            position,
+                                            readable,
+                                            writable,
+                                            append,
                                         },
                                     );
-                                    fd
+                                    (fd, bytes_len)
                                 };
-                                debug!(path, bytes = bytes_len, fd, "wasm: staged file open");
+                                debug!(
+                                    path,
+                                    bytes = bytes_len,
+                                    fd,
+                                    readable,
+                                    writable,
+                                    append,
+                                    "wasm: staged file open"
+                                );
                                 set_i32_result(results, i32::try_from(fd).unwrap_or(i32::MAX));
                                 Ok(())
                             },
@@ -483,9 +546,13 @@ fn register_host_imports(
 
                                 let (path, mut position) =
                                     if let Some(handle) = caller.data().open_files.get(&fd) {
+                                        if !handle.readable {
+                                            set_i32_result(results, ERRNO_BADF);
+                                            return Ok(());
+                                        }
                                         (handle.path.clone(), handle.position)
                                     } else {
-                                        set_i32_result(results, 8);
+                                        set_i32_result(results, ERRNO_BADF);
                                         return Ok(());
                                     };
 
@@ -502,7 +569,7 @@ fn register_host_imports(
                                     let chunk = {
                                         let host = caller.data();
                                         let Some(file) = host.staged_files.get(&path) else {
-                                            set_i32_result(results, 44);
+                                            set_i32_result(results, ERRNO_NOENT);
                                             return Ok(());
                                         };
                                         if position >= file.len() || len == 0 {
@@ -532,7 +599,7 @@ fn register_host_imports(
                                 if let Some(handle) = caller.data_mut().open_files.get_mut(&fd) {
                                     handle.position = position;
                                 } else {
-                                    set_i32_result(results, 8);
+                                    set_i32_result(results, ERRNO_BADF);
                                     return Ok(());
                                 }
                                 set_i32_result(results, 0);
@@ -562,7 +629,7 @@ fn register_host_imports(
                                     if let Some(handle) = caller.data().open_files.get(&fd) {
                                         (handle.path.clone(), handle.position)
                                     } else {
-                                        set_i32_result(results, 8);
+                                        set_i32_result(results, ERRNO_BADF);
                                         return Ok(());
                                     };
                                 let Some(file_len) = caller
@@ -571,7 +638,7 @@ fn register_host_imports(
                                     .get(&path)
                                     .map(std::vec::Vec::len)
                                 else {
-                                    set_i32_result(results, 44);
+                                    set_i32_result(results, ERRNO_NOENT);
                                     return Ok(());
                                 };
                                 let base = match whence {
@@ -579,7 +646,7 @@ fn register_host_imports(
                                     1 => i64::try_from(current_position).unwrap_or(i64::MAX),
                                     2 => i64::try_from(file_len).unwrap_or(i64::MAX),
                                     _ => {
-                                        set_i32_result(results, 28);
+                                        set_i32_result(results, ERRNO_INVAL);
                                         return Ok(());
                                     }
                                 };
@@ -587,7 +654,7 @@ fn register_host_imports(
                                     .checked_add(offset)
                                     .ok_or_else(|| anyhow!("Seek overflow"))?;
                                 if next < 0 {
-                                    set_i32_result(results, 28);
+                                    set_i32_result(results, ERRNO_INVAL);
                                     return Ok(());
                                 }
                                 let next =
@@ -595,7 +662,7 @@ fn register_host_imports(
                                 if let Some(handle) = caller.data_mut().open_files.get_mut(&fd) {
                                     handle.position = next;
                                 } else {
-                                    set_i32_result(results, 8);
+                                    set_i32_result(results, ERRNO_BADF);
                                     return Ok(());
                                 }
                                 caller_write_u64(
@@ -623,7 +690,7 @@ fn register_host_imports(
                                 let result = if caller.data_mut().open_files.remove(&fd).is_some() {
                                     0
                                 } else {
-                                    8
+                                    ERRNO_BADF
                                 };
                                 set_i32_result(results, result);
                                 Ok(())
@@ -640,27 +707,76 @@ fn register_host_imports(
                             imp_name,
                             func_ty.clone(),
                             move |mut caller, params, results| {
+                                let fd = u32::try_from(val_i32(params, 0, "fd")?)
+                                    .map_err(|_| anyhow!("Negative fd"))?;
                                 let iov = usize::try_from(val_i32(params, 1, "iov")?)
                                     .map_err(|_| anyhow!("Negative iov pointer"))?;
                                 let iovcnt = usize::try_from(val_i32(params, 2, "iovcnt")?)
                                     .map_err(|_| anyhow!("Negative iov count"))?;
                                 let pnum = usize::try_from(val_i32(params, 3, "pnum")?)
                                     .map_err(|_| anyhow!("Negative pnum pointer"))?;
+                                let (path, mut position, append) =
+                                    if let Some(handle) = caller.data().open_files.get(&fd) {
+                                        if !handle.writable {
+                                            set_i32_result(results, ERRNO_BADF);
+                                            return Ok(());
+                                        }
+                                        (handle.path.clone(), handle.position, handle.append)
+                                    } else {
+                                        set_i32_result(results, ERRNO_BADF);
+                                        return Ok(());
+                                    };
                                 let mut total = 0_usize;
                                 for index in 0..iovcnt {
                                     let base = iov
                                         .checked_add(index.saturating_mul(8))
                                         .ok_or_else(|| anyhow!("iov overflow"))?;
-                                    total = total.saturating_add(
+                                    let ptr = usize::try_from(caller_read_u32(&mut caller, base)?)
+                                        .map_err(|_| anyhow!("iov ptr overflow"))?;
+                                    let len =
                                         usize::try_from(caller_read_u32(&mut caller, base + 4)?)
-                                            .unwrap_or(usize::MAX),
-                                    );
+                                            .map_err(|_| anyhow!("iov len overflow"))?;
+                                    if len == 0 {
+                                        continue;
+                                    }
+
+                                    let bytes = caller_read_bytes(&mut caller, ptr, len)?;
+                                    {
+                                        let host = caller.data_mut();
+                                        let Some(file) = host.staged_files.get_mut(&path) else {
+                                            set_i32_result(results, ERRNO_NOENT);
+                                            return Ok(());
+                                        };
+                                        if append {
+                                            position = file.len();
+                                        }
+                                        if position > file.len() {
+                                            file.resize(position, 0);
+                                        }
+                                        let end = position
+                                            .checked_add(bytes.len())
+                                            .ok_or_else(|| anyhow!("fd_write overflow"))?;
+                                        if end > file.len() {
+                                            file.resize(end, 0);
+                                        }
+                                        file[position..end].copy_from_slice(&bytes);
+                                        position = end;
+                                    }
+                                    total = total
+                                        .checked_add(bytes.len())
+                                        .ok_or_else(|| anyhow!("fd_write byte count overflow"))?;
                                 }
                                 caller_write_u32(
                                     &mut caller,
                                     pnum,
                                     u32::try_from(total).unwrap_or(u32::MAX),
                                 )?;
+                                if let Some(handle) = caller.data_mut().open_files.get_mut(&fd) {
+                                    handle.position = position;
+                                } else {
+                                    set_i32_result(results, ERRNO_BADF);
+                                    return Ok(());
+                                }
                                 set_i32_result(results, 0);
                                 Ok(())
                             },
@@ -1888,13 +2004,13 @@ mod tests {
 
             let is_memory: bool = ctx
                 .eval(
-                    r#"
+                    r"
                     var __is_memory = false;
                     WebAssembly.instantiate(__test_bytes).then(function(r) {
                         __is_memory = r.instance.exports.memory instanceof WebAssembly.Memory;
                     });
                     __is_memory;
-                "#,
+                ",
                 )
                 .expect("exported memory instanceof WebAssembly.Memory");
             assert!(is_memory);
@@ -2116,6 +2232,195 @@ mod tests {
                 )
                 .expect("staged file read");
             assert_eq!(summary, "67305985,4");
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_can_create_and_write_virtual_files() {
+        let wasm_bytes = wat_to_wasm(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/tmp/out.bin\00")
+              (data (i32.const 160) "\05\06\07")
+              (func (export "write_new") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 3
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 577
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i32.const 128
+                i32.const 1
+                i32.const 136
+                call $fd_write
+                drop
+                i32.const 136
+                i32.load)
+            )"#,
+        );
+        run_wasm_test(|ctx, state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let instance_id: u32 = ctx
+                .eval(
+                    r"
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    __pi_wasm_instantiate_native(mid);
+                ",
+                )
+                .expect("instantiate writable virtual file module");
+
+            let bytes_written: i32 = ctx
+                .eval(format!(
+                    r#"__pi_wasm_call_export_native({instance_id}, "write_new", [])"#
+                ))
+                .expect("write newly created virtual file");
+            assert_eq!(bytes_written, 3);
+
+            let bridge = state.borrow();
+            let contents = bridge
+                .instances
+                .get(&instance_id)
+                .and_then(|inst| inst.store.data().staged_files.get("/tmp/out.bin"))
+                .cloned();
+            assert_eq!(contents, Some(vec![5, 6, 7]));
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_honor_truncate_flag_for_writes() {
+        let wasm_bytes = wat_to_wasm(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/tmp/existing.bin\00")
+              (data (i32.const 160) "\09")
+              (func (export "truncate_then_write") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 1
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 513
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i32.const 128
+                i32.const 1
+                i32.const 136
+                call $fd_write
+                drop
+                i32.const 136
+                i32.load)
+            )"#,
+        );
+        run_wasm_test(|ctx, state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let instance_id: u32 = ctx
+                .eval(
+                    r#"
+                    __pi_wasm_stage_file_native("/tmp/existing.bin", [1, 2, 3, 4]);
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    __pi_wasm_instantiate_native(mid);
+                "#,
+                )
+                .expect("instantiate truncate virtual file module");
+
+            let bytes_written: i32 = ctx
+                .eval(format!(
+                    r#"__pi_wasm_call_export_native({instance_id}, "truncate_then_write", [])"#
+                ))
+                .expect("truncate existing virtual file");
+            assert_eq!(bytes_written, 1);
+
+            let bridge = state.borrow();
+            let contents = bridge
+                .instances
+                .get(&instance_id)
+                .and_then(|inst| inst.store.data().staged_files.get("/tmp/existing.bin"))
+                .cloned();
+            assert_eq!(contents, Some(vec![9]));
+        });
+    }
+
+    #[test]
+    fn staged_file_host_imports_reject_write_on_read_only_descriptor() {
+        let wasm_bytes = wat_to_wasm(
+            r#"(module
+              (import "env" "__syscall_openat" (func $openat (param i32 i32 i32 i32) (result i32)))
+              (import "env" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+              (memory (export "memory") 1)
+              (data (i32.const 64) "/doom/doom1.wad\00")
+              (data (i32.const 160) "\09\08")
+              (func (export "write_read_only") (result i32)
+                (local $fd i32)
+                i32.const 128
+                i32.const 160
+                i32.store
+                i32.const 132
+                i32.const 2
+                i32.store
+                i32.const -100
+                i32.const 64
+                i32.const 0
+                i32.const 0
+                call $openat
+                local.set $fd
+                local.get $fd
+                i32.const 128
+                i32.const 1
+                i32.const 136
+                call $fd_write)
+              (func (export "bytes_written") (result i32)
+                i32.const 136
+                i32.load)
+            )"#,
+        );
+        run_wasm_test(|ctx, _state| {
+            let arr = rquickjs::Array::new(ctx.clone()).unwrap();
+            for (i, &b) in wasm_bytes.iter().enumerate() {
+                arr.set(i, i32::from(b)).unwrap();
+            }
+            ctx.globals().set("__test_bytes", arr).unwrap();
+
+            let summary: String = ctx
+                .eval(
+                    r#"
+                    __pi_wasm_stage_file_native("/doom/doom1.wad", [1, 2, 3, 4]);
+                    var mid = __pi_wasm_compile_native(__test_bytes);
+                    var iid = __pi_wasm_instantiate_native(mid);
+                    var result = __pi_wasm_call_export_native(iid, "write_read_only", []);
+                    var bytes = __pi_wasm_call_export_native(iid, "bytes_written", []);
+                    [result, bytes].join(",");
+                "#,
+                )
+                .expect("read-only descriptor write rejection");
+            assert_eq!(summary, "8,0");
         });
     }
 }
