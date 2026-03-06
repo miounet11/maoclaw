@@ -262,7 +262,10 @@ impl PackageManager {
             ParsedSource::Npm { spec, .. } => self.install_npm(&spec, scope),
             ParsedSource::Git {
                 clone_source,
-                host, path, r#ref, ..
+                host,
+                path,
+                r#ref,
+                ..
             } => self.install_git(&clone_source, &host, &path, r#ref.as_deref(), scope),
             ParsedSource::Local { path } => {
                 if path.exists() {
@@ -334,7 +337,10 @@ impl PackageManager {
             }
             ParsedSource::Git {
                 clone_source,
-                host, path, pinned, ..
+                host,
+                path,
+                pinned,
+                ..
             } => {
                 if !pinned {
                     self.update_git(&clone_source, &host, &path, scope)?;
@@ -2902,6 +2908,8 @@ fn parse_git_source(spec: &str, cwd: &Path) -> ParsedSource {
     let (repo_raw, parsed_ref) = split_git_spec_ref(spec);
     let r#ref = parsed_ref.map(str::to_string);
     let pinned = r#ref.is_some();
+    // Derive the actual clone target from the already-resolved git spec so
+    // extension-index aliases and authenticated URLs keep their install-time source.
     let clone_source = git_clone_source(spec, cwd);
 
     let (repo, host, path) = if looks_like_local_path(repo_raw) {
