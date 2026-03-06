@@ -4920,7 +4920,6 @@ impl AgentSession {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn resolve_extension_policy_for_enable(
         config: Option<&crate::config::Config>,
         policy: Option<ExtensionPolicy>,
@@ -4933,7 +4932,6 @@ impl AgentSession {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn enable_extensions(
         &mut self,
         enabled_tools: &[&str],
