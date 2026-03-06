@@ -662,6 +662,28 @@ impl Agent {
         message
     }
 
+    fn build_error_message(
+        &self,
+        partial: Option<&AssistantMessage>,
+        error_message: impl Into<String>,
+    ) -> AssistantMessage {
+        let error_message = error_message.into();
+        let mut message = partial.cloned().unwrap_or_else(|| AssistantMessage {
+            content: Vec::new(),
+            api: self.provider.api().to_string(),
+            provider: self.provider.name().to_string(),
+            model: self.provider.model_id().to_string(),
+            usage: Usage::default(),
+            stop_reason: StopReason::Error,
+            error_message: Some(error_message.clone()),
+            timestamp: Utc::now().timestamp_millis(),
+        });
+        message.stop_reason = StopReason::Error;
+        message.error_message = Some(error_message);
+        message.timestamp = Utc::now().timestamp_millis();
+        message
+    }
+
     /// The main agent loop.
     #[allow(clippy::too_many_lines)]
     async fn run_loop(
@@ -773,6 +795,7 @@ impl Agent {
                 {
                     Ok(msg) => msg,
                     Err(err) => {
+                        let err_string = err.to_string();
                         let steering_to_add = self.drain_steering_messages().await;
                         for message in steering_to_add {
                             self.messages.push(message.clone());
@@ -785,10 +808,31 @@ impl Agent {
                             new_messages.push(message);
                         }
 
+                        let error_message = self.build_error_message(None, err_string.clone());
+                        let assistant_event_message = Message::assistant(error_message.clone());
+                        self.messages.push(assistant_event_message.clone());
+                        new_messages.push(assistant_event_message.clone());
+                        on_event(AgentEvent::MessageStart {
+                            message: assistant_event_message.clone(),
+                        });
+                        on_event(AgentEvent::MessageEnd {
+                            message: assistant_event_message.clone(),
+                        });
+
+                        let turn_end_event = AgentEvent::TurnEnd {
+                            session_id: session_id.clone(),
+                            turn_index: current_turn_index,
+                            message: assistant_event_message,
+                            tool_results: Vec::new(),
+                        };
+                        self.dispatch_extension_lifecycle_event(&turn_end_event)
+                            .await;
+                        on_event(turn_end_event);
+
                         let agent_end_event = AgentEvent::AgentEnd {
                             session_id: session_id.clone(),
                             messages: std::mem::take(&mut new_messages),
-                            error: Some(err.to_string()),
+                            error: Some(err_string),
                         };
                         self.dispatch_extension_lifecycle_event(&agent_end_event)
                             .await;
@@ -1113,21 +1157,20 @@ impl Agent {
             let event = match event_result {
                 Ok(e) => e,
                 Err(err) => {
-                    let mut msg = if added_partial {
+                    let partial = if added_partial {
                         match self
                             .messages
                             .iter()
                             .rev()
                             .find(|m| matches!(m, Message::Assistant(_)))
                         {
-                            Some(Message::Assistant(a)) => (**a).clone(),
-                            _ => AssistantMessage::default(),
+                            Some(Message::Assistant(a)) => Some(a.as_ref()),
+                            _ => None,
                         }
                     } else {
-                        AssistantMessage::default()
+                        None
                     };
-                    msg.stop_reason = StopReason::Error;
-                    msg.error_message = Some(err.to_string());
+                    let msg = self.build_error_message(partial, err.to_string());
 
                     // If we never sent a Start event, finalize_assistant_message handles it.
                     // But if sent_start is true and added_partial is somehow false,
@@ -4086,6 +4129,34 @@ mod turn_event_tests {
         }
     }
 
+    struct StreamSetupErrorProvider;
+
+    #[async_trait]
+    #[allow(clippy::unnecessary_literal_bound)]
+    impl Provider for StreamSetupErrorProvider {
+        fn name(&self) -> &str {
+            "test-provider"
+        }
+
+        fn api(&self) -> &str {
+            "test-api"
+        }
+
+        fn model_id(&self) -> &str {
+            "test-model"
+        }
+
+        async fn stream(
+            &self,
+            _context: &Context<'_>,
+            _options: &StreamOptions,
+        ) -> crate::error::Result<
+            Pin<Box<dyn Stream<Item = crate::error::Result<StreamEvent>> + Send>>,
+        > {
+            Err(Error::api("stream setup failed"))
+        }
+    }
+
     #[derive(Debug)]
     struct EchoTool;
 
@@ -4293,6 +4364,108 @@ mod turn_event_tests {
             drop(events);
             assert!(message_is_assistant);
             assert!(tool_results_empty);
+        });
+    }
+
+    #[test]
+    fn stream_setup_errors_still_emit_turn_end_before_agent_end() {
+        let runtime = RuntimeBuilder::current_thread()
+            .build()
+            .expect("runtime build");
+        let handle = runtime.handle();
+
+        let provider = Arc::new(StreamSetupErrorProvider);
+        let tools = ToolRegistry::new(&[], Path::new("."), None);
+        let agent = Agent::new(provider, tools, AgentConfig::default());
+        let session = Arc::new(Mutex::new(Session::in_memory()));
+        let mut agent_session =
+            AgentSession::new(agent, session, false, ResolvedCompactionSettings::default());
+
+        let events: Arc<std::sync::Mutex<Vec<AgentEvent>>> =
+            Arc::new(std::sync::Mutex::new(Vec::new()));
+        let events_capture = Arc::clone(&events);
+
+        let join = handle.spawn(async move {
+            agent_session
+                .run_text("hello".to_string(), move |event| {
+                    events_capture
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push(event);
+                })
+                .await
+                .expect_err("run_text should fail before streaming starts")
+        });
+
+        runtime.block_on(async move {
+            let err = join.await;
+            assert!(
+                err.to_string().contains("stream setup failed"),
+                "unexpected error: {err}"
+            );
+
+            let events = events
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let turn_start_idx = events
+                .iter()
+                .position(|event| matches!(event, AgentEvent::TurnStart { turn_index: 0, .. }))
+                .expect("turn start");
+            let turn_end_idx = events
+                .iter()
+                .position(|event| matches!(event, AgentEvent::TurnEnd { turn_index: 0, .. }))
+                .expect("turn end");
+            let agent_end_idx = events
+                .iter()
+                .position(|event| matches!(event, AgentEvent::AgentEnd { .. }))
+                .expect("agent end");
+
+            assert!(turn_start_idx < turn_end_idx);
+            assert!(turn_end_idx < agent_end_idx);
+
+            let assistant_message_end = events
+                .iter()
+                .position(|event| {
+                    matches!(
+                        event,
+                        AgentEvent::MessageEnd {
+                            message: Message::Assistant(_),
+                        }
+                    )
+                })
+                .expect("assistant message end");
+            assert!(assistant_message_end < turn_end_idx);
+
+            match &events[turn_end_idx] {
+                AgentEvent::TurnEnd {
+                    message,
+                    tool_results,
+                    ..
+                } => {
+                    assert!(tool_results.is_empty());
+                    match message {
+                        Message::Assistant(message) => {
+                            assert_eq!(message.stop_reason, StopReason::Error);
+                            assert_eq!(
+                                message.error_message.as_deref(),
+                                Some("API error: stream setup failed")
+                            );
+                            assert_eq!(message.api, "test-api");
+                            assert_eq!(message.provider, "test-provider");
+                            assert_eq!(message.model, "test-model");
+                        }
+                        other => panic!("expected assistant message in TurnEnd, got {other:?}"),
+                    }
+                }
+                other => panic!("expected TurnEnd event, got {other:?}"),
+            }
+
+            match &events[agent_end_idx] {
+                AgentEvent::AgentEnd { error, .. } => {
+                    assert_eq!(error.as_deref(), Some("API error: stream setup failed"));
+                }
+                other => panic!("expected AgentEnd event, got {other:?}"),
+            }
         });
     }
 
