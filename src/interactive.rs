@@ -758,7 +758,7 @@ impl PiApp {
     ///
     /// Keeping this in one place prevents overlay/input drift between
     /// rendering, viewport sizing, and keyboard dispatch.
-    fn editor_input_is_available(&self) -> bool {
+    const fn editor_input_is_available(&self) -> bool {
         matches!(self.agent_state, AgentState::Idle)
             && self.tree_ui.is_none()
             && self.session_picker.is_none()
