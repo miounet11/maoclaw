@@ -650,10 +650,10 @@ fn build_cohere_messages(context: &Context<'_>) -> Vec<CohereMessage> {
                 }
 
                 out.push(CohereMessage::Assistant {
-                    content: if tool_calls.is_empty() && !text.is_empty() {
-                        Some(text)
-                    } else {
+                    content: if text.is_empty() {
                         None
+                    } else {
+                        Some(text)
                     },
                     tool_calls: if tool_calls.is_empty() {
                         None
@@ -1532,6 +1532,46 @@ mod tests {
         // Tool result should reference the tool_call_id.
         assert_eq!(msgs[3]["tool_call_id"], "call_1");
         assert_eq!(msgs[3]["content"], "file contents");
+    }
+
+    #[test]
+    fn test_build_request_assistant_text_preserved_alongside_tool_calls() {
+        let provider = CohereProvider::new("command-r");
+        let context = Context::owned(
+            None,
+            vec![Message::assistant(AssistantMessage {
+                content: vec![
+                    ContentBlock::Text(TextContent::new("Let me read that file.")),
+                    ContentBlock::ToolCall(ToolCall {
+                        id: "call_1".to_string(),
+                        name: "read".to_string(),
+                        arguments: json!({"path": "/tmp/a.txt"}),
+                        thought_signature: None,
+                    }),
+                ],
+                api: "cohere-chat".to_string(),
+                provider: "cohere".to_string(),
+                model: "command-r".to_string(),
+                usage: Usage::default(),
+                stop_reason: StopReason::ToolUse,
+                error_message: None,
+                timestamp: 0,
+            })],
+            vec![],
+        );
+        let options = StreamOptions::default();
+
+        let req = provider.build_request(&context, &options);
+        let value = serde_json::to_value(&req).expect("serialize");
+        let msgs = value["messages"].as_array().unwrap();
+
+        assert_eq!(msgs[0]["role"], "assistant");
+        assert_eq!(
+            msgs[0]["content"].as_str(),
+            Some("Let me read that file."),
+            "Assistant text must be preserved when tool_calls are also present"
+        );
+        assert_eq!(msgs[0]["tool_calls"].as_array().unwrap().len(), 1);
     }
 
     #[test]

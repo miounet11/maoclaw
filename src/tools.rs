@@ -4578,6 +4578,22 @@ fn kill_process_tree_with(pid: Option<u32>, signal: sysinfo::Signal) {
         return;
     };
 
+    let root = sysinfo::Pid::from_u32(pid);
+
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+    let mut children_map: HashMap<sysinfo::Pid, Vec<sysinfo::Pid>> = HashMap::new();
+    for (p, proc_) in sys.processes() {
+        if let Some(parent) = proc_.parent() {
+            children_map.entry(parent).or_default().push(*p);
+        }
+    }
+
+    let mut to_kill = Vec::new();
+    let mut visited = std::collections::HashSet::new();
+    collect_process_tree(root, &children_map, &mut to_kill, &mut visited);
+
     // Kill the entire process group first. The bash tool spawns
     // children with process_group(0) so the root PID is the PGID.
     // This catches background children even if reparented to init.
@@ -4596,22 +4612,6 @@ fn kill_process_tree_with(pid: Option<u32>, signal: sysinfo::Signal) {
             .stderr(Stdio::null())
             .status();
     }
-
-    let root = sysinfo::Pid::from_u32(pid);
-
-    let mut sys = sysinfo::System::new();
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
-    let mut children_map: HashMap<sysinfo::Pid, Vec<sysinfo::Pid>> = HashMap::new();
-    for (p, proc_) in sys.processes() {
-        if let Some(parent) = proc_.parent() {
-            children_map.entry(parent).or_default().push(*p);
-        }
-    }
-
-    let mut to_kill = Vec::new();
-    let mut visited = std::collections::HashSet::new();
-    collect_process_tree(root, &children_map, &mut to_kill, &mut visited);
 
     // Kill children first.
     for pid in to_kill.into_iter().rev() {
