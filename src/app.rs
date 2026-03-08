@@ -70,6 +70,7 @@ struct ContextFile {
 struct RestoreResult {
     model: Option<ModelEntry>,
     fallback_message: Option<String>,
+    deferred_warning: Option<String>,
 }
 
 pub fn apply_piped_stdin(cli: &mut cli::Cli, stdin_content: Option<String>) {
@@ -380,6 +381,7 @@ pub fn select_model_and_thinking(
     let mut selected_model: Option<ModelEntry> = None;
     let mut scoped_thinking: Option<model::ThinkingLevel> = None;
     let mut fallback_message = None;
+    let mut deferred_restore_warning = None;
 
     if let (Some(provider), Some(model_id)) = (cli.provider.as_deref(), cli.model.as_deref()) {
         let found = registry
@@ -478,6 +480,7 @@ pub fn select_model_and_thinking(
             let restore = restore_model_from_session(&provider, &model_id, None, registry);
             selected_model = restore.model;
             fallback_message = restore.fallback_message;
+            deferred_restore_warning = restore.deferred_warning;
         }
     }
 
@@ -495,7 +498,16 @@ pub fn select_model_and_thinking(
     if selected_model.is_none() {
         let available = registry.get_available();
         if !available.is_empty() {
-            selected_model = Some(default_model_from_available(&available));
+            let fallback = default_model_from_available(&available);
+            if fallback_message.is_none() {
+                if let Some(warning) = deferred_restore_warning.take() {
+                    fallback_message = Some(format!(
+                        "{warning} Using {}/{}.",
+                        fallback.model.provider, fallback.model.id
+                    ));
+                }
+            }
+            selected_model = Some(fallback);
         }
     }
 
@@ -518,19 +530,23 @@ pub fn select_model_and_thinking(
         let available = registry.get_available();
         if !available.is_empty() {
             let fallback = default_model_from_available(&available);
-            fallback_message = Some(format!(
-                "Missing credentials for {missing_provider}/{missing_model_id}. Using {}/{} based on detected keys.",
-                fallback.model.provider, fallback.model.id
-            ));
+            if fallback_message.is_none() {
+                fallback_message = Some(format!(
+                    "Missing credentials for {missing_provider}/{missing_model_id}. Using {}/{} based on detected keys.",
+                    fallback.model.provider, fallback.model.id
+                ));
+            }
             selected_model = Some(fallback);
         } else if !registry.models().is_empty() {
             // No detected keys anywhere, but we still want to pick a stable default
             // so startup can guide the user through the correct login flow.
             let fallback = default_model_from_catalog(registry.models());
-            fallback_message = Some(format!(
-                "Missing credentials for {missing_provider}/{missing_model_id}. Defaulting to {}/{} for setup.",
-                fallback.model.provider, fallback.model.id
-            ));
+            if fallback_message.is_none() {
+                fallback_message = Some(format!(
+                    "Missing credentials for {missing_provider}/{missing_model_id}. Defaulting to {}/{} for setup.",
+                    fallback.model.provider, fallback.model.id
+                ));
+            }
             selected_model = Some(fallback);
         }
     }
@@ -539,13 +555,32 @@ pub fn select_model_and_thinking(
     // when no credentials are configured. This keeps first-run UX consistent
     // and avoids the misleading "No models configured" path when built-ins exist.
     if selected_model.is_none() && !registry.models().is_empty() {
-        selected_model = Some(default_model_from_catalog(registry.models()));
+        let fallback = default_model_from_catalog(registry.models());
+        if fallback_message.is_none() {
+            if let Some(warning) = deferred_restore_warning.take() {
+                fallback_message = Some(format!(
+                    "{warning} Defaulting to {}/{} for setup.",
+                    fallback.model.provider, fallback.model.id
+                ));
+            }
+        }
+        selected_model = Some(fallback);
     }
 
     let Some(model_entry) = selected_model else {
         let models_path = default_models_path(global_dir);
         return Err(StartupError::NoModelsAvailable { models_path }.into());
     };
+
+    if let Some(warning) = deferred_restore_warning.take() {
+        fallback_message = Some(match fallback_message.take() {
+            Some(message) => format!("{warning} {message}"),
+            None => format!(
+                "{warning} Using {}/{}.",
+                model_entry.model.provider, model_entry.model.id
+            ),
+        });
+    }
 
     let mut thinking_level: Option<model::ThinkingLevel> = None;
 
@@ -650,6 +685,7 @@ fn restore_model_from_session(
         return RestoreResult {
             model: restored,
             fallback_message: None,
+            deferred_warning: None,
         };
     }
 
@@ -662,6 +698,7 @@ fn restore_model_from_session(
                 "Could not restore model {saved_provider}/{saved_model_id} ({reason}). Using {}/{}.",
                 current.model.provider, current.model.id
             )),
+            deferred_warning: None,
         };
     }
 
@@ -674,12 +711,16 @@ fn restore_model_from_session(
                 "Could not restore model {saved_provider}/{saved_model_id} ({reason}). Using {}/{}.",
                 fallback.model.provider, fallback.model.id
             )),
+            deferred_warning: None,
         };
     }
 
     RestoreResult {
         model: None,
         fallback_message: None,
+        deferred_warning: Some(format!(
+            "Could not restore model {saved_provider}/{saved_model_id} ({reason})."
+        )),
     }
 }
 
@@ -689,6 +730,15 @@ fn default_model_from_available(available: &[ModelEntry]) -> ModelEntry {
 
 fn default_model_from_catalog(models: &[ModelEntry]) -> ModelEntry {
     default_model_from_candidates(models)
+}
+
+pub fn bootstrap_model_entry(registry: &ModelRegistry) -> Option<ModelEntry> {
+    let available = registry.get_available();
+    if !available.is_empty() {
+        return Some(default_model_from_available(&available));
+    }
+
+    (!registry.models().is_empty()).then(|| default_model_from_catalog(registry.models()))
 }
 
 fn select_preferred_exact_id_match(candidates: &[ModelEntry]) -> Option<ModelEntry> {
@@ -1399,6 +1449,58 @@ mod tests {
 
         assert_eq!(selection.model_entry.model.provider, "acme");
         assert_eq!(selection.model_entry.model.id, "local-model");
+    }
+
+    #[test]
+    fn select_model_and_thinking_preserves_restore_warning_when_defaulting_for_setup() {
+        let cli = cli::Cli::parse_from(["pi"]);
+        let config = Config::default();
+        let mut session = Session::in_memory();
+        session.append_model_change("missing-provider".to_string(), "missing-model".to_string());
+
+        let mut setup_default = test_model_entry("gpt-5.4", "openai", true);
+        setup_default.api_key = None;
+        setup_default.auth_header = true;
+
+        let registry = registry_with_entries(vec![setup_default]);
+        let selection =
+            select_model_and_thinking(&cli, &config, &session, &registry, &[], Path::new("/tmp"))
+                .expect("selection should fall back to a stable setup model");
+
+        assert_eq!(selection.model_entry.model.provider, "openai");
+        assert_eq!(selection.model_entry.model.id, "gpt-5.4");
+        assert_eq!(
+            selection.fallback_message.as_deref(),
+            Some(
+                "Could not restore model missing-provider/missing-model (model no longer exists). Defaulting to openai/gpt-5.4 for setup."
+            )
+        );
+    }
+
+    #[test]
+    fn select_model_and_thinking_preserves_restore_warning_when_using_config_default() {
+        let cli = cli::Cli::parse_from(["pi"]);
+        let config = Config {
+            default_provider: Some("openai".to_string()),
+            default_model: Some("gpt-4o-mini".to_string()),
+            ..Config::default()
+        };
+        let mut session = Session::in_memory();
+        session.append_model_change("missing-provider".to_string(), "missing-model".to_string());
+
+        let registry = registry_with_entries(vec![test_model_entry("gpt-4o-mini", "openai", true)]);
+        let selection =
+            select_model_and_thinking(&cli, &config, &session, &registry, &[], Path::new("/tmp"))
+                .expect("selection should use the configured default model");
+
+        assert_eq!(selection.model_entry.model.provider, "openai");
+        assert_eq!(selection.model_entry.model.id, "gpt-4o-mini");
+        assert_eq!(
+            selection.fallback_message.as_deref(),
+            Some(
+                "Could not restore model missing-provider/missing-model (model no longer exists). Using openai/gpt-4o-mini."
+            )
+        );
     }
 
     #[test]

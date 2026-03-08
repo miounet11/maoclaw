@@ -34,12 +34,12 @@ use pi::config::Config;
 use pi::config::SettingsScope;
 use pi::extension_index::ExtensionIndexStore;
 use pi::extensions::{
-    ALL_CAPABILITIES, Capability, ExtensionLoadSpec, ExtensionRuntimeHandle,
+    ALL_CAPABILITIES, Capability, ExtensionLoadSpec, ExtensionRegion, ExtensionRuntimeHandle,
     JsExtensionRuntimeHandle, NativeRustExtensionRuntimeHandle, PolicyDecision,
     resolve_extension_load_spec,
 };
 use pi::extensions_js::PiJsRuntimeConfig;
-use pi::model::{AssistantMessage, ContentBlock, StopReason};
+use pi::model::{AssistantMessage, ContentBlock, StopReason, ThinkingLevel};
 use pi::models::{ModelEntry, ModelRegistry, default_models_path};
 use pi::package_manager::{
     PackageEntry, PackageManager, PackageScope, ResolvedPaths, ResolvedResource, ResourceOrigin,
@@ -94,6 +94,149 @@ fn parse_cli_args(raw_args: Vec<String>) -> Result<Option<(cli::Cli, Vec<cli::Ex
 
 fn parse_cli_from_env() -> Result<Option<(cli::Cli, Vec<cli::ExtensionCliFlag>)>> {
     parse_cli_args(std::env::args().collect())
+}
+
+fn reload_model_registry_with_extra_entries(
+    auth: &AuthStorage,
+    models_path: &Path,
+    extra_entries: &[ModelEntry],
+) -> ModelRegistry {
+    let mut registry = ModelRegistry::load(auth, Some(models_path.to_path_buf()));
+    if let Some(error) = registry.error() {
+        eprintln!("Warning: models.json error: {error}");
+    }
+    if !extra_entries.is_empty() {
+        registry.merge_entries(extra_entries.to_vec());
+    }
+    registry
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn resolve_selection_with_auth(
+    cli: &mut cli::Cli,
+    config: &Config,
+    session: &Session,
+    model_registry: &mut ModelRegistry,
+    scoped_patterns: &[String],
+    auth: &mut AuthStorage,
+    models_path: &Path,
+    allow_setup_prompt: bool,
+    extra_entries: &[ModelEntry],
+) -> Result<Option<(pi::app::ModelSelection, Option<String>)>> {
+    loop {
+        let scoped_models = if scoped_patterns.is_empty() {
+            Vec::new()
+        } else {
+            pi::app::resolve_model_scope(scoped_patterns, model_registry, cli.api_key.is_some())
+        };
+
+        let selection = match pi::app::select_model_and_thinking(
+            cli,
+            config,
+            session,
+            model_registry,
+            &scoped_models,
+            &Config::global_dir(),
+        ) {
+            Ok(selection) => selection,
+            Err(err) => {
+                if let Some(startup) = err.downcast_ref::<StartupError>()
+                    && allow_setup_prompt
+                {
+                    if run_first_time_setup(startup, auth, cli, models_path).await? {
+                        *model_registry = reload_model_registry_with_extra_entries(
+                            auth,
+                            models_path,
+                            extra_entries,
+                        );
+                        continue;
+                    }
+                    return Ok(None);
+                }
+                return Err(err);
+            }
+        };
+
+        match pi::app::resolve_api_key(auth, cli, &selection.model_entry) {
+            Ok(key) => return Ok(Some((selection, key))),
+            Err(err) => {
+                if let Some(startup) = err.downcast_ref::<StartupError>() {
+                    if let StartupError::MissingApiKey { provider } = startup {
+                        let canonical_provider =
+                            pi::provider_metadata::canonical_provider_id(provider)
+                                .unwrap_or(provider.as_str());
+                        if canonical_provider == "sap-ai-core" {
+                            if let Some(token) = pi::auth::exchange_sap_access_token(auth).await? {
+                                return Ok(Some((selection, Some(token))));
+                            }
+                        }
+                    }
+
+                    if allow_setup_prompt {
+                        if run_first_time_setup(startup, auth, cli, models_path).await? {
+                            *model_registry = reload_model_registry_with_extra_entries(
+                                auth,
+                                models_path,
+                                extra_entries,
+                            );
+                            continue;
+                        }
+                        return Ok(None);
+                    }
+                }
+                return Err(err);
+            }
+        }
+    }
+}
+
+fn should_retry_selection_after_extensions(
+    cli: &cli::Cli,
+    err: &anyhow::Error,
+    has_extensions: bool,
+) -> bool {
+    if !has_extensions || (cli.provider.is_none() && cli.model.is_none()) {
+        return false;
+    }
+
+    let message = err.to_string().to_ascii_lowercase();
+    message.contains(" not found") || message.contains("no models available for provider")
+}
+
+fn build_extension_bootstrap_selection(
+    config: &Config,
+    model_registry: &ModelRegistry,
+    models_path: &Path,
+) -> Result<pi::app::ModelSelection> {
+    let model_entry = pi::app::bootstrap_model_entry(model_registry).ok_or_else(|| {
+        anyhow::Error::new(StartupError::NoModelsAvailable {
+            models_path: models_path.to_path_buf(),
+        })
+    })?;
+    let thinking_level = config
+        .default_thinking_level
+        .as_deref()
+        .and_then(|value| value.parse::<ThinkingLevel>().ok());
+
+    Ok(pi::app::ModelSelection {
+        thinking_level: model_entry
+            .clamp_thinking_level(thinking_level.unwrap_or(ThinkingLevel::XHigh)),
+        model_entry,
+        scoped_models: Vec::new(),
+        fallback_message: None,
+    })
+}
+
+fn context_window_tokens_for_entry(entry: &ModelEntry) -> u32 {
+    if entry.model.context_window == 0 {
+        tracing::warn!(
+            "Model {} reported context_window=0; falling back to default compaction window",
+            entry.model.id
+        );
+        ResolvedCompactionSettings::default().context_window_tokens
+    } else {
+        entry.model.context_window
+    }
 }
 
 #[allow(clippy::too_many_lines)]
@@ -995,7 +1138,7 @@ async fn run(
     } else {
         config.enabled_models.clone().unwrap_or_default()
     };
-    let mut scoped_models = if scoped_patterns.is_empty() {
+    let scoped_models = if scoped_patterns.is_empty() {
         Vec::new()
     } else {
         pi::app::resolve_model_scope(&scoped_patterns, &model_registry, cli.api_key.is_some())
@@ -1009,79 +1152,37 @@ async fn run(
         bail!("--api-key requires a model to be specified via --provider/--model or --models");
     }
 
-    let mut session = Box::pin(Session::new(&cli, &config)).await?;
+    let allow_setup_prompt =
+        is_interactive && io::stdin().is_terminal() && io::stdout().is_terminal();
+    let has_extensions = !resources.extensions().is_empty();
+    let session = Box::pin(Session::new(&cli, &config)).await?;
 
-    let (selection, resolved_key) = loop {
-        scoped_models = if scoped_patterns.is_empty() {
-            Vec::new()
-        } else {
-            pi::app::resolve_model_scope(&scoped_patterns, &model_registry, cli.api_key.is_some())
-        };
-
-        let selection = match pi::app::select_model_and_thinking(
-            &cli,
-            &config,
-            &session,
-            &model_registry,
-            &scoped_models,
-            &global_dir,
-        ) {
-            Ok(selection) => selection,
-            Err(err) => {
-                if let Some(startup) = err.downcast_ref::<StartupError>() {
-                    if is_interactive && io::stdin().is_terminal() && io::stdout().is_terminal() {
-                        if run_first_time_setup(startup, &mut auth, &mut cli, &models_path).await? {
-                            model_registry = ModelRegistry::load(&auth, Some(models_path.clone()));
-                            if let Some(error) = model_registry.error() {
-                                eprintln!("Warning: models.json error: {error}");
-                            }
-                            continue;
-                        }
-                        return Ok(());
-                    }
-                }
-                return Err(err);
-            }
-        };
-
-        match pi::app::resolve_api_key(&auth, &cli, &selection.model_entry) {
-            Ok(key) => {
-                break (selection, key);
-            }
-            Err(err) => {
-                if let Some(startup) = err.downcast_ref::<StartupError>() {
-                    if let StartupError::MissingApiKey { provider } = startup {
-                        let canonical_provider =
-                            pi::provider_metadata::canonical_provider_id(provider)
-                                .unwrap_or(provider.as_str());
-                        if canonical_provider == "sap-ai-core" {
-                            if let Some(token) = pi::auth::exchange_sap_access_token(&auth).await? {
-                                break (selection, Some(token));
-                            }
-                        }
-                    }
-
-                    if is_interactive && io::stdin().is_terminal() && io::stdout().is_terminal() {
-                        if run_first_time_setup(startup, &mut auth, &mut cli, &models_path).await? {
-                            model_registry = ModelRegistry::load(&auth, Some(models_path.clone()));
-                            if let Some(error) = model_registry.error() {
-                                eprintln!("Warning: models.json error: {error}");
-                            }
-                            continue;
-                        }
-                        return Ok(());
-                    }
-                }
+    let (mut selection, mut resolved_key) = match resolve_selection_with_auth(
+        &mut cli,
+        &config,
+        &session,
+        &mut model_registry,
+        &scoped_patterns,
+        &mut auth,
+        &models_path,
+        allow_setup_prompt,
+        &[],
+    )
+    .await
+    {
+        Ok(Some(result)) => result,
+        Ok(None) => return Ok(()),
+        Err(err) => {
+            if should_retry_selection_after_extensions(&cli, &err, has_extensions) {
+                (
+                    build_extension_bootstrap_selection(&config, &model_registry, &models_path)?,
+                    None,
+                )
+            } else {
                 return Err(err);
             }
         }
     };
-
-    pi::app::update_session_for_selection(&mut session, &selection);
-
-    if let Some(message) = &selection.fallback_message {
-        eprintln!("Warning: {message}");
-    }
 
     let enabled_tools = cli.enabled_tools();
     let skills_prompt = if enabled_tools.contains(&"read") {
@@ -1106,7 +1207,8 @@ async fn run(
     );
     let provider =
         providers::create_provider(&selection.model_entry, None).map_err(anyhow::Error::new)?;
-    let stream_options = pi::app::build_stream_options(&config, resolved_key, &selection, &session);
+    let stream_options =
+        pi::app::build_stream_options(&config, resolved_key.clone(), &selection, &session);
     let agent_config = AgentConfig {
         system_prompt: Some(system_prompt),
         max_tool_iterations: 50,
@@ -1116,20 +1218,11 @@ async fn run(
 
     let tools = ToolRegistry::new(&enabled_tools, &cwd, Some(&config));
     let session_arc = Arc::new(Mutex::new(session));
-    let context_window_tokens = if selection.model_entry.model.context_window == 0 {
-        tracing::warn!(
-            "Model {} reported context_window=0; falling back to default compaction window",
-            selection.model_entry.model.id
-        );
-        ResolvedCompactionSettings::default().context_window_tokens
-    } else {
-        selection.model_entry.model.context_window
-    };
     let compaction_settings = ResolvedCompactionSettings {
         enabled: config.compaction_enabled(),
         reserve_tokens: config.compaction_reserve_tokens(),
         keep_recent_tokens: config.compaction_keep_recent_tokens(),
-        context_window_tokens,
+        context_window_tokens: context_window_tokens_for_entry(&selection.model_entry),
     };
     let mut agent_session = AgentSession::new(
         Agent::new(provider, tools, agent_config),
@@ -1137,19 +1230,7 @@ async fn run(
         !cli.no_session,
         compaction_settings,
     );
-
-    let history = {
-        let cx = pi::agent_cx::AgentCx::for_request();
-        let session = agent_session
-            .session
-            .lock(cx.cx())
-            .await
-            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        session.to_messages_for_current_path()
-    };
-    if !history.is_empty() {
-        agent_session.agent.replace_messages(history);
-    }
+    let mut extension_model_entries = Vec::new();
 
     if !resources.extensions().is_empty() {
         // Await the pre-warmed extension runtime (spawned earlier to overlap with
@@ -1227,11 +1308,11 @@ async fn run(
 
         // Merge extension-registered providers into the model registry.
         if let Some(region) = &agent_session.extensions {
-            let ext_entries = region.manager().extension_model_entries();
-            if !ext_entries.is_empty() {
+            extension_model_entries = region.manager().extension_model_entries();
+            if !extension_model_entries.is_empty() {
                 // Build OAuth configs map from model entries before merging.
                 let ext_oauth_configs: std::collections::HashMap<String, pi::models::OAuthConfig> =
-                    ext_entries
+                    extension_model_entries
                         .iter()
                         .filter_map(|entry| {
                             entry
@@ -1241,7 +1322,7 @@ async fn run(
                         })
                         .collect();
 
-                model_registry.merge_entries(ext_entries);
+                model_registry.merge_entries(extension_model_entries.clone());
 
                 // Refresh expired OAuth tokens for extension-registered providers.
                 if !ext_oauth_configs.is_empty() {
@@ -1271,8 +1352,86 @@ async fn run(
         .into());
     }
 
+    if has_extensions {
+        let session_snapshot = {
+            let cx = pi::agent_cx::AgentCx::for_request();
+            let session = agent_session
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+            session.clone()
+        };
+
+        let final_selection = resolve_selection_with_auth(
+            &mut cli,
+            &config,
+            &session_snapshot,
+            &mut model_registry,
+            &scoped_patterns,
+            &mut auth,
+            &models_path,
+            allow_setup_prompt,
+            &extension_model_entries,
+        )
+        .await?;
+        let Some((updated_selection, updated_key)) = final_selection else {
+            return Ok(());
+        };
+
+        selection = updated_selection;
+        resolved_key = updated_key;
+
+        let provider = providers::create_provider(
+            &selection.model_entry,
+            agent_session
+                .extensions
+                .as_ref()
+                .map(ExtensionRegion::manager),
+        )
+        .map_err(anyhow::Error::new)?;
+        agent_session.agent.set_provider(provider);
+        {
+            let stream_options = agent_session.agent.stream_options_mut();
+            stream_options.api_key.clone_from(&resolved_key);
+            stream_options
+                .headers
+                .clone_from(&selection.model_entry.headers);
+            stream_options.thinking_level = Some(selection.thinking_level);
+        }
+        agent_session
+            .set_compaction_context_window(context_window_tokens_for_entry(&selection.model_entry));
+    }
+
+    {
+        let cx = pi::agent_cx::AgentCx::for_request();
+        let mut session = agent_session
+            .session
+            .lock(cx.cx())
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        pi::app::update_session_for_selection(&mut session, &selection);
+    }
+
+    if let Some(message) = &selection.fallback_message {
+        eprintln!("Warning: {message}");
+    }
+
     agent_session.set_model_registry(model_registry.clone());
     agent_session.set_auth_storage(auth.clone());
+
+    let history = {
+        let cx = pi::agent_cx::AgentCx::for_request();
+        let session = agent_session
+            .session
+            .lock(cx.cx())
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        session.to_messages_for_current_path()
+    };
+    if !history.is_empty() {
+        agent_session.agent.replace_messages(history);
+    }
 
     // Clone session handle for shutdown flush (ensures autosave queue is drained).
     let session_handle = Arc::clone(&agent_session.session);

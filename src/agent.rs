@@ -4667,6 +4667,10 @@ impl AgentSession {
         self.auth_storage = Some(auth);
     }
 
+    pub const fn set_compaction_context_window(&mut self, context_window_tokens: u32) {
+        self.compaction_settings.context_window_tokens = context_window_tokens;
+    }
+
     pub async fn set_provider_model(&mut self, provider_id: &str, model_id: &str) -> Result<()> {
         {
             let cx = crate::agent_cx::AgentCx::for_request();
