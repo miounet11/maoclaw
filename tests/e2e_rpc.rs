@@ -1002,20 +1002,29 @@ fn rpc_abort_bash_kills_background_children() {
         )
         .await;
 
-        let abort_resp = send_recv(
-            &in_tx,
-            &out_rx,
-            r#"{"id":"2","type":"abort_bash"}"#,
-            "abort_bash(running)",
-        )
-        .await;
-        assert_ok(&abort_resp, "abort_bash");
+        in_tx
+            .send(&cx, r#"{"id":"2","type":"abort_bash"}"#.to_string())
+            .await
+            .expect("send abort_bash");
 
-        let bash_resp = parse_response(
-            &recv_line(&out_rx, "bash(aborted)")
-                .await
-                .expect("receive aborted bash response"),
-        );
+        let mut abort_resp = None;
+        let mut bash_resp = None;
+        for label in ["rpc_abort_bash:first", "rpc_abort_bash:second"] {
+            let resp = parse_response(
+                &recv_line(&out_rx, label)
+                    .await
+                    .unwrap_or_else(|err| panic!("{err}")),
+            );
+            match (resp["command"].as_str(), resp["id"].as_str()) {
+                (Some("abort_bash"), Some("2")) => abort_resp = Some(resp),
+                (Some("bash"), Some("1")) => bash_resp = Some(resp),
+                other => panic!("unexpected response ordering/content: {other:?}"),
+            }
+        }
+
+        let abort_resp = abort_resp.expect("missing abort_bash response");
+        assert_ok(&abort_resp, "abort_bash");
+        let bash_resp = bash_resp.expect("missing bash response");
         assert_ok(&bash_resp, "bash");
         assert_eq!(bash_resp["id"], "1");
         assert_eq!(bash_resp["data"]["cancelled"], true);
