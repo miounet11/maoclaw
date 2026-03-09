@@ -24064,7 +24064,8 @@ impl ExtensionManager {
 
     /// Load persisted permission decisions into the inner state.
     fn load_persisted_permissions(inner: &mut ExtensionManagerInner) {
-        match PermissionStore::open_default() {
+        let path = Config::permissions_path();
+        match PermissionStore::open(&path) {
             Ok(store) => {
                 // Seed the in-memory cache from persisted decisions.
                 inner.policy_prompt_cache = store.to_decision_cache();
@@ -24072,6 +24073,7 @@ impl ExtensionManager {
             }
             Err(e) => {
                 tracing::warn!("Failed to load extension permissions: {e}");
+                inner.permission_store = Some(PermissionStore::empty_at(&path));
             }
         }
     }

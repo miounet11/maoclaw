@@ -79,6 +79,13 @@ impl PermissionStore {
         Self::open(&Config::permissions_path())
     }
 
+    pub(crate) fn empty_at(path: &Path) -> Self {
+        Self {
+            path: path.to_path_buf(),
+            decisions: HashMap::new(),
+        }
+    }
+
     /// Open (or create) the permissions store at a specific path.
     pub fn open(path: &Path) -> Result<Self> {
         let decisions = if path.exists() {
