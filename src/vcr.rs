@@ -833,6 +833,7 @@ fn looks_like_form_body_text(body_text: &str) -> bool {
     }
 
     let mut pair_count = 0usize;
+    let mut first_key_is_sensitive = false;
     for segment in body_text.split('&') {
         let Some((key, _)) = segment.split_once('=') else {
             return false;
@@ -840,10 +841,26 @@ fn looks_like_form_body_text(body_text: &str) -> bool {
         if key.is_empty() {
             return false;
         }
+        if pair_count == 0 {
+            first_key_is_sensitive = is_sensitive_form_key(key);
+        }
         pair_count += 1;
     }
 
-    pair_count > 1
+    pair_count > 1 || first_key_is_sensitive
+}
+
+fn is_sensitive_form_key(raw_key: &str) -> bool {
+    if is_sensitive_key(raw_key) {
+        return true;
+    }
+
+    let mut encoded = String::with_capacity(raw_key.len() + 1);
+    encoded.push_str(raw_key);
+    encoded.push('=');
+    url::form_urlencoded::parse(encoded.as_bytes())
+        .next()
+        .is_some_and(|(decoded_key, _)| is_sensitive_key(&decoded_key))
 }
 
 fn redact_form_body_text(body_text: &str) -> String {
@@ -1262,18 +1279,30 @@ mod tests {
         restore_test_env_var(TEST_VAR, original);
     }
 
+    fn poison_overrides_entry(
+        overrides: &Mutex<HashMap<String, Option<String>>>,
+        name: &str,
+        value: Option<&str>,
+    ) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut guard = overrides
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.insert(name.to_string(), value.map(str::to_string));
+            resume_unwind_while_holding(&mut guard);
+        }));
+    }
+
+    fn resume_unwind_while_holding<T>(_guard: &mut T) -> ! {
+        std::panic::resume_unwind(Box::new("poison override mutex".to_string()))
+    }
+
     #[test]
     fn test_env_var_with_recovers_poisoned_override_value() {
         const TEST_VAR: &str = "PI_AGENT_VCR_TEST_POISON_VALUE";
         let overrides = Mutex::new(HashMap::new());
 
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut guard = overrides
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            guard.insert(TEST_VAR.to_string(), Some("override-value".to_string()));
-            std::panic::resume_unwind(Box::new("poison override mutex".to_string()));
-        }));
+        poison_overrides_entry(&overrides, TEST_VAR, Some("override-value"));
 
         assert_eq!(
             test_env_var_with(&overrides, TEST_VAR, || Some("host-value".to_string())).as_deref(),
@@ -1286,13 +1315,7 @@ mod tests {
         const TEST_VAR: &str = "PI_AGENT_VCR_TEST_POISON_TOMBSTONE";
         let overrides = Mutex::new(HashMap::new());
 
-        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut guard = overrides
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            guard.insert(TEST_VAR.to_string(), None);
-            std::panic::resume_unwind(Box::new("poison override mutex".to_string()));
-        }));
+        poison_overrides_entry(&overrides, TEST_VAR, None);
 
         assert_eq!(
             test_env_var_with(&overrides, TEST_VAR, || Some("host-value".to_string())),
@@ -1519,6 +1542,38 @@ mod tests {
             Some(REDACTED)
         );
         assert_eq!(params.get("scope").map(String::as_str), Some("repo"));
+    }
+
+    #[test]
+    fn normalize_body_text_redacts_single_form_pair_without_content_type() {
+        let normalized = normalize_body_text_for_matching(&[], "client_secret=s3cr3t");
+        let params: std::collections::HashMap<String, String> =
+            url::form_urlencoded::parse(normalized.as_bytes())
+                .map(|(key, value)| (key.into_owned(), value.into_owned()))
+                .collect();
+        assert_eq!(
+            params.get("client_secret").map(String::as_str),
+            Some(REDACTED)
+        );
+    }
+
+    #[test]
+    fn normalize_body_text_redacts_single_encoded_sensitive_form_pair_without_content_type() {
+        let normalized = normalize_body_text_for_matching(&[], "client%5Fsecret=s3cr3t");
+        let params: std::collections::HashMap<String, String> =
+            url::form_urlencoded::parse(normalized.as_bytes())
+                .map(|(key, value)| (key.into_owned(), value.into_owned()))
+                .collect();
+        assert_eq!(
+            params.get("client_secret").map(String::as_str),
+            Some(REDACTED)
+        );
+    }
+
+    #[test]
+    fn normalize_body_text_keeps_non_sensitive_single_pair_without_content_type_verbatim() {
+        let body = "note=a=b";
+        assert_eq!(normalize_body_text_for_matching(&[], body), body);
     }
 
     // ─── redact_headers ──────────────────────────────────────────────
@@ -1801,6 +1856,63 @@ mod tests {
             ),
         };
         assert!(request_matches(&recorded, &incoming));
+    }
+
+    #[test]
+    fn request_matches_redacts_single_form_body_text_without_content_type() {
+        let recorded = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("refresh_token=%5BREDACTED%5D".to_string()),
+        };
+        let incoming = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("refresh_token=real-secret".to_string()),
+        };
+        assert!(request_matches(&recorded, &incoming));
+    }
+
+    #[test]
+    fn request_matches_redacts_single_encoded_sensitive_form_body_text_without_content_type() {
+        let recorded = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("client%5Fsecret=%5BREDACTED%5D".to_string()),
+        };
+        let incoming = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("client_secret=real-secret".to_string()),
+        };
+        assert!(request_matches(&recorded, &incoming));
+    }
+
+    #[test]
+    fn request_matches_does_not_treat_non_sensitive_single_pair_without_content_type_as_form() {
+        let recorded = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("note=a=b".to_string()),
+        };
+        let incoming = RecordedRequest {
+            method: "POST".to_string(),
+            url: "https://x.com".to_string(),
+            headers: vec![],
+            body: None,
+            body_text: Some("note=a%3Db".to_string()),
+        };
+        assert!(!request_matches(&recorded, &incoming));
     }
 
     #[test]
@@ -2302,6 +2414,70 @@ mod tests {
             Some(REDACTED)
         );
         assert_eq!(params.get("scope").map(String::as_str), Some("repo"));
+    }
+
+    #[test]
+    fn redact_cassette_redacts_single_field_request_body_text_without_content_type() {
+        let mut cassette = Cassette {
+            version: "1.0".to_string(),
+            test_name: "single_field_body_text".to_string(),
+            recorded_at: "now".to_string(),
+            interactions: vec![Interaction {
+                request: RecordedRequest {
+                    method: "POST".to_string(),
+                    url: "https://example.com/token".to_string(),
+                    headers: vec![],
+                    body: None,
+                    body_text: Some("refresh_token=s3cr3t".to_string()),
+                },
+                response: RecordedResponse {
+                    status: 200,
+                    headers: vec![],
+                    body_chunks: vec![],
+                    body_chunks_base64: None,
+                },
+            }],
+        };
+
+        let summary = redact_cassette(&mut cassette);
+        assert_eq!(summary.headers_redacted, 0);
+        assert_eq!(summary.json_fields_redacted, 0);
+        assert_eq!(
+            cassette.interactions[0].request.body_text.as_deref(),
+            Some("refresh_token=%5BREDACTED%5D")
+        );
+    }
+
+    #[test]
+    fn redact_cassette_redacts_single_encoded_sensitive_request_body_text_without_content_type() {
+        let mut cassette = Cassette {
+            version: "1.0".to_string(),
+            test_name: "single_encoded_field_body_text".to_string(),
+            recorded_at: "now".to_string(),
+            interactions: vec![Interaction {
+                request: RecordedRequest {
+                    method: "POST".to_string(),
+                    url: "https://example.com/token".to_string(),
+                    headers: vec![],
+                    body: None,
+                    body_text: Some("client%5Fsecret=s3cr3t".to_string()),
+                },
+                response: RecordedResponse {
+                    status: 200,
+                    headers: vec![],
+                    body_chunks: vec![],
+                    body_chunks_base64: None,
+                },
+            }],
+        };
+
+        let summary = redact_cassette(&mut cassette);
+        assert_eq!(summary.headers_redacted, 0);
+        assert_eq!(summary.json_fields_redacted, 0);
+        assert_eq!(
+            cassette.interactions[0].request.body_text.as_deref(),
+            Some("client_secret=%5BREDACTED%5D")
+        );
     }
 
     // ─── VcrRecorder accessors ───────────────────────────────────────
