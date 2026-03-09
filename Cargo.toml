@@ -98,6 +98,7 @@ md-5 = "0.10"
 hmac = "0.12"
 getrandom = "0.4.1"
 regex = "1.12.3"
+semver = "1.0.27"
 crc32c = "0.6"
 ast-grep-core = "0.40"
 ast-grep-language = { version = "0.40", default-features = false, features = [

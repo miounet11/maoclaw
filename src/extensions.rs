@@ -8,6 +8,7 @@ use crate::connectors::Connector;
 use crate::connectors::http::HttpConnector;
 use crate::error::{Error, Result};
 use crate::extension_events::{ToolCallEventResult, ToolResultEventResult};
+use crate::config::Config;
 use crate::extensions_js::{
     ExtensionRepairEvent, ExtensionToolDef, HostcallKind, HostcallRequest, PiJsRuntime,
     PiJsRuntimeConfig, js_to_json, json_to_js,
@@ -35,6 +36,7 @@ use asupersync::{Budget, Cx};
 use async_trait::async_trait;
 use base64::Engine as _;
 use regex::Regex;
+use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::Digest as _;
@@ -23922,78 +23924,56 @@ impl std::fmt::Debug for ExtensionRegion {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct SemverTriplet {
-    major: u32,
-    minor: u32,
-    patch: u32,
-}
-
-fn parse_semver_triplet(input: &str) -> Option<SemverTriplet> {
+fn normalize_semver_literal(input: &str) -> Option<String> {
     let trimmed = input.trim();
     let input = trimmed.strip_prefix('v').unwrap_or(trimmed);
-    let core = input.split(['-', '+']).next()?;
+    let suffix_offset = input.find(['-', '+']).unwrap_or(input.len());
+    let (core, suffix) = input.split_at(suffix_offset);
     let mut parts = core.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts.next()?.parse().ok()?;
-    let patch = parts.next().unwrap_or("0").parse().ok()?;
-    Some(SemverTriplet {
-        major,
-        minor,
-        patch,
-    })
+    let major = parts.next()?;
+    let minor = parts.next()?;
+    let patch = parts.next().unwrap_or("0");
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(format!("{major}.{minor}.{patch}{suffix}"))
 }
 
-fn matches_semver_token(version: SemverTriplet, token: &str) -> bool {
-    let token = token.trim();
-    if token.is_empty() || token == "*" {
-        return true;
-    }
-
-    if let Some(rest) = token.strip_prefix('^') {
-        let Some(lower) = parse_semver_triplet(rest) else {
-            return false;
-        };
-        if version < lower {
-            return false;
+fn normalize_version_requirement(range: &str) -> Option<String> {
+    let mut tokens = Vec::new();
+    for raw_token in range.split_whitespace() {
+        let token = raw_token.trim();
+        if token.is_empty() {
+            continue;
         }
-        if lower.major == 0 {
-            if lower.minor == 0 {
-                return version.major == 0 && version.minor == 0 && version.patch == lower.patch;
-            }
-            return version.major == 0 && version.minor == lower.minor;
+        if token == "*" {
+            tokens.push("*".to_string());
+            continue;
         }
-        return version.major == lower.major;
-    }
 
-    if let Some(rest) = token.strip_prefix('~') {
-        let Some(lower) = parse_semver_triplet(rest) else {
-            return false;
+        let (op, version) = if let Some(rest) = token.strip_prefix(">=") {
+            (">=", rest)
+        } else if let Some(rest) = token.strip_prefix("<=") {
+            ("<=", rest)
+        } else if let Some(rest) = token.strip_prefix('>') {
+            (">", rest)
+        } else if let Some(rest) = token.strip_prefix('<') {
+            ("<", rest)
+        } else if let Some(rest) = token.strip_prefix('^') {
+            ("^", rest)
+        } else if let Some(rest) = token.strip_prefix('~') {
+            ("~", rest)
+        } else if let Some(rest) = token.strip_prefix('=') {
+            ("=", rest)
+        } else {
+            ("=", token)
         };
-        return version >= lower && version.major == lower.major && version.minor == lower.minor;
+
+        let normalized_version = normalize_semver_literal(version)?;
+        tokens.push(format!("{op}{normalized_version}"));
     }
 
-    if let Some(rest) = token.strip_prefix(">=") {
-        return parse_semver_triplet(rest).is_some_and(|lower| version >= lower);
-    }
-
-    if let Some(rest) = token.strip_prefix("<=") {
-        return parse_semver_triplet(rest).is_some_and(|upper| version <= upper);
-    }
-
-    if let Some(rest) = token.strip_prefix('>') {
-        return parse_semver_triplet(rest).is_some_and(|lower| version > lower);
-    }
-
-    if let Some(rest) = token.strip_prefix('<') {
-        return parse_semver_triplet(rest).is_some_and(|upper| version < upper);
-    }
-
-    if let Some(rest) = token.strip_prefix('=') {
-        return parse_semver_triplet(rest).is_some_and(|expected| version == expected);
-    }
-
-    parse_semver_triplet(token).is_some_and(|expected| version == expected)
+    (!tokens.is_empty()).then(|| tokens.join(", "))
 }
 
 fn check_version_constraint(version: &str, range: &str) -> bool {
@@ -24002,13 +23982,17 @@ fn check_version_constraint(version: &str, range: &str) -> bool {
         return true;
     }
 
-    let Some(version) = parse_semver_triplet(version) else {
+    let Some(version) = normalize_semver_literal(version) else {
+        return false;
+    };
+    let Some(range) = normalize_version_requirement(range) else {
         return false;
     };
 
-    range
-        .split_whitespace()
-        .all(|token| matches_semver_token(version, token))
+    let Ok(version) = Version::parse(&version) else {
+        return false;
+    };
+    VersionReq::parse(&range).is_ok_and(|req| req.matches(&version))
 }
 
 impl ExtensionManager {
@@ -31187,6 +31171,14 @@ mod tests {
     }
 
     #[test]
+    fn check_version_constraint_preserves_prerelease_semantics() {
+        assert!(check_version_constraint("2.0.0-beta.1", "2.0.0-beta.1"));
+        assert!(!check_version_constraint("2.0.0-beta.2", "2.0.0-beta.1"));
+        assert!(!check_version_constraint("2.0.0-beta.1", "2.0.0"));
+        assert!(!check_version_constraint("2.0.0", "2.0.0-beta.1"));
+    }
+
+    #[test]
     fn cached_policy_prompt_decision_honors_compound_version_range() {
         let manager = extension_manager_no_persisted_permissions();
         {
@@ -31346,6 +31338,47 @@ mod tests {
                         decided_at: "2026-01-01T00:00:00Z".to_string(),
                         expires_at: None,
                         version_range: Some(">=2.0.0 <3.0.0".to_string()),
+                    },
+                )]),
+            );
+        }
+
+        assert_eq!(manager.cached_policy_prompt_decision("ext-1", "exec"), None);
+    }
+
+    #[test]
+    fn cached_policy_prompt_decision_rejects_prerelease_mismatch() {
+        let manager = extension_manager_no_persisted_permissions();
+        {
+            let mut guard = manager
+                .inner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.extensions.push(RegisterPayload {
+                name: "ext-1".to_string(),
+                version: "2.0.0-beta.1".to_string(),
+                api_version: "1.0.0".to_string(),
+                capabilities: Vec::new(),
+                capability_manifest: None,
+                tools: Vec::new(),
+                slash_commands: Vec::new(),
+                shortcuts: Vec::new(),
+                flags: Vec::new(),
+                event_hooks: Vec::new(),
+            });
+            guard
+                .extension_versions
+                .insert("ext-1".to_string(), "2.0.0-beta.1".to_string());
+            guard.policy_prompt_cache.insert(
+                "ext-1".to_string(),
+                HashMap::from([(
+                    "exec".to_string(),
+                    PersistedDecision {
+                        capability: "exec".to_string(),
+                        allow: true,
+                        decided_at: "2026-01-01T00:00:00Z".to_string(),
+                        expires_at: None,
+                        version_range: Some("2.0.0".to_string()),
                     },
                 )]),
             );

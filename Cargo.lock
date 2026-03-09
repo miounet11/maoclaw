@@ -4098,6 +4098,7 @@ dependencies = [
  "regex",
  "rich_rust",
  "rquickjs",
+ "semver",
  "serde",
  "serde_json",
  "sha1",
