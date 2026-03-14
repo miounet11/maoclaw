@@ -19,7 +19,7 @@
   "conflict_resolution_rules": [
     "1. models.dev ID is canonical when all sources agree (e.g., 'anthropic', 'openai', 'groq')",
     "2. When models.dev and opencode disagree, prefer models.dev ID as canonical; opencode ID becomes alias (e.g., canonical='google', alias='gemini')",
-    "3. When pi_agent_rust uses a non-standard ID, add the upstream ID as primary canonical and keep the pi ID as alias with deprecation notice (e.g., canonical='fireworks-ai', alias='fireworks')",
+    "3. When maoclaw uses a non-standard ID, add the upstream ID as primary canonical and keep the pi ID as alias with deprecation notice (e.g., canonical='fireworks-ai', alias='fireworks')",
     "4. Regional variants (e.g., 'alibaba-cn', 'moonshotai-cn') are distinct canonical IDs, not aliases",
     "5. Coding-plan variants (e.g., 'minimax-coding-plan') are distinct canonical IDs",
     "6. Extension-registered providers use their extension-declared ID as-is; no alias normalization"

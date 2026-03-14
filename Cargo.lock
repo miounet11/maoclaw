@@ -4056,7 +4056,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pi_agent_rust"
+name = "maoclaw"
 version = "0.1.8"
 dependencies = [
  "anyhow",
