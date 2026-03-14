@@ -1,4 +1,4 @@
-# AGENTS.md — pi_agent_rust (Pi CLI Coding Agent)
+# AGENTS.md — maoclaw
 
 > Guidelines for AI coding agents working in this Rust codebase.
 
@@ -115,7 +115,7 @@ We do not care about backwards compatibility—we're in early development with n
 
 When editing docs, release notes, or user-facing copy:
 
-- Do not describe Pi Rust as a strict drop-in replacement unless `docs/dropin-certification-contract.json` hard gates are satisfied.
+- Do not describe maoclaw as a strict drop-in replacement unless `docs/dropin-certification-contract.json` hard gates are satisfied.
 - Treat `docs/dropin-certification-verdict.json` as the release claim gate: strict replacement language requires `overall_verdict = CERTIFIED`.
 - Treat `docs/parity-certification.json` as informational progress evidence only; it does not override release-gate policy.
 
@@ -139,12 +139,12 @@ cargo fmt --check
 For heavyweight local runs (especially `--all-targets`) in multi-agent environments, set both build artifacts and test temp files to a high-capacity tmpfs to avoid `No space left on device` failures:
 
 ```bash
-export CARGO_TARGET_DIR="/data/tmp/pi_agent_rust/${USER:-agent}"
-export TMPDIR="/data/tmp/pi_agent_rust/${USER:-agent}/tmp"
+export CARGO_TARGET_DIR="/data/tmp/maoclaw/${USER:-agent}"
+export TMPDIR="/data/tmp/maoclaw/${USER:-agent}/tmp"
 mkdir -p "$TMPDIR"
 ```
 
-Use an agent-specific suffix (for example `/data/tmp/pi_agent_rust/topazfalcon`) to avoid collisions across concurrent agents.
+Use an agent-specific suffix (for example `/data/tmp/maoclaw/topazfalcon`) to avoid collisions across concurrent agents.
 
 If you see errors, **carefully understand and resolve each issue**. Read sufficient context to fix them the RIGHT way.
 
@@ -182,9 +182,9 @@ cargo test conformance
 
 ---
 
-## Pi Agent — This Project
+## maoclaw — This Project
 
-**This is the project you're working on.** Pi is a high-performance AI coding agent CLI, a Rust port of the Pi Agent TypeScript CLI. It provides an interactive terminal interface for AI-assisted coding with streaming responses, tool execution, and session persistence.
+**This is the project you're working on.** maoclaw is a high-performance AI agent framework and product runtime. It provides interactive terminal usage, automation surfaces, tool execution, extension capabilities, and session persistence.
 
 ### Architecture
 
@@ -654,7 +654,7 @@ rg -l -t rust 'unwrap\(' | xargs ast-grep run -l Rust -p '$X.unwrap()' --json
 
 ```
 mcp__morph-mcp__warp_grep(
-  repoPath: "/path/to/pi_agent_rust",
+  repoPath: "/path/to/maoclaw",
   query: "How does the SSE parser handle streaming events?"
 )
 ```

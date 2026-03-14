@@ -1,16 +1,16 @@
 [package]
-name = "pi_agent_rust"
+name = "maoclaw"
 version = "0.1.8"
 edition = "2024"
 rust-version = "1.85"
-description = "High-performance AI coding agent CLI - Rust port of Pi Agent"
+description = "maoclaw - AI agent framework and development solution with local-first runtime surfaces"
 authors = ["Jeffrey Emanuel"]
 license-file = "LICENSE"
-repository = "https://github.com/Dicklesworthstone/pi_agent_rust"
-homepage = "https://github.com/Dicklesworthstone/pi_agent_rust"
-documentation = "https://docs.rs/pi_agent_rust"
+repository = "https://github.com/miounet11/maoclaw"
+homepage = "https://xinxiang.xin"
+documentation = "https://docs.rs/maoclaw"
 readme = "README.md"
-keywords = ["ai", "cli", "coding-agent", "llm", "anthropic"]
+keywords = ["ai", "agent", "framework", "cli", "llm"]
 categories = ["command-line-utilities", "development-tools"]
 include = [
     "docs/extension-artifact-provenance.json",
@@ -32,6 +32,15 @@ path = "src/lib.rs"
 [[bin]]
 name = "pi"
 path = "src/main.rs"
+
+[[bin]]
+name = "maoclaw"
+path = "src/bin/maoclaw.rs"
+
+[[bin]]
+name = "pi_desktop"
+path = "src/bin/pi_desktop.rs"
+required-features = ["desktop-iced"]
 
 [dependencies]
 # CLI
@@ -61,6 +70,7 @@ thiserror = "2"
 # Terminal output (rich_rust for beautiful TUI)
 rich_rust = { version = "0.2.0", features = ["full"] }
 crossterm = "0.29"
+iced = { version = "0.12", default-features = false, features = ["wgpu", "image", "svg"], optional = true }
 
 # Interactive TUI (charmed_rust - bubbletea/lipgloss/bubbles/glamour)
 bubbletea = { package = "charmed-bubbletea", version = "0.2.0" }
@@ -170,6 +180,7 @@ sqlite-sessions = []
 ext-conformance = []
 fuzzing = []
 jemalloc = ["tikv-jemallocator"]
+desktop-iced = ["dep:iced"]
 
 [profile.release]
 opt-level = 3
@@ -228,3 +239,7 @@ module_name_repetitions = "allow"
 # charmed-harmonica = { path = "../charmed_rust/crates/harmonica" }
 # sqlmodel-core = { path = "../sqlmodel_rust/crates/sqlmodel-core" }
 # sqlmodel-sqlite = { path = "../sqlmodel_rust/crates/sqlmodel-sqlite" }
+
+[patch.crates-io]
+iced_winit = { path = "vendor/iced_winit" }
+iced_widget = { path = "vendor/iced_widget" }

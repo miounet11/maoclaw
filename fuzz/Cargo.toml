@@ -1,5 +1,5 @@
 [package]
-name = "pi_agent_rust-fuzz"
+name = "maoclaw-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2024"
@@ -10,7 +10,7 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 arbitrary = { version = "1", features = ["derive"] }
-pi = { package = "pi_agent_rust", path = "..", default-features = false, features = ["fuzzing"] }
+pi = { package = "maoclaw", path = "..", default-features = false, features = ["fuzzing"] }
 futures = "0.3"
 serde_json = "1"
 tempfile = "3"
@@ -18,10 +18,6 @@ tempfile = "3"
 # Prevent this from interfering with workspaces
 [workspace]
 members = ["."]
-
-# Pin asupersync to the same git revision used by the main workspace
-[patch.crates-io]
-asupersync = { git = "https://github.com/Dicklesworthstone/asupersync.git", rev = "673cf66" }
 
 [build-dependencies]
 vergen-gix = { version = "=9.1.0" }

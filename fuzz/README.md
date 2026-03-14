@@ -1,4 +1,4 @@
-# Fuzzing in pi_agent_rust
+# Fuzzing in maoclaw
 
 This directory contains `cargo-fuzz` harnesses and seed corpora for coverage-guided fuzzing.
 
@@ -42,8 +42,8 @@ Always run heavy fuzz commands through `rch`.
 Set high-capacity temporary paths first:
 
 ```bash
-export CARGO_TARGET_DIR="/data/tmp/pi_agent_rust/${USER:-agent}"
-export TMPDIR="/data/tmp/pi_agent_rust/${USER:-agent}/tmp"
+export CARGO_TARGET_DIR="/data/tmp/maoclaw/${USER:-agent}"
+export TMPDIR="/data/tmp/maoclaw/${USER:-agent}/tmp"
 mkdir -p "$TMPDIR"
 cd fuzz
 ```
