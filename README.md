@@ -5,11 +5,23 @@
 <h1 align="center">maoclaw</h1>
 
 <p align="center">
-  <strong>Maozhua (`猫爪`) / maoclaw - independent AI coding agent CLI with upstream lineage from pi_agent_rust</strong>
+  <strong>`猫爪` / maoclaw - an independently developed original AI coding agent project from China</strong>
+</p>
+
+<p align="center">
+  Official website: <a href="https://xinxiang.xin">xinxiang.xin</a>
+</p>
+
+<p align="center">
+  Docs:
+  <a href="docs/i18n/zh/README.md">中文</a> /
+  <a href="docs/i18n/en/README.md">English</a> /
+  <a href="docs/i18n/ja/README.md">日本語</a>
 </p>
 
 <p align="center">
   <a href="#status">Status</a> •
+  <a href="#language-docs">Language Docs</a> •
   <a href="#why-migrate-now">Why Migrate Now?</a> •
   <a href="#why-should-you-care">Why Should You Care?</a> •
   <a href="#tldr-piopenclaw-users">TL;DR</a> •
@@ -42,10 +54,19 @@ curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?
 
 ## Status
 
-`maoclaw` is the repository, package, and public product identity. Its low-level runtime remains intentionally aligned with `pi_agent_rust` behavior where parity matters, while the public surface is now branded as `maoclaw`. The compatibility command remains `pi` during the transition.
+`maoclaw` is the repository, package, and public product identity. It is presented as a new independently developed product from China, with its own release direction, desktop surface, and deployment path. The compatibility command remains `pi` during the transition.
+
+Brand and language policy:
+
+- Chinese name: `猫爪`
+- Global / English name: `maoclaw`
+- Japanese-facing name: `猫爪 / maoclaw`
+- Official website: `https://xinxiang.xin`
+- Public-facing communication targets: Chinese, English, and Japanese
 
 The current launch posture is intentionally narrow:
 
+- It is an original China-developed product, not just a renamed mirror.
 - Maozhua v0.1 is a small-scope public trial release.
 - It is migration-first, not parity-first.
 - It supports validated Pi migration paths on core CLI workflows.
@@ -54,6 +75,24 @@ The current launch posture is intentionally narrow:
 For the public truth snapshot, see [STATUS.md](STATUS.md).
 For the curated documentation entrypoint, see [docs/README.md](docs/README.md).
 For open-source positioning and deployment, see [docs/open-source-overview.md](docs/open-source-overview.md) and [docs/deployment-guide.md](docs/deployment-guide.md).
+
+## Language Docs
+
+GitHub-facing user documentation is available in three languages:
+
+- [中文文档](docs/i18n/zh/README.md)
+- [English documentation](docs/i18n/en/README.md)
+- [日本語ドキュメント](docs/i18n/ja/README.md)
+
+Each language portal includes:
+
+- quick start
+- installation and deployment
+- usage and configuration
+- provider and API key setup
+- RPC and integration guidance
+- FAQ
+- release changelog
 
 ## What Ships Now
 
@@ -83,7 +122,7 @@ You want an AI coding assistant in your terminal, but existing tools are:
 
 ## The Solution
 
-**maoclaw** is an independent Rust AI coding agent project with lineage from the upstream `pi_agent_rust` effort and the original [Pi Agent](https://github.com/badlogic/pi) by [Mario Zechner](https://github.com/badlogic). It keeps the low-level runtime discipline needed for parity, while shipping under its own repository, package, desktop product, and release process.
+**maoclaw** is an independently developed Rust AI coding agent project from China. It has its own product direction, release process, repository identity, desktop surface, and deployment model. Where compatibility matters, it keeps disciplined runtime behavior and migration paths instead of pretending to be a superficial rebrand.
 
 Rather than a direct line-by-line translation, this port builds on two purpose-built Rust libraries:
 - **[asupersync](https://github.com/Dicklesworthstone/asupersync)**: A structured concurrency async runtime with built-in HTTP, TLS, and SQLite

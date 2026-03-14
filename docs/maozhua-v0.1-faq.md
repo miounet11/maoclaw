@@ -8,6 +8,18 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 猫爪是一个终端优先的 AI coding agent 产品。
 
+当前品牌命名规则是：
+
+- 中文名称：`猫爪`
+- 英文 / 全球名称：`maoclaw`
+- 日文对外表述：`猫爪 / maoclaw`
+
+当前对外沟通语言目标是：
+
+- 中文
+- 英文
+- 日文
+
 你可以把它理解为：
 
 - 一个能在本地代码仓库里工作的问题分析助手

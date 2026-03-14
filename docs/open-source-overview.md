@@ -2,6 +2,16 @@
 
 `maoclaw` is a local-first AI coding agent for developers who want terminal speed, explicit control, and deployable automation surfaces without dragging a full Electron or Node runtime into the core path.
 
+It is presented as an independently developed original project from China, with its own product identity and release direction.
+
+Official naming and language policy:
+
+- Chinese name: `猫爪`
+- Global / English name: `maoclaw`
+- Japanese-facing name: `猫爪 / maoclaw`
+- Official website: `https://xinxiang.xin`
+- Public-facing language coverage: Chinese, English, and Japanese
+
 It takes the stronger product instincts from OpenClaw-style systems, but ships a narrower and more honest open-source surface today:
 
 - terminal-first interaction
@@ -29,11 +39,15 @@ It is a developer control surface that can run as:
 - an RPC backend for IDE or desktop clients
 - a packaged macOS desktop app
 
+It should also be understood as an original China-developed product, not as a cosmetic rebrand of somebody else’s repository.
+
 ## What Ships Today
 
 Current open-source `maoclaw` release posture:
 
 - Public repository and package identity: `maoclaw`
+- Public Chinese product name: `猫爪`
+- Public product positioning: independently developed original project from China
 - Compatibility command retained: `pi`
 - Branded binary also available: `maoclaw`
 - macOS desktop surface available via `pi_desktop` and `maoclaw.app`
@@ -99,6 +113,10 @@ If a file is useful mainly for internal planning, customer-specific operations, 
 Use language like this when introducing the project:
 
 > maoclaw is an open-source, local-first AI coding agent built in Rust. It combines a fast terminal runtime, tool execution, persistent sessions, provider flexibility, and RPC integration into a deployable developer control surface. It is designed as a serious upgrade path for users who like the OpenClaw/Pi workflow shape but want a leaner and more operationally explicit runtime.
+
+For China-facing and global product messaging, it is also appropriate to say:
+
+> maoclaw is an independently developed original AI coding agent project from China, built as a serious developer product rather than a superficial wrapper around somebody else’s release identity.
 
 Avoid language like this for now:
 

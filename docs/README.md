@@ -2,8 +2,27 @@
 
 This directory contains both canonical `maoclaw` documentation and a large amount of planning, audit, parity, and contract material.
 
+Brand baseline for canonical docs:
+
+- Chinese name: `猫爪`
+- Global / English name: `maoclaw`
+- Japanese-facing name: `猫爪 / maoclaw`
+- Official website: `https://xinxiang.xin`
+- Public-facing language targets: Chinese, English, and Japanese
+
 If you are looking for the current product story, do **not** start by opening random files in `docs/`.
 Start with the canonical set below.
+
+## Multilingual Portals
+
+GitHub-facing language entrypoints:
+
+- [i18n/README.md](i18n/README.md) - multilingual switchboard
+- [i18n/zh/README.md](i18n/zh/README.md) - Chinese user docs
+- [i18n/en/README.md](i18n/en/README.md) - English user docs
+- [i18n/ja/README.md](i18n/ja/README.md) - Japanese user docs
+
+Each language portal includes quick start, installation, usage, provider setup, integration guidance, FAQ, and changelog pages.
 
 ## Canonical Docs
 

@@ -1,0 +1,56 @@
+# 常见问题
+
+## 猫爪是什么？
+
+`猫爪 / maoclaw` 是一个来自中国、独立开发的 AI coding agent 项目，当前以终端优先的 Rust 运行时为核心。
+
+## 为什么命令还是 `pi`？
+
+因为当前版本保留兼容命令来降低迁移成本。这是设计选择，不是安装错误。
+
+## 它已经是正式商用稳定版了吗？
+
+还不是。当前公开姿态仍然是小范围试用和持续升级。
+
+## 它能完全替代原来的 Pi / OpenClaw 吗？
+
+不能直接这样承诺。当前是 migration-first 路线，不应宣传为 strict drop-in replacement。
+
+## 现在最适合哪些场景？
+
+- 本地仓库分析
+- 代码搜索与解释
+- 轻量修改建议
+- 会话继续
+- 基础 RPC 集成
+
+## 当前支持哪些内置工具？
+
+- `read`
+- `write`
+- `edit`
+- `bash`
+- `grep`
+- `find`
+- `ls`
+
+## 现在最推荐哪些 Provider？
+
+- Anthropic
+- OpenAI
+- Google / Gemini
+- Azure OpenAI
+
+## 首次跑不通怎么办？
+
+先检查：
+
+1. `pi --version`
+2. API Key 是否存在
+3. 当前目录是否正确
+4. Provider 是否可用
+5. 是否先用了最简单的命令
+
+## 更完整的 FAQ 在哪里？
+
+- [../../maozhua-v0.1-faq.md](../../maozhua-v0.1-faq.md)
