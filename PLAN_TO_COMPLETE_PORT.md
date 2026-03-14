@@ -1,6 +1,6 @@
-# Plan: Complete pi_agent_rust Port
+# Plan: Complete maoclaw Core Program
 
-> **Goal:** 100% feature/functionality coverage with clear conformance harness and benchmarking, fully leveraging asupersync, rich_rust, and charmed_rust.
+> **Goal:** Continue strengthening maoclaw as a complete AI agent runtime, framework, and product surface with clear conformance and benchmarking.
 
 > **Important:** This document is a historical overview, not the live backlog.
 > For the authoritative plan, use Beads:
@@ -38,7 +38,7 @@
 
 ### 1.1 asupersync Integration
 
-**Status (today):** `pi_agent_rust` runs on `asupersync` for runtime + HTTP/TLS and provider streaming (see `src/http/client.rs` + `src/sse.rs`).
+**Status (today):** `maoclaw` runs on `asupersync` for runtime + HTTP/TLS and provider streaming (see `src/http/client.rs` + `src/sse.rs`).
 
 **Remaining:** Capability wrapper (`AgentCx`) and deeper context wiring are tracked in `bd-3i7u` and `bd-1xf`.
 

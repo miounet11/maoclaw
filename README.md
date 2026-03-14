@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>`猫爪` / maoclaw</strong><br/>
-  An original AI coding agent product developed in China
+  An original AI agent framework and development solution developed in China
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@ curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?
 
 ## Overview
 
-`maoclaw` is a local-first AI coding agent focused on speed, clear operator control, and practical integration surfaces.
+`maoclaw` is a local-first AI agent framework focused on speed, clear operator control, and practical integration surfaces.
 
 It currently ships with:
 
@@ -42,6 +42,7 @@ It currently ships with:
 - session persistence and resume flows
 - built-in file, search, and shell tools
 - provider configuration for major model operators
+- agent skills, prompts, themes, and extension capabilities
 - macOS desktop packaging on top of the same Rust runtime
 
 Public naming policy:
@@ -61,6 +62,18 @@ Modern coding tools often force developers into heavy desktop shells, unclear ru
 - explicit about configuration
 - suitable for both direct use and product integration
 - honest about current release boundaries
+
+## Framework Advantages
+
+`maoclaw` is designed as a general AI agent development and cultivation solution:
+
+- Rust 2024 runtime with a single-binary delivery model
+- low-overhead execution with explicit state, tool, and provider control
+- one runtime for CLI, automation, RPC, and desktop surfaces
+- explicit session, state, and tool orchestration
+- provider abstraction for multi-operator routing
+- extensible skills, prompts, themes, and extension model
+- strong suitability for local agents, domain agents, and productized agent workflows
 
 ## What You Can Do Today
 
@@ -164,7 +177,7 @@ The current public release is a focused trial release.
 It is suitable for:
 
 - developers evaluating terminal-first AI workflows
-- teams testing local coding-agent operations
+- teams building internal AI agent systems
 - product integration experiments through RPC
 - macOS-first product demos and internal rollout
 
@@ -176,6 +189,6 @@ For exact scope, use:
 
 ## Project Direction
 
-`maoclaw` is positioned as an original product with its own repository, release identity, documentation system, and desktop surface.
+`maoclaw` is positioned as an original product with its own repository, release identity, documentation system, framework direction, and desktop surface.
 
 The public documentation and release messaging should use `maoclaw` / `猫爪` as the primary identity.

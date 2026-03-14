@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# pi_agent_rust installer
+# maoclaw installer
 #
 # One-liner install:
-#   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash
+#   curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 #
 # Highlights:
 # - Installs latest (or requested) GitHub release binary for your platform
@@ -16,8 +16,8 @@ set -euo pipefail
 umask 022
 shopt -s lastpipe 2>/dev/null || true
 
-OWNER="${OWNER:-Dicklesworthstone}"
-REPO="${REPO:-pi_agent_rust}"
+OWNER="${OWNER:-miounet11}"
+REPO="${REPO:-maoclaw}"
 VERSION="${VERSION:-}"
 
 DEST_DEFAULT="$HOME/.local/bin"
@@ -36,6 +36,8 @@ FORCE_INSTALL=0
 OFFLINE="${PI_INSTALLER_OFFLINE:-0}"
 OFFLINE_TARBALL="${PI_INSTALLER_OFFLINE_TARBALL:-}"
 AGENT_SKILLS_ENABLED="${AGENT_SKILLS_ENABLED:-1}"
+MACOS_LAUNCHER_MODE="${PI_INSTALLER_MACOS_LAUNCHER_MODE:-auto}"
+MACOS_LAUNCHER_PATH="${PI_INSTALLER_MACOS_LAUNCHER_PATH:-}"
 
 CHECKSUM="${CHECKSUM:-}"
 CHECKSUM_URL="${CHECKSUM_URL:-}"
@@ -75,21 +77,29 @@ LEGACY_TARGET_PATH=""
 LEGACY_MOVED_FROM=""
 LEGACY_MOVED_TO=""
 
-PATH_MARKER="# pi-agent-rust installer PATH"
+PATH_MARKER="# maoclaw installer PATH"
+LEGACY_PATH_MARKER="# pi-agent-rust installer PATH"
 PATH_UPDATED_FILES=""
+LEGACY_BRAND_TOKEN="pi""_agent_rust"
 
-AGENT_SKILL_NAME="pi-agent-rust"
+AGENT_SKILL_NAME="maoclaw"
+LEGACY_AGENT_SKILL_NAME="pi-agent-rust"
 AGENT_SKILL_STATUS="pending"
 AGENT_SKILL_CLAUDE_PATH=""
 AGENT_SKILL_CODEX_PATH=""
-AGENT_SKILL_MARKER="pi_agent_rust installer managed skill"
+AGENT_SKILL_MARKER="maoclaw installer managed skill"
+LEGACY_AGENT_SKILL_MARKER="${LEGACY_BRAND_TOKEN} installer managed skill"
+MACOS_LAUNCHER_STATUS="pending"
+MACOS_LAUNCHER_MARKER="maoclaw installer managed macOS launcher"
+LEGACY_MACOS_LAUNCHER_MARKER="${LEGACY_BRAND_TOKEN} installer managed macOS launcher"
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-agent-rust"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/maoclaw"
+LEGACY_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-agent-rust"
 STATE_FILE="$STATE_DIR/install-state.env"
 STATE_VERSION="1"
 
 TMP=""
-LOCK_DIR="/tmp/pi-agent-rust-install.lock.d"
+LOCK_DIR="${PI_INSTALLER_LOCK_DIR:-/tmp/maoclaw-install.lock.d}"
 LOCKED=0
 MIGRATION_MOVED=0
 INSTALL_COMMITTED=0
@@ -646,6 +656,9 @@ Options:
   --completions SHELL    Install shell completions for auto|off|bash|zsh|fish
   --no-completions       Skip shell completion installation
   --no-agent-skills      Skip installing AI agent skill files for Claude/Codex
+  --macos-launcher-path PATH
+                         Install a Finder-launchable maoclaw.command at PATH
+  --no-macos-launcher    Skip installing the macOS Finder launcher
   --yes, -y              Non-interactive yes to prompts
   --adopt                Auto-adopt Rust as canonical `pi` when TS pi is detected
   --keep-existing-pi     Do not replace existing `pi`; install as `pi-rust`
@@ -762,6 +775,20 @@ while [ $# -gt 0 ]; do
       AGENT_SKILLS_ENABLED=0
       shift
       ;;
+    --macos-launcher-path)
+      if [ $# -lt 2 ] || [[ "$2" == -* ]]; then
+        err "Option --macos-launcher-path requires a value"
+        usage
+        exit 1
+      fi
+      MACOS_LAUNCHER_MODE="on"
+      MACOS_LAUNCHER_PATH="$2"
+      shift 2
+      ;;
+    --no-macos-launcher)
+      MACOS_LAUNCHER_MODE="off"
+      shift
+      ;;
     --yes|-y)
       YES=1
       shift
@@ -830,7 +857,7 @@ show_header() {
       --padding "1 3" \
       --margin "1 0" \
       "$styled_logo" \
-      "$(gum style --foreground 51 --bold "${header_indent}Pi Agent Rust Installer")" \
+      "$(gum style --foreground 51 --bold "${header_indent}maoclaw Installer")" \
       "$(gum style --foreground 226 --bold "${header_indent}Install target version: ${header_version}")" \
       "$(gum style --foreground 252 "${header_indent}Based on Pi Agent by Mario Zechner")" \
       "$(gum style --foreground 252 "${header_indent}Rust version by Jeffrey Emanuel")" \
@@ -841,7 +868,7 @@ show_header() {
     echo ""
     pi_ascii_logo_ansi "$logo"
     echo ""
-    echo -e "\033[1;38;5;51m${header_indent}Pi Agent Rust Installer\033[0m"
+    echo -e "\033[1;38;5;51m${header_indent}maoclaw Installer\033[0m"
     echo -e "\033[1;38;5;226m${header_indent}Install target version: ${header_version}\033[0m"
     echo -e "\033[0;38;5;252m${header_indent}Based on Pi Agent by Mario Zechner\033[0m"
     echo -e "\033[0;38;5;252m${header_indent}Rust version by Jeffrey Emanuel\033[0m"
@@ -1134,6 +1161,20 @@ validate_options() {
       ;;
   esac
 
+  case "$MACOS_LAUNCHER_MODE" in
+    auto|on|off)
+      ;;
+    *)
+      warn "Invalid PI_INSTALLER_MACOS_LAUNCHER_MODE value '$MACOS_LAUNCHER_MODE'; defaulting to auto"
+      MACOS_LAUNCHER_MODE="auto"
+      ;;
+  esac
+
+  if [ -n "$MACOS_LAUNCHER_PATH" ] && [[ "$MACOS_LAUNCHER_PATH" != *.command ]]; then
+    err "--macos-launcher-path must end with .command"
+    exit 1
+  fi
+
   if [ "$FROM_SOURCE" -eq 1 ] && [ -n "$ARTIFACT_URL" ]; then
     warn "--artifact-url is ignored with --from-source"
   fi
@@ -1303,6 +1344,50 @@ looks_like_node_script() {
   return 1
 }
 
+canonicalize_existing_path() {
+  local path="$1"
+  [ -n "$path" ] || return 1
+  local dir base
+  dir="$(dirname "$path")"
+  base="$(basename "$path")"
+  dir="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
+  printf '%s/%s\n' "$dir" "$base"
+}
+
+canonicalize_dir_path() {
+  local path="$1"
+  [ -n "$path" ] || return 1
+  cd "$path" 2>/dev/null && pwd -P
+}
+
+same_physical_path() {
+  local left="$1"
+  local right="$2"
+  [ -n "$left" ] || return 1
+  [ -n "$right" ] || return 1
+
+  local left_canon="" right_canon=""
+  left_canon="$(canonicalize_existing_path "$left" 2>/dev/null || true)"
+  right_canon="$(canonicalize_existing_path "$right" 2>/dev/null || true)"
+  [ -n "$left_canon" ] || return 1
+  [ -n "$right_canon" ] || return 1
+  [ "$left_canon" = "$right_canon" ]
+}
+
+same_physical_dir() {
+  local left="$1"
+  local right="$2"
+  [ -n "$left" ] || return 1
+  [ -n "$right" ] || return 1
+
+  local left_canon="" right_canon=""
+  left_canon="$(canonicalize_dir_path "$left" 2>/dev/null || true)"
+  right_canon="$(canonicalize_dir_path "$right" 2>/dev/null || true)"
+  [ -n "$left_canon" ] || return 1
+  [ -n "$right_canon" ] || return 1
+  [ "$left_canon" = "$right_canon" ]
+}
+
 detect_existing_pi() {
   CURRENT_PI_PATH=$(command -v pi 2>/dev/null || true)
   CURRENT_PI_VERSION=""
@@ -1392,7 +1477,7 @@ choose_dest_for_adoption() {
   fi
 
   if [ "$DEST_EXPLICIT" -eq 1 ]; then
-    if [ -n "$current_dir" ] && [ "$DEST" = "$current_dir" ]; then
+    if [ -n "$current_dir" ] && same_physical_dir "$DEST" "$current_dir"; then
       ADOPT_CANONICAL=1
     else
       ADOPT_CANONICAL=0
@@ -1768,7 +1853,7 @@ choose_legacy_alias_path() {
     return 0
   fi
 
-  if grep -q "pi_agent_rust installer managed alias" "$candidate" 2>/dev/null; then
+  if grep -Eq "maoclaw installer managed alias|${LEGACY_BRAND_TOKEN} installer managed alias" "$candidate" 2>/dev/null; then
     LEGACY_ALIAS_PATH="$candidate"
     return 0
   fi
@@ -1802,7 +1887,7 @@ create_legacy_alias_wrapper() {
 
   {
     printf '#!/usr/bin/env bash\n'
-    printf '# pi_agent_rust installer managed alias\n'
+    printf '# maoclaw installer managed alias\n'
     printf 'set -euo pipefail\n'
     printf 'exec %q "$@"\n' "$target_path"
   } > "$alias_path"
@@ -1829,7 +1914,7 @@ prepare_typescript_migration() {
   fi
 
   local current_real="$CURRENT_PI_PATH"
-  if [ "$current_real" = "$INSTALL_BIN_PATH" ] && [ -e "$current_real" ]; then
+  if same_physical_path "$current_real" "$INSTALL_BIN_PATH" && [ -e "$current_real" ]; then
     local preserve_candidate="$DEST/.pi-legacy-typescript"
     if [ -e "$preserve_candidate" ]; then
       local stamp
@@ -2061,6 +2146,91 @@ maybe_install_completions() {
   install_completions_for_shell "$shell_name" || true
 }
 
+should_install_macos_launcher() {
+  [ "$OS" = "darwin" ] || return 1
+
+  case "$MACOS_LAUNCHER_MODE" in
+    off)
+      return 1
+      ;;
+    auto|on)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+resolve_macos_launcher_path() {
+  if [ -n "$MACOS_LAUNCHER_PATH" ]; then
+    printf '%s\n' "$MACOS_LAUNCHER_PATH"
+    return 0
+  fi
+
+  printf '%s\n' "$HOME/Applications/maoclaw.command"
+}
+
+is_managed_macos_launcher() {
+  local path="$1"
+  [ -f "$path" ] || return 1
+  grep -Eq "$MACOS_LAUNCHER_MARKER|$LEGACY_MACOS_LAUNCHER_MARKER" "$path" 2>/dev/null
+}
+
+install_macos_launcher() {
+  local launcher_path="$1"
+  local launcher_dir=""
+  launcher_dir="$(dirname "$launcher_path")"
+
+  if ! mkdir -p "$launcher_dir" 2>/dev/null; then
+    MACOS_LAUNCHER_STATUS="failed (cannot create launcher dir)"
+    warn "Failed to create macOS launcher directory: $launcher_dir"
+    return 1
+  fi
+
+  if [ -e "$launcher_path" ] && ! is_managed_macos_launcher "$launcher_path"; then
+    MACOS_LAUNCHER_STATUS="skipped (existing custom launcher)"
+    warn "Skipping existing non-installer-managed launcher at $launcher_path"
+    return 1
+  fi
+
+  {
+    printf '#!/bin/zsh\n'
+    printf '# %s\n' "$MACOS_LAUNCHER_MARKER"
+    printf 'set -euo pipefail\n'
+    printf 'PI_BIN=%q\n' "$INSTALL_BIN_PATH"
+    printf 'for rc in "$HOME/.zprofile" "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.profile"; do\n'
+    printf '  if [ -f "$rc" ]; then\n'
+    printf '    source "$rc" >/dev/null 2>&1 || true\n'
+    printf '  fi\n'
+    printf 'done\n'
+    printf 'if [ ! -x "$PI_BIN" ]; then\n'
+    printf '  echo "pi launcher error: binary not found at $PI_BIN"\n'
+    printf '  echo "Re-run install.sh to repair the local installation."\n'
+    printf '  exit 1\n'
+    printf 'fi\n'
+    printf 'exec "$PI_BIN" "$@"\n'
+  } > "$launcher_path"
+  chmod 0755 "$launcher_path"
+  MACOS_LAUNCHER_PATH="$launcher_path"
+  MACOS_LAUNCHER_STATUS="installed"
+  ok "Installed macOS launcher to $launcher_path"
+}
+
+maybe_install_macos_launcher() {
+  if ! should_install_macos_launcher; then
+    if [ "$OS" = "darwin" ]; then
+      MACOS_LAUNCHER_STATUS="skipped (--no-macos-launcher)"
+    else
+      MACOS_LAUNCHER_STATUS="not applicable"
+    fi
+    return 0
+  fi
+
+  local launcher_path=""
+  launcher_path="$(resolve_macos_launcher_path)"
+  install_macos_launcher "$launcher_path" || true
+}
+
 is_expected_legacy_agent_settings_path() {
   local path="$1"
   local agent="$2"
@@ -2281,6 +2451,7 @@ cleanup_legacy_agent_settings() {
   done
   for settings_path in "${gemini_candidates[@]}"; do
     if is_expected_legacy_agent_settings_path "$settings_path" "gemini"; then
+      cleanup_legacy_settings_entries "$settings_path" "BeforeTool" "run_shell_command" "maoclaw" "${bin_candidates[@]}"
       cleanup_legacy_settings_entries "$settings_path" "BeforeTool" "run_shell_command" "pi-agent-rust" "${bin_candidates[@]}"
     fi
   done
@@ -2289,34 +2460,34 @@ cleanup_legacy_agent_settings() {
 is_installer_managed_skill_file() {
   local file="$1"
   [ -f "$file" ] || return 1
-  grep -Fq "$AGENT_SKILL_MARKER" "$file" 2>/dev/null
+  grep -Eq "$AGENT_SKILL_MARKER|$LEGACY_AGENT_SKILL_MARKER" "$file" 2>/dev/null
 }
 
 is_expected_skill_destination() {
   local destination="$1"
   [ -n "$destination" ] || return 1
   case "$destination" in
-    */skills/${AGENT_SKILL_NAME}) return 0 ;;
+    */skills/${AGENT_SKILL_NAME}|*/skills/${LEGACY_AGENT_SKILL_NAME}) return 0 ;;
     *) return 1 ;;
   esac
 }
 
-pi_agent_skill_inline_content() {
+maoclaw_skill_inline_content() {
   cat <<'SKILL'
 ---
-name: pi-agent-rust
+name: maoclaw
 description: >-
-  Speeds up pi_agent_rust development and verification workflows. Use when editing providers,
+  Speeds up maoclaw development and verification workflows. Use when editing providers,
   tools, sessions, extensions, installer/uninstaller logic, or triaging regressions in this repo.
 ---
 
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 
-# Pi Agent Rust
+# maoclaw
 
 ## Use This Skill When
 
-- You are working inside `pi_agent_rust` and need the fastest path to safe, verified edits.
+- You are working inside `maoclaw` and need the fastest path to safe, verified edits.
 - You are touching provider/tool/session/extension behavior and need targeted triage.
 - You are changing installer/uninstaller/skill install behavior and need deterministic safety checks.
 - You need symptom-first debugging playbooks instead of ad-hoc command hunting.
@@ -2324,8 +2495,8 @@ description: >-
 ## 60-Second Bootstrap
 
 ```bash
-export CARGO_TARGET_DIR="/data/tmp/pi_agent_rust/${USER:-agent}"
-export TMPDIR="/data/tmp/pi_agent_rust/${USER:-agent}/tmp"
+export CARGO_TARGET_DIR="/data/tmp/maoclaw/${USER:-agent}"
+export TMPDIR="/data/tmp/maoclaw/${USER:-agent}/tmp"
 mkdir -p "$TMPDIR"
 
 rch exec -- cargo check --all-targets
@@ -2368,7 +2539,7 @@ For deeper diagnosis, use `references/DEBUGGING-PLAYBOOKS.md`.
 
 | Changed Files (examples) | Minimum Required Tests |
 |---|---|
-| `install.sh`, `uninstall.sh`, `.claude/skills/pi-agent-rust/**` | `bash -n install.sh uninstall.sh tests/installer_regression.sh` ; `shellcheck -x install.sh uninstall.sh tests/installer_regression.sh` ; `bash tests/installer_regression.sh` ; `bash scripts/skill-smoke.sh` |
+| `install.sh`, `uninstall.sh`, `.claude/skills/maoclaw/**` | `bash -n install.sh uninstall.sh tests/installer_regression.sh` ; `shellcheck -x install.sh uninstall.sh tests/installer_regression.sh` ; `bash tests/installer_regression.sh` ; `bash scripts/skill-smoke.sh` |
 | `src/providers/**`, `src/provider.rs`, `src/sse.rs` | `cargo test provider_streaming` ; `cargo test conformance` |
 | `src/session.rs`, `src/session_index.rs`, `src/session_test.rs` | `cargo test session` ; `cargo test conformance` |
 | `src/extensions.rs`, `src/extensions_js.rs` | `cargo test extension` ; `cargo test conformance` |
@@ -2663,7 +2834,7 @@ install_agent_skills() {
         warn "Failed to prepare inline agent skill file"
         return 0
       fi
-      pi_agent_skill_inline_content > "$inline_skill"
+      maoclaw_skill_inline_content > "$inline_skill"
       temp_skill="$inline_skill"
       source_path="$inline_skill"
       source_desc="inline"
@@ -2745,16 +2916,23 @@ install_agent_skills() {
 }
 
 load_existing_state() {
-  if [ -f "$STATE_FILE" ]; then
+  local state_path="$STATE_FILE"
+  if [ ! -f "$state_path" ] && [ -f "$LEGACY_STATE_DIR/install-state.env" ]; then
+    state_path="$LEGACY_STATE_DIR/install-state.env"
+  fi
+  if [ -f "$state_path" ]; then
     # shellcheck disable=SC1090
-    source "$STATE_FILE"
+    source "$state_path"
+    if [ -n "${PIAR_PATH_MARKER:-}" ]; then
+      PATH_MARKER="${PIAR_PATH_MARKER}"
+    fi
   fi
 }
 
 write_state() {
   mkdir -p "$STATE_DIR"
   {
-    printf '# pi_agent_rust installer state\n'
+    printf '# maoclaw installer state\n'
     printf 'PIAR_STATE_VERSION=%q\n' "$STATE_VERSION"
     printf 'PIAR_INSTALL_VERSION=%q\n' "$VERSION"
     printf 'PIAR_INSTALL_SOURCE=%q\n' "$INSTALL_SOURCE"
@@ -2764,6 +2942,8 @@ write_state() {
     printf 'PIAR_CHECKSUM_STATUS=%q\n' "$CHECKSUM_STATUS"
     printf 'PIAR_SIGSTORE_STATUS=%q\n' "$SIGSTORE_STATUS"
     printf 'PIAR_COMPLETIONS_STATUS=%q\n' "$COMPLETIONS_STATUS"
+    printf 'PIAR_MACOS_LAUNCHER_STATUS=%q\n' "$MACOS_LAUNCHER_STATUS"
+    printf 'PIAR_MACOS_LAUNCHER_PATH=%q\n' "$MACOS_LAUNCHER_PATH"
     printf 'PIAR_AGENT_SKILL_STATUS=%q\n' "$AGENT_SKILL_STATUS"
     printf 'PIAR_AGENT_SKILL_CLAUDE_PATH=%q\n' "$AGENT_SKILL_CLAUDE_PATH"
     printf 'PIAR_AGENT_SKILL_CODEX_PATH=%q\n' "$AGENT_SKILL_CODEX_PATH"
@@ -2810,6 +2990,12 @@ print_summary() {
   lines+=("Checksum:  $CHECKSUM_STATUS")
   lines+=("Signature: $SIGSTORE_STATUS")
   lines+=("Shell:     $COMPLETIONS_STATUS")
+  if [ "$OS" = "darwin" ]; then
+    lines+=("Launcher:  $MACOS_LAUNCHER_STATUS")
+    if [ -n "$MACOS_LAUNCHER_PATH" ] && [ -f "$MACOS_LAUNCHER_PATH" ]; then
+      lines+=("Finder:    $MACOS_LAUNCHER_PATH")
+    fi
+  fi
   if [ -n "$PROXY_SOURCE" ]; then
     lines+=("Proxy:     $(redact_proxy_value "$PROXY_SOURCE")")
   fi
@@ -2849,7 +3035,7 @@ print_summary() {
     } | gum style --border normal --border-foreground 42 --padding "1 2"
   else
     echo -e "\033[0;36m+------------------------------------------------------------------+\033[0m"
-    echo -e "\033[1;32m| Pi Rust installed successfully                                   |\033[0m"
+    echo -e "\033[1;32m| maoclaw installed successfully                                   |\033[0m"
     echo -e "\033[0;36m+------------------------------------------------------------------+\033[0m"
     for line in "${lines[@]}"; do
       echo -e "  \033[0;37m$line\033[0m"
@@ -2890,7 +3076,7 @@ main() {
         refresh_legacy=1
       elif [ ! -f "${PIAR_LEGACY_ALIAS_PATH}" ]; then
         refresh_legacy=1
-      elif ! grep -q "pi_agent_rust installer managed alias" "${PIAR_LEGACY_ALIAS_PATH}" 2>/dev/null; then
+      elif ! grep -Eq "maoclaw installer managed alias|${LEGACY_BRAND_TOKEN} installer managed alias" "${PIAR_LEGACY_ALIAS_PATH}" 2>/dev/null; then
         refresh_legacy=1
       fi
 
@@ -2901,6 +3087,7 @@ main() {
     fi
     maybe_add_path
     maybe_install_completions
+    maybe_install_macos_launcher
     cleanup_legacy_agent_settings
     install_agent_skills
     write_state
@@ -2963,6 +3150,7 @@ main() {
 
   maybe_add_path
   maybe_install_completions
+  maybe_install_macos_launcher
   cleanup_legacy_agent_settings
   install_agent_skills
   write_state

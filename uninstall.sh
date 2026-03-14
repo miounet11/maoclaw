@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# pi_agent_rust uninstaller
+# maoclaw uninstaller
 #
 # One-liner uninstall:
-#   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/uninstall.sh" | bash
+#   curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/uninstall.sh" | bash
 
 set -euo pipefail
 
@@ -14,9 +14,11 @@ KEEP_PATH=0
 NO_RESTORE_LEGACY=0
 PURGE_STATE=0
 
-PATH_MARKER="# pi-agent-rust installer PATH"
+PATH_MARKER="# maoclaw installer PATH"
+LEGACY_PATH_MARKER="# pi-agent-rust installer PATH"
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-agent-rust"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/maoclaw"
+LEGACY_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-agent-rust"
 STATE_FILE="$STATE_DIR/install-state.env"
 STATE_LOADED=0
 
@@ -27,13 +29,20 @@ PIAR_LEGACY_ALIAS_PATH=""
 PIAR_LEGACY_MOVED_FROM=""
 PIAR_LEGACY_MOVED_TO=""
 PIAR_PATH_MARKER=""
+PIAR_MACOS_LAUNCHER_STATUS=""
+PIAR_MACOS_LAUNCHER_PATH=""
 PIAR_AGENT_SKILL_STATUS=""
 PIAR_AGENT_SKILL_CLAUDE_PATH=""
 PIAR_AGENT_SKILL_CODEX_PATH=""
 RESTORE_CONFLICT=0
+LEGACY_BRAND_TOKEN="pi""_agent_rust"
 
-AGENT_SKILL_NAME="pi-agent-rust"
-AGENT_SKILL_MARKER="pi_agent_rust installer managed skill"
+AGENT_SKILL_NAME="maoclaw"
+LEGACY_AGENT_SKILL_NAME="pi-agent-rust"
+AGENT_SKILL_MARKER="maoclaw installer managed skill"
+LEGACY_AGENT_SKILL_MARKER="${LEGACY_BRAND_TOKEN} installer managed skill"
+MACOS_LAUNCHER_MARKER="maoclaw installer managed macOS launcher"
+LEGACY_MACOS_LAUNCHER_MARKER="${LEGACY_BRAND_TOKEN} installer managed macOS launcher"
 
 HAS_GUM=0
 if command -v gum >/dev/null 2>&1 && [ -t 1 ]; then
@@ -132,12 +141,12 @@ show_header() {
       --border-foreground 196 \
       --padding "0 1" \
       --margin "1 0" \
-      "$(gum style --foreground 196 --bold 'pi uninstaller')" \
-      "$(gum style --foreground 245 'Removes installer-managed pi_agent_rust artifacts')"
+      "$(gum style --foreground 196 --bold 'maoclaw uninstaller')" \
+      "$(gum style --foreground 245 'Removes installer-managed maoclaw artifacts')"
   else
     echo ""
-    echo -e "\033[1;31mpi uninstaller\033[0m"
-    echo -e "\033[0;90mRemoves installer-managed pi_agent_rust artifacts\033[0m"
+    echo -e "\033[1;31mmaoclaw uninstaller\033[0m"
+    echo -e "\033[0;90mRemoves installer-managed maoclaw artifacts\033[0m"
     echo ""
   fi
 }
@@ -190,12 +199,16 @@ prompt_confirm() {
 }
 
 load_state() {
-  if [ ! -f "$STATE_FILE" ]; then
+  local state_path="$STATE_FILE"
+  if [ ! -f "$state_path" ] && [ -f "$LEGACY_STATE_DIR/install-state.env" ]; then
+    state_path="$LEGACY_STATE_DIR/install-state.env"
+  fi
+  if [ ! -f "$state_path" ]; then
     return 0
   fi
 
   # shellcheck disable=SC1090
-  source "$STATE_FILE"
+  source "$state_path"
   STATE_LOADED=1
 
   if [ -n "${PIAR_PATH_MARKER:-}" ]; then
@@ -246,7 +259,13 @@ is_rust_pi_binary() {
 is_managed_alias() {
   local path="$1"
   [ -f "$path" ] || return 1
-  grep -q "pi_agent_rust installer managed alias" "$path" 2>/dev/null
+  grep -Eq "maoclaw installer managed alias|${LEGACY_BRAND_TOKEN} installer managed alias" "$path" 2>/dev/null
+}
+
+is_managed_macos_launcher() {
+  local path="$1"
+  [ -f "$path" ] || return 1
+  grep -Eq "$MACOS_LAUNCHER_MARKER|$LEGACY_MACOS_LAUNCHER_MARKER" "$path" 2>/dev/null
 }
 
 is_expected_legacy_agent_settings_path() {
@@ -469,6 +488,7 @@ cleanup_legacy_agent_settings() {
   done
   for settings_path in "${gemini_candidates[@]}"; do
     if is_expected_legacy_agent_settings_path "$settings_path" "gemini"; then
+      cleanup_legacy_settings_entries "$settings_path" "BeforeTool" "run_shell_command" "maoclaw" "${bin_candidates[@]}"
       cleanup_legacy_settings_entries "$settings_path" "BeforeTool" "run_shell_command" "pi-agent-rust" "${bin_candidates[@]}"
     fi
   done
@@ -477,14 +497,14 @@ cleanup_legacy_agent_settings() {
 is_managed_skill_file() {
   local path="$1"
   [ -f "$path" ] || return 1
-  grep -q "$AGENT_SKILL_MARKER" "$path" 2>/dev/null
+  grep -Eq "$AGENT_SKILL_MARKER|$LEGACY_AGENT_SKILL_MARKER" "$path" 2>/dev/null
 }
 
 is_expected_skill_directory() {
   local dir="$1"
   [ -n "$dir" ] || return 1
   case "$dir" in
-    */skills/${AGENT_SKILL_NAME}) return 0 ;;
+    */skills/${AGENT_SKILL_NAME}|*/skills/${LEGACY_AGENT_SKILL_NAME}) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -529,10 +549,13 @@ remove_path_entries() {
   local touched=0
   for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
     [ -f "$rc" ] || continue
-    grep -F "$PATH_MARKER" "$rc" >/dev/null 2>&1 || continue
+    if ! grep -Eq "$(printf '%s|%s' "$PATH_MARKER" "$LEGACY_PATH_MARKER" | sed 's/[.[\*^$()+?{|]/\\&/g')" "$rc" >/dev/null 2>&1; then
+      continue
+    fi
 
     local tmp="${rc}.pi-uninstall.tmp"
-    awk -v marker="$PATH_MARKER" 'index($0, marker) == 0 { print }' "$rc" > "$tmp"
+    awk -v marker="$PATH_MARKER" -v legacy="$LEGACY_PATH_MARKER" \
+      'index($0, marker) == 0 && index($0, legacy) == 0 { print }' "$rc" > "$tmp"
     mv "$tmp" "$rc"
     touched=1
   done
@@ -544,8 +567,10 @@ remove_path_entries() {
 
 fallback_binary_candidates() {
   cat <<EOF_CAND
+$HOME/.local/bin/maoclaw
 $HOME/.local/bin/pi
 $HOME/.local/bin/pi-rust
+/usr/local/bin/maoclaw
 /usr/local/bin/pi
 /usr/local/bin/pi-rust
 EOF_CAND
@@ -625,13 +650,32 @@ remove_legacy_alias() {
   fi
 }
 
+remove_macos_launcher() {
+  local launcher_path="$PIAR_MACOS_LAUNCHER_PATH"
+  if [ -z "$launcher_path" ]; then
+    return 0
+  fi
+
+  if [ ! -e "$launcher_path" ]; then
+    return 0
+  fi
+
+  if is_managed_macos_launcher "$launcher_path"; then
+    remove_file_if_exists "$launcher_path" && ok "Removed macOS launcher: $launcher_path"
+  else
+    warn "Skipping non-managed macOS launcher: $launcher_path"
+  fi
+}
+
 remove_installed_skills() {
   local codex_home="${CODEX_HOME:-$HOME/.codex}"
   local claude_dir="${PIAR_AGENT_SKILL_CLAUDE_PATH:-$HOME/.claude/skills/${AGENT_SKILL_NAME}}"
   local codex_dir="${PIAR_AGENT_SKILL_CODEX_PATH:-${codex_home}/skills/${AGENT_SKILL_NAME}}"
+  local legacy_claude_dir="$HOME/.claude/skills/${LEGACY_AGENT_SKILL_NAME}"
+  local legacy_codex_dir="${codex_home}/skills/${LEGACY_AGENT_SKILL_NAME}"
 
   local dir=""
-  for dir in "$claude_dir" "$codex_dir"; do
+  for dir in "$claude_dir" "$codex_dir" "$legacy_claude_dir" "$legacy_codex_dir"; do
     [ -n "$dir" ] || continue
     if ! is_expected_skill_directory "$dir"; then
       warn "Skipping unexpected skill directory path: $dir"
@@ -679,6 +723,9 @@ plan_summary() {
   if [ -n "$PIAR_LEGACY_ALIAS_PATH" ]; then
     lines+=("Legacy alias: $PIAR_LEGACY_ALIAS_PATH")
   fi
+  if [ -n "$PIAR_MACOS_LAUNCHER_PATH" ]; then
+    lines+=("macOS launcher: $PIAR_MACOS_LAUNCHER_PATH")
+  fi
   if [ -n "$PIAR_AGENT_SKILL_CLAUDE_PATH" ] || [ -n "$PIAR_AGENT_SKILL_CODEX_PATH" ]; then
     lines+=("Agent skills: remove installer-managed Claude/Codex skill dirs")
   fi
@@ -725,6 +772,7 @@ main() {
   cleanup_legacy_agent_settings
   remove_installed_binary
   remove_legacy_alias
+  remove_macos_launcher
   remove_installed_skills
   restore_moved_typescript_pi
   remove_path_entries

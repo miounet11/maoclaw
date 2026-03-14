@@ -1,15 +1,15 @@
 # Extension System (Big‑Guns Plan)
 
-This document defines the extension architecture for **pi_agent_rust** with the
-goal of **maximum compatibility**, **formal safety guarantees**, and **measurable
-performance**. The system is **best‑effort** by default, but designed to
-converge to full parity with legacy Pi extensions.
+This document defines the extension architecture for **maoclaw** with the
+goal of **formal safety guarantees**, **measurable performance**, and a strong
+foundation for general AI agent capabilities. The system is designed to support
+real product workflows while keeping extension behavior explicit and auditable.
 
 ---
 
 ## 0. Design Goals
 
-1. **Compatibility**: run legacy Pi extensions with best‑effort fidelity.
+1. **Framework utility**: support useful AI agent capabilities through a stable extension surface.
 2. **Performance**: <2ms p95 overhead per tool call (excluding tool work).
 3. **Safety**: explicit, auditable capability grants with optional strict mode.
 4. **Stability**: versioned protocol + conformance fixtures.

@@ -89,7 +89,7 @@ Generated on 2026-02-04 from issues closed since 2026-02-03.
 - [P2] bd-15n Update --continue flag to use SQLite index
 - [P2] bd-1mh Update session picker to use SQLite index
 - [P2] bd-3nz Wire session indexing into session.persist()
-- [P2] bd-3tu Crates publishing workflow for pi_agent_rust + libs
+- [P2] bd-3tu Crates publishing workflow for maoclaw + libs
 - [P3] bd-24rp Docs: AGENTS.md - remove stale tokio migration statements
 - [P3] bd-jw5q Docs: PLAN_TO_COMPLETE_PORT.md - reconcile checklist with reality
 - [P3] bd-1iz5 Error UX: define hint taxonomy + mapping (Error -> hints)

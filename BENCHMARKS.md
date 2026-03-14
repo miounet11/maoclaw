@@ -1,6 +1,6 @@
 # Performance Benchmarks
 
-> **Purpose:** Track and validate performance budgets for pi_agent_rust.
+> **Purpose:** Track and validate performance budgets for maoclaw.
 
 ## User-Perceived SLI Contract
 

@@ -4,7 +4,7 @@ Official website:
 
 - `https://xinxiang.xin`
 
-`maoclaw` is an independently developed AI coding agent project from China.  
+`maoclaw` is an independently developed AI agent framework and development solution from China.  
 Primary GitHub repository: `https://github.com/miounet11/maoclaw`
 
 This directory is the English GitHub entrypoint for users who want installation, configuration, usage, integration, and release guidance without digging through internal planning and audit artifacts first.
@@ -37,6 +37,7 @@ This directory is the English GitHub entrypoint for users who want installation,
 - one-shot analysis and structured output
 - IDE or custom client integration through RPC
 - macOS desktop packaging on top of the same Rust runtime
+- internal agent systems and domain-specific workflow products
 
 ## Deeper References
 
