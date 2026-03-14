@@ -1,6 +1,6 @@
 # Providers
 
-This document is the canonical in-repo provider baseline for `pi_agent_rust`.
+This document is the canonical in-repo provider baseline for `maoclaw`.
 It summarizes provider IDs, aliases, API families, auth behavior, and current implementation mode.
 
 Snapshot basis:

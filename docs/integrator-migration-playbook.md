@@ -4,7 +4,7 @@ Generated: 2026-02-15
 
 ## Purpose
 
-This playbook gives downstream teams a practical, low-risk path to migrate from TypeScript Pi (`pi-mono`) to `pi_agent_rust` and verify compatibility without needing internal project context.
+This playbook gives downstream teams a practical, low-risk path to migrate from TypeScript Pi (`pi-mono`) to `maoclaw` and verify compatibility without needing internal project context.
 
 Use this when you need to:
 - replace an existing `pi` integration with Rust Pi,
@@ -29,7 +29,7 @@ If `docs/dropin-certification-verdict.json` is missing or not `overall_verdict =
 
 A migration is complete only when all are true:
 
-1. Rust Pi is installed and callable through the intended command (`pi` or `pi-rust`).
+1. Rust Pi / maoclaw is installed and callable through the intended command (`pi`, `maoclaw`, or `pi-rust` where side-by-side rollout is used).
 2. Required execution surfaces pass validation (interactive, print, JSON mode, RPC, SDK where used).
 3. Provider/auth/config behavior matches your production expectations.
 4. Evidence artifacts are stored so another engineer can reproduce the same result.

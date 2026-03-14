@@ -176,8 +176,8 @@ OpenRouter advanced path (explicit config + routing metadata + attribution overr
 ```bash
 export OPENROUTER_API_KEY="..."
 # Optional attribution overrides (defaults are injected if absent)
-export OPENROUTER_HTTP_REFERER="https://example.com/pi-agent-rust"
-export OPENROUTER_X_TITLE="Pi Agent Rust (Docs Example)"
+export OPENROUTER_HTTP_REFERER="https://github.com/miounet11/maoclaw"
+export OPENROUTER_X_TITLE="maoclaw (Docs Example)"
 
 # Provider alias and model alias are both supported:
 pi --provider open-router --model claude-3.5-sonnet -p "Say hello"

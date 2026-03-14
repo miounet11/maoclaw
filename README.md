@@ -1,14 +1,16 @@
 <p align="center">
-  <img src="pi_agent_rust_illustration.webp" alt="Pi Agent Rust" width="600"/>
+  <img src="pi_agent_rust_illustration.webp" alt="maoclaw" width="600"/>
 </p>
 
-<h1 align="center">pi_agent_rust</h1>
+<h1 align="center">maoclaw</h1>
 
 <p align="center">
-  <strong>pi_agent_rust - High-performance AI coding agent CLI written in Rust</strong>
+  <strong>Maozhua (`猫爪`) / maoclaw - independent AI coding agent CLI with upstream lineage from pi_agent_rust</strong>
 </p>
 
 <p align="center">
+  <a href="#status">Status</a> •
+  <a href="#why-migrate-now">Why Migrate Now?</a> •
   <a href="#why-should-you-care">Why Should You Care?</a> •
   <a href="#tldr-piopenclaw-users">TL;DR</a> •
   <a href="#benchmark-methodology-and-claim-integrity">Methodology</a> •
@@ -23,20 +25,53 @@
   <img src="https://img.shields.io/badge/rust-2024%20edition-orange?logo=rust" alt="Rust 2024">
   <img src="https://img.shields.io/badge/license-MIT%20%2B%20Rider-blue" alt="License: MIT + Rider">
   <img src="https://img.shields.io/badge/unsafe-forbidden-brightgreen" alt="No Unsafe Code">
-  <a href="https://github.com/Dicklesworthstone/pi_agent_rust/actions/workflows/ci.yml">
-    <img src="https://github.com/Dicklesworthstone/pi_agent_rust/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI">
+  <a href="https://github.com/miounet11/maoclaw/actions/workflows/ci.yml">
+    <img src="https://github.com/miounet11/maoclaw/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI">
   </a>
-  <a href="https://github.com/Dicklesworthstone/pi_agent_rust/actions/workflows/bench.yml">
-    <img src="https://github.com/Dicklesworthstone/pi_agent_rust/actions/workflows/bench.yml/badge.svg?branch=main" alt="Bench">
+  <a href="https://github.com/miounet11/maoclaw/actions/workflows/bench.yml">
+    <img src="https://github.com/miounet11/maoclaw/actions/workflows/bench.yml/badge.svg?branch=main" alt="Bench">
   </a>
 </p>
 
 ```bash
 # Install latest release
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 ```
 
 ---
+
+## Status
+
+`maoclaw` is the repository, package, and public product identity. Its low-level runtime remains intentionally aligned with `pi_agent_rust` behavior where parity matters, while the public surface is now branded as `maoclaw`. The compatibility command remains `pi` during the transition.
+
+The current launch posture is intentionally narrow:
+
+- Maozhua v0.1 is a small-scope public trial release.
+- It is migration-first, not parity-first.
+- It supports validated Pi migration paths on core CLI workflows.
+- It is not yet a strict drop-in replacement for TS Pi / OpenClaw.
+
+For the public truth snapshot, see [STATUS.md](STATUS.md).
+For the curated documentation entrypoint, see [docs/README.md](docs/README.md).
+For open-source positioning and deployment, see [docs/open-source-overview.md](docs/open-source-overview.md) and [docs/deployment-guide.md](docs/deployment-guide.md).
+
+## What Ships Now
+
+`maoclaw` currently ships as a narrow but real product surface:
+
+- terminal-first CLI via `pi`
+- branded CLI via `maoclaw`
+- text/json automation modes
+- RPC backend mode for integrations
+- session persistence and resume workflows
+- skills, prompt templates, themes, and extension runtime
+- macOS desktop packaging via `pi_desktop`, `maoclaw.app`, and `maoclaw.pkg`
+
+Recommended entrypoints:
+
+- local/product overview: [docs/open-source-overview.md](docs/open-source-overview.md)
+- install and deployment: [docs/deployment-guide.md](docs/deployment-guide.md)
+- shortest user path: [docs/maozhua-v0.1-quick-start.md](docs/maozhua-v0.1-quick-start.md)
 
 ## The Problem
 
@@ -48,7 +83,7 @@ You want an AI coding assistant in your terminal, but existing tools are:
 
 ## The Solution
 
-**pi_agent_rust** is a from-scratch Rust port of [Pi Agent](https://github.com/badlogic/pi) by [Mario Zechner](https://github.com/badlogic) (made with his blessing!). Single binary, instant startup, stable streaming, and 7 built-in tools.
+**maoclaw** is an independent Rust AI coding agent project with lineage from the upstream `pi_agent_rust` effort and the original [Pi Agent](https://github.com/badlogic/pi) by [Mario Zechner](https://github.com/badlogic). It keeps the low-level runtime discipline needed for parity, while shipping under its own repository, package, desktop product, and release process.
 
 Rather than a direct line-by-line translation, this port builds on two purpose-built Rust libraries:
 - **[asupersync](https://github.com/Dicklesworthstone/asupersync)**: A structured concurrency async runtime with built-in HTTP, TLS, and SQLite
@@ -64,6 +99,16 @@ pi --continue
 # Single-shot mode (no session)
 pi -p "What does this error mean?" < error.log
 ```
+
+## Why Migrate Now?
+
+This launch is designed for users who want real value before full parity certification:
+
+- keep the `pi` command and core workflow shape
+- move onto a much faster and leaner Rust runtime
+- adopt the validated path now, while deeper parity closes in later releases
+
+If you need strict drop-in certification today, wait for a later milestone. If you want a credible migration path with explicit boundaries, v0.1 is the right evaluation point.
 
 ## Why Should You Care?
 
@@ -150,7 +195,7 @@ What we measured:
 How we kept comparisons fair:
 
 - **Two scopes** in the benchmark report:
-  - apples-to-apples (`pi_agent_rust` vs legacy `coding-agent`)
+  - apples-to-apples (upstream Rust runtime lineage vs legacy `coding-agent`)
   - apples-to-oranges (legacy stack components included where legacy behavior is outsourced)
 - **Release-mode binaries** and repeated runs per matrix cell.
 - **No paid-provider noise** in core latency/footprint tables (provider-call costs are excluded from these core comparisons).
@@ -208,13 +253,13 @@ pi --list-providers
 
 ### asupersync
 
-[asupersync](https://github.com/Dicklesworthstone/asupersync) is a structured concurrency async runtime designed for applications that need predictable resource cleanup. Key features used by pi_agent_rust:
+[asupersync](https://github.com/Dicklesworthstone/asupersync) is a structured concurrency async runtime designed for applications that need predictable resource cleanup. Key features used by maoclaw:
 
 - **Capability-based context (`Cx`)**: Async functions receive an explicit context that controls what they can do (HTTP, filesystem, time). This makes testing deterministic.
 - **HTTP client with TLS**: Built-in HTTP API with rustls, avoiding OpenSSL dependency hell
 - **Structured cancellation**: When a parent task cancels, all child tasks cancel cleanly. No orphaned futures.
 
-`pi_agent_rust` runs on `asupersync` end-to-end today (runtime + HTTP/TLS + cancellation). Provider streaming uses a minimal HTTP client (`src/http/client.rs`) feeding a custom SSE parser (`src/sse.rs`).
+`maoclaw` runs on `asupersync` end-to-end today (runtime + HTTP/TLS + cancellation). Provider streaming uses a minimal HTTP client (`src/http/client.rs`) feeding a custom SSE parser (`src/sse.rs`).
 
 ### rich_rust
 
@@ -237,7 +282,7 @@ The terminal UI uses rich_rust for all output formatting, providing the same vis
 
 ```bash
 # Install latest release binary
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 ```
 
 If you already have the original TypeScript `pi` installed, the installer asks
@@ -255,6 +300,9 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 ```bash
 # Interactive mode
 pi
+
+# Cargo-installed canonical binary
+maoclaw
 
 # With an initial message
 pi "Explain this codebase structure"
@@ -476,8 +524,8 @@ This project validates extension compatibility with a three-track pipeline:
 These runs compile many crates and can be disk-heavy. Point Cargo artifacts and temp files to a large volume:
 
 ```bash
-export CARGO_TARGET_DIR="/data/tmp/pi_agent_rust/${USER:-agent}"
-export TMPDIR="/data/tmp/pi_agent_rust/${USER:-agent}/tmp"
+export CARGO_TARGET_DIR="/data/tmp/maoclaw/${USER:-agent}"
+export TMPDIR="/data/tmp/maoclaw/${USER:-agent}/tmp"
 mkdir -p "$CARGO_TARGET_DIR" "$TMPDIR"
 ```
 
@@ -511,22 +559,22 @@ From:
 
 ```bash
 # Latest release
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 
 # Non-interactive + auto PATH update
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash -s -- --yes --easy-mode
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash -s -- --yes --easy-mode
 
 # Pin a release tag
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | bash -s -- --version v0.1.0
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash -s -- --version v0.1.0
 
 # Install from explicit artifact URL + checksum URL
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | \
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | \
   bash -s -- \
-    --artifact-url "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v0.1.0/pi-linux-amd64.tar.xz" \
-    --checksum-url "https://github.com/Dicklesworthstone/pi_agent_rust/releases/download/v0.1.0/SHA256SUMS"
+    --artifact-url "https://github.com/miounet11/maoclaw/releases/download/v0.1.0/pi-linux-amd64.tar.xz" \
+    --checksum-url "https://github.com/miounet11/maoclaw/releases/download/v0.1.0/SHA256SUMS"
 
 # Skip completion setup (CI/non-interactive minimal install)
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh?$(date +%s)" | \
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | \
   bash -s -- --yes --no-completions
 ```
 
@@ -543,15 +591,19 @@ Notable installer flags:
 - `--sigstore-bundle-url`: override Sigstore bundle URL used by `cosign verify-blob`
 - `--completions auto|off|bash|zsh|fish`: force shell completion install target (`off` is equivalent to `--no-completions`)
 - `--no-completions`: disable completion installation
-- `--no-agent-skills`: skip automatic installation of the `pi-agent-rust` skill into `~/.claude/skills/` and `~/.codex/skills/`
+- `--no-agent-skills`: skip automatic installation of the `maoclaw` skill into `~/.claude/skills/` and `~/.codex/skills/`
 - `--no-verify`: skip checksum + signature verification (testing only)
 - `--artifact-url` without `--version` uses a synthetic tag for release mode only; if artifact download fails, install exits instead of attempting source fallback
 - Installer honors `HTTPS_PROXY` / `HTTP_PROXY` for all network fetches
 
-By default, the installer also installs a `pi-agent-rust` skill for both Claude Code and Codex CLI:
-- Claude Code: `~/.claude/skills/pi-agent-rust/SKILL.md`
-- Codex CLI: `~/.codex/skills/pi-agent-rust/SKILL.md` (or `$CODEX_HOME/skills/pi-agent-rust/SKILL.md` if `CODEX_HOME` is set)
+By default, the installer also installs a `maoclaw` skill for both Claude Code and Codex CLI:
+- Claude Code: `~/.claude/skills/maoclaw/SKILL.md`
+- Codex CLI: `~/.codex/skills/maoclaw/SKILL.md` (or `$CODEX_HOME/skills/maoclaw/SKILL.md` if `CODEX_HOME` is set)
 - During upgrades, installer-managed legacy pre-tool entries from older versions are removed automatically (idempotent, path-scoped, and non-destructive) when prior installer state is present.
+
+On macOS, the installer also creates a Finder-launchable script at `~/Applications/maoclaw.command`.
+Double-click that file if you want Terminal to open Pi for you; double-clicking the raw
+binary in `~/.local/bin/pi` is not a supported GUI launch path.
 
 Installer regression harness (options + checksum + signature + completions):
 
@@ -593,27 +645,30 @@ rustup install nightly
 rustup default nightly
 
 # Clone and build
-git clone https://github.com/Dicklesworthstone/pi_agent_rust.git
-cd pi_agent_rust
+git clone https://github.com/miounet11/maoclaw.git
+cd maoclaw
 cargo build --release
 
-# Binary is at target/release/pi
+# Compatibility binary is at target/release/pi
 ./target/release/pi --version
 
+# Canonical branded binary is also available
+./target/release/maoclaw --version
+
 # To install system-wide (--locked ensures reproducible dependency resolution)
-cargo install --path . --locked
+cargo install --path . --locked --bin maoclaw
 ```
 
 ### Dependencies
 
 Pi has minimal runtime dependencies:
-- `fd`: Required for the `find` tool (install via `apt install fd-find` or `brew install fd`)
+- `fd`: Optional but recommended for faster `find` tool and autocomplete scans (install via `apt install fd-find` or `brew install fd`)
 - `rg`: Required for the `grep` tool (install via `apt install ripgrep` or `brew install ripgrep`)
 
 ### Uninstall
 
 ```bash
-curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/uninstall.sh" | bash
+curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/uninstall.sh" | bash
 ```
 
 By default, uninstall removes installer-managed Rust binaries/aliases and skill directories,
@@ -839,9 +894,9 @@ Current native providers in `src/providers/` are `anthropic`, `openai`, `openai_
 
 ### asupersync Context vs TypeScript Pi (pi-mono)
 
-This Rust port preserves Pi's user experience, but intentionally changes the runtime substrate. The original TypeScript Pi (`pi-mono`, `packages/coding-agent`) is built on Node.js + package-level abstractions. `pi_agent_rust` moves those same behaviors onto `asupersync` primitives so lifecycle guarantees are explicit in the runtime model.
+This Rust port preserves Pi's user experience, but intentionally changes the runtime substrate. The original TypeScript Pi (`pi-mono`, `packages/coding-agent`) is built on Node.js + package-level abstractions. `maoclaw` moves those same behaviors onto `asupersync` primitives so lifecycle guarantees are explicit in the runtime model.
 
-| Concern | TypeScript Pi (pi-mono baseline) | pi_agent_rust + asupersync |
+| Concern | TypeScript Pi (pi-mono baseline) | maoclaw + asupersync |
 |---------|----------------------------------|----------------------------|
 | **Runtime model** | Node event loop + Promise/AbortSignal conventions | `RuntimeBuilder` + explicit reactor and runtime handle |
 | **Async ownership** | Task lifetimes coordinated by framework/library code | Structured task ownership and explicit cross-thread channels (TUI/RPC bridging) |
@@ -889,7 +944,7 @@ These are the concrete invariants we rely on in this implementation:
 
 ### Design Principles Carried From asupersync Into Pi
 
-The following `asupersync` principles are reflected directly in `pi_agent_rust` architecture:
+The following `asupersync` principles are reflected directly in `maoclaw` architecture:
 
 - **Single async substrate**: runtime, timers, fs, and HTTP/TLS all run on one coherent foundation.
 - **Explicit context threading**: `AgentCx` wraps `asupersync::Cx` at subsystem boundaries (agent/tools/session/rpc).
@@ -902,7 +957,7 @@ Compared to the original TypeScript implementation, this shifts more correctness
 
 This is a second comparison pass focused on high-impact architectural deltas and rationale.
 
-| Area | Original pi-mono (`packages/coding-agent`) | `pi_agent_rust` | Why this divergence exists |
+| Area | Original pi-mono (`packages/coding-agent`) | `maoclaw` | Why this divergence exists |
 |------|---------------------------------------------|------------------|----------------------------|
 | **Distribution model** | npm package (`npm install -g @mariozechner/pi-coding-agent`) | Single Rust binary (`pi`) | Remove Node runtime dependency and improve startup/deployment portability |
 | **Execution surfaces** | Interactive + print + JSON mode + RPC + SDK | Interactive + print + JSON mode + RPC (+ Rust SDK documented in `docs/sdk.md`) | Strict drop-in parity remains release-gated; JSON/RPC/SDK claims must be backed by certification artifacts |
@@ -914,8 +969,8 @@ This is a second comparison pass focused on high-impact architectural deltas and
 | **Runtime context model** | Framework-level conventions and extension APIs | Explicit `AgentCx`/`asupersync::Cx` capability-scoped context threading | Make effect boundaries and testability first-class architectural constraints |
 
 Practical consequence of these deltas:
-- Extension/package workflows are compatible across both implementations.
-- The non-negotiable goal is strict drop-in replacement for pi-mono across all use cases.
+- Extension/package workflows are compatible across both implementations on validated paths.
+- Strict drop-in replacement remains a later certification milestone, not a claim for the current public trial.
 - Strict drop-in replacement language is release-gated by `docs/dropin-certification-contract.json` and open-gap status in `docs/dropin-parity-gap-ledger.json`.
 - `docs/parity-certification.json` is an informational snapshot and does not override release-gate policy for strict replacement claims.
 
@@ -1823,7 +1878,7 @@ claims. Performance claims must cite benchmark evidence bundles with reproducibl
 See `docs/testing-policy.md` and `docs/releasing.md` for normative policy details.
 
 Latest full orchestrator checkpoint (`2026-02-19`):
-- Run output: `/data/tmp/pi_agent_rust/codex/perf/full_local_skipbuild_retry_20260219T0650Z`
+- Run output: `/data/tmp/maoclaw/codex/perf/full_local_skipbuild_retry_20260219T0650Z`
 - Correlation ID: `fullbench-local-skipbuild-retry-20260219T0650Z`
 - Summary: `11` suites total, `9` pass, `2` fail (`perf_budgets`, `perf_regression`)
 - Failure mode: both failures were strict evidence/precondition checks (missing/stale canonical artifact paths and missing strict release-binary path), not a measured throughput/latency collapse.
@@ -1955,7 +2010,8 @@ For a more complete guide, see [docs/troubleshooting.md](docs/troubleshooting.md
 
 ### "fd not found"
 
-The `find` tool requires `fd`:
+Pi falls back to a built-in walker when `fd` is unavailable, but `fd`/`fdfind`
+is still recommended for faster `find` tool and autocomplete scans:
 
 ```bash
 # Ubuntu/Debian
@@ -2306,7 +2362,7 @@ Releases are tag-driven and must align with `Cargo.toml` versions.
 
 - Tag format: `vX.Y.Z` (pre-releases like `vX.Y.Z-rc.N` are allowed but skip crates.io publish).
 - The tag version **must** match `package.version` in `Cargo.toml`.
-- Publish order for dependencies: `asupersync` → `rich_rust` → `charmed-*` (lipgloss, bubbletea, bubbles, glamour) → `pi_agent_rust`.
+- Publish order for dependencies: `asupersync` → `rich_rust` → `charmed-*` (lipgloss, bubbletea, bubbles, glamour) → `maoclaw`.
 - `.github/workflows/publish.yml` handles crates.io publish when `CARGO_REGISTRY_TOKEN` is set.
 
 ### Coverage

@@ -1,15 +1,17 @@
-# Releasing pi_agent_rust
+# Releasing maoclaw
 This repo ships:
-- A crates.io package: `pi_agent_rust` (Cargo `[package].name`)
+- A crates.io package: `maoclaw` (Cargo `[package].name`)
 - A library crate: `pi` (Cargo `[lib].name`)
-- A binary: `pi` (Cargo `[[bin]].name`)
+- A compatibility CLI binary: `pi` (Cargo `[[bin]].name`)
+- A branded CLI binary: `maoclaw` (Cargo `[[bin]].name`)
+- A macOS desktop app/package: `maoclaw.app` / `maoclaw.pkg`
 
 ## Versioning + tags (source of truth)
 **Source of truth:** `Cargo.toml` `[package].version`.
 
 - **Tag format:** `vX.Y.Z` (SemVer). Example: `v0.2.0`.
 - **Pre-releases:** `vX.Y.Z-rc.1` (or similar). Example: `v0.2.0-rc.1`.
-- **Coupling:** `pi_agent_rust` (crate), `pi` (lib), and `pi` (binary) are all built from the same package, so they share one version number.
+- **Coupling:** `maoclaw` (crate), `pi` (lib), `pi` (compatibility binary), `maoclaw` (branded binary), and the desktop packaging all ship from the same package version.
 - **Sibling repos:** `asupersync`, `rich_rust`, `charmed_rust`, `sqlmodel_rust` are versioned independently in their own repos.
 
 ### Publishing to crates.io
@@ -32,15 +34,16 @@ Note: dependencies that specify both `version` and `path` are expected to publis
 Release notes are extracted from `CHANGELOG.md` on a best-effort basis; ensure the changelog contains a `##` heading with the version string for the tag you are cutting.
 
 ## Distribution compatibility strategy (DROPIN-146)
-Goal: keep packaging and invocation ergonomics compatible enough for frictionless migration from upstream Pi.
+Goal: keep packaging and invocation ergonomics compatible enough for frictionless migration from upstream Pi while shipping under the `maoclaw` repository and product identity.
 
 ### Supported distribution paths
-- **Installer path (`install.sh`)**: default channel for end users; installs GitHub release binary, verifies checksums, and manages migration state.
+- **Installer path (`install.sh`)**: default channel for end users; installs the GitHub release from `miounet11/maoclaw`, verifies checksums, and manages migration state.
 - **Release artifact path (GitHub Releases)**: direct binary download per OS/arch with `SHA256SUMS` verification.
 - **Source path (`cargo build --release`)**: deterministic fallback for constrained/air-gapped environments.
 
 ### Executable compatibility path
-- Canonical command is `pi`.
+- Canonical migration command is `pi`.
+- Branded command is `maoclaw`.
 - If TypeScript `pi` already exists, installer supports in-place migration and preserves old command as `legacy-pi`.
 - If migration is declined (`--keep-existing-pi`), Rust Pi installs as `pi-rust` so both CLIs remain callable.
 - Pinned rollout is supported by `install.sh --version vX.Y.Z`.
@@ -67,7 +70,7 @@ Run this matrix before declaring distribution parity complete for a release cand
 Release operations must keep benchmark evidence and shipping artifacts distinct.
 
 - **Shipping/distribution artifacts**: built with Cargo `release` profile and published via
-  `release.yml` + installer flows (`pi` binaries + `SHA256SUMS`).
+  `release.yml` + installer flows (`pi`, `maoclaw`, desktop bundles, and `SHA256SUMS` where applicable).
 - **Benchmark evidence artifacts**: produced by PERF-3X lanes (`scripts/perf/orchestrate.sh`,
   `scripts/bench_extension_workloads.sh`) using benchmark profile labeling (typically `perf`)
   with run-level provenance (`correlation_id`, build/profile metadata, allocator/PGO metadata).
@@ -104,7 +107,7 @@ Until then, `0.x` releases may still change behavior to improve correctness/pari
 6) **Tag**:
    - `git tag vX.Y.Z`
    - `git push origin vX.Y.Z`
-7) **Verify** GitHub Actions:
+7) **Verify** GitHub Actions in `miounet11/maoclaw`:
    - `Publish` workflow (crates.io publish) behaves as expected
    - `Release (GitHub binaries)` workflow creates a GitHub Release with binaries + `SHA256SUMS`
 
@@ -144,7 +147,7 @@ For branches opened before this gate was introduced:
 - Distribution compatibility matrix (above) passes for all required paths.
 
 ## Post-release checklist
-- GitHub Release exists and includes expected artifacts for each platform.
+- GitHub Release exists in `miounet11/maoclaw` and includes expected artifacts for each platform.
 - `SHA256SUMS` matches downloaded artifacts.
 - Crates.io publish succeeded (if configured) and the version matches the tag.
 - Smoke test install paths (download binary + run `pi --version`).

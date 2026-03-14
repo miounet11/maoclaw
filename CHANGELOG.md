@@ -13,6 +13,14 @@ human-facing summary generated from **closed issues**.
 
 ## Unreleased
 
+## 0.1.8 - Maozhua Public Trial Preparation
+
+- Repositioned the public launch around a migration-first Maozhua v0.1 story instead of premature strict-replacement claims.
+- Added a public status/truth document to separate what is proven, what is shipping now, and what is not yet parity-certified.
+- Added an explicit upgrade roadmap covering `v0.1` public trial through the `v0.4` certification track.
+- Aligned the README, quick start, FAQ, and release notes around the same launch promise: `猫爪` brand, `pi` command, validated migration paths, and visible release boundaries.
+- Normalized release-facing documentation and publishing references around the `miounet11/maoclaw` repository and `maoclaw` package identity.
+
 Generated on 2026-02-04 from issues closed since 2026-02-03.
 
 ### Chore

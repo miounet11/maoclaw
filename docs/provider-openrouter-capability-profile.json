@@ -92,7 +92,7 @@
         "headers": {
           "Authorization": "Bearer $OPENROUTER_API_KEY",
           "HTTP-Referer": "https://pi-agent.local",
-          "X-Title": "Pi Agent Rust"
+          "X-Title": "maoclaw"
         },
         "json": {
           "model": "openai/gpt-4o-mini",

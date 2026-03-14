@@ -71,8 +71,8 @@
         "provider defaults"
       ],
       "provider_defaults": {
-        "HTTP-Referer": "https://github.com/Dicklesworthstone/pi_agent_rust",
-        "X-Title": "Pi Agent Rust"
+        "HTTP-Referer": "https://github.com/miounet11/maoclaw",
+        "X-Title": "maoclaw"
       },
       "env_overrides": {
         "HTTP-Referer": ["OPENROUTER_HTTP_REFERER", "PI_OPENROUTER_HTTP_REFERER"],
