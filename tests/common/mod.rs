@@ -1,4 +1,4 @@
-//! Common test infrastructure for `pi_agent_rust`.
+//! Common test infrastructure for `maoclaw`.
 //!
 //! This module provides shared utilities for integration and E2E tests:
 //! - Verbose logging infrastructure with auto-dump on test failure

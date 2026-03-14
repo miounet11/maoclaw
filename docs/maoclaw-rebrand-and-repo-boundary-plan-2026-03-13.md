@@ -13,13 +13,13 @@ Yes, a new upgrade cycle is needed.
 
 This upgrade cycle should do **three things together**:
 
-1. **backfill the missing runtime hardening** we identified against upstream
-2. **complete the brand transition** from `pi_agent_rust` to `maoclaw`
+1. **backfill the missing runtime hardening** identified in the legacy baseline
+2. **complete the brand transition** from legacy naming to `maoclaw`
 3. **split public open-source contents from private company contents**
 
 The key point is this:
 
-> `maoclaw` should become an independent product and repository identity, while still honestly acknowledging that the runtime lineage came from `pi_agent_rust`.
+> `maoclaw` should be the singular product and repository identity across code, docs, packaging, and release operations.
 
 That means:
 
@@ -31,7 +31,7 @@ That means:
 
 The old framing was:
 
-- repo/runtime name: `pi_agent_rust`
+- repo/runtime name: legacy mixed naming
 - external product brand: `Maozhua`
 - command compatibility retained as `pi`
 
@@ -43,7 +43,7 @@ The new framing should be:
 - GitHub repo: `miounet11/maoclaw`
 - user-facing desktop app: `maoclaw`
 - package/runtime identity: `maoclaw`
-- historical attribution to `pi_agent_rust` moves into `CREDITS`, `NOTICE`, and migration docs, not into primary branding
+- historical naming details stay out of primary branding surfaces
 
 In other words:
 
@@ -71,11 +71,11 @@ This is mandatory before a major brand cutover.
 Reason:
 
 - a brand relaunch amplifies scrutiny
-- runtime reliability bugs will be interpreted as product immaturity, not as upstream drift
+- runtime reliability bugs will be interpreted as product immaturity, not as transition debt
 
 ### 2.2 Workstream B: Brand Cutover
 
-All user-visible and repository-visible identity should move from `pi_agent_rust` to `maoclaw`.
+All user-visible and repository-visible identity should move to `maoclaw`.
 
 ### 2.3 Workstream C: Public/Private Repo Split
 
@@ -99,7 +99,7 @@ These items should be rebranded:
 - release workflow URLs
 - desktop update endpoints
 - README title and installation snippets
-- workflow/job labels that still say `pi_agent_rust`
+- workflow/job labels that still use legacy naming
 - path markers and installer state naming where user-facing
 
 ### 3.2 What may remain as compatibility only
@@ -107,13 +107,13 @@ These items should be rebranded:
 These may remain temporarily, but only as compatibility affordances:
 
 - binary alias `pi`
-- migration docs explaining origin from `pi_agent_rust`
+- migration docs explaining command and packaging transitions
 - references in compatibility matrices
 - internal adapters or environment variables kept for one transition window
 
 Rule:
 
-If something is visible to a normal user, it should say `maoclaw`, not `pi_agent_rust`.
+If something is visible to a normal user, it should say `maoclaw`, not a legacy runtime label.
 
 ### 3.3 What must remain as attribution, not branding
 
@@ -126,7 +126,7 @@ We should keep honest lineage, but move it into secondary places:
 
 Recommended wording:
 
-> maoclaw began as a fork and evolution of `pi_agent_rust`, and now continues as an independent project.
+> maoclaw is an independent open-source AI agent platform with a unified product and repository identity.
 
 ## 4. Current Branding Surfaces That Still Need Work
 
@@ -142,7 +142,7 @@ Examples:
 - [scripts/build_macos_app.sh](../scripts/build_macos_app.sh)
 - [scripts/build_macos_pkg.sh](../scripts/build_macos_pkg.sh)
 
-### Still branded as `pi_agent_rust`
+### Still carrying legacy naming
 
 Examples:
 
@@ -152,7 +152,7 @@ Examples:
 - [uninstall.sh](../uninstall.sh)
 - [STATUS.md](../STATUS.md) still frames the product as a migration-first overlay
 - multiple [`.github/workflows/`](../.github/workflows) files
-- many docs and scripts still point to `Dicklesworthstone/pi_agent_rust`
+- many docs and scripts still point to legacy repository identifiers
 
 ## 5. Naming Matrix for the New Project
 
@@ -474,7 +474,7 @@ Do not do this as one giant uncontrolled rename.
 
 Before brand cutover:
 
-1. import the missing upstream hardening fixes
+1. import the missing baseline hardening fixes
 2. run quality gates
 3. stabilize command and packaging decisions
 
@@ -503,14 +503,14 @@ Then separate repository content:
 After release:
 
 1. keep `pi` alias temporarily
-2. document migration from `pi_agent_rust`
+2. document migration from legacy naming and command surfaces
 3. deprecate old repo references
 
 ## 11. Concrete Public Messaging
 
 ### Recommended short statement
 
-> maoclaw is an independent open-source AI agent platform that evolved from `pi_agent_rust` and now continues under its own product and repository identity.
+> maoclaw is an independent open-source AI agent platform with its own product and repository identity.
 
 ### Recommended engineering statement
 
@@ -539,4 +539,4 @@ If you do not make this split, the project will stay stuck between three identit
 That ambiguity is now the bigger problem.
 
 `maoclaw` should be the project.  
-`pi_agent_rust` should become history and lineage, not the main label.
+Legacy naming should become internal history, not the main label.

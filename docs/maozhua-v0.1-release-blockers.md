@@ -125,7 +125,7 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 现状：
 
-- 目前仓库中存在 `猫爪`、`pi_agent_rust`、`Pi`、`OpenClaw` 等多层命名
+- 目前仓库中仍存在 `猫爪`、`maoclaw`、`Pi`、`OpenClaw` 等多层命名残留
 - 若不统一，对外发布会造成品牌混乱
 
 必须完成：

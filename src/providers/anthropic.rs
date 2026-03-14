@@ -467,18 +467,12 @@ impl Provider for AnthropicProvider {
                 .header("x-app", "cli")
                 .header(
                     "user-agent",
-                    format!(
-                        "pi_agent_rust/{} (external, cli)",
-                        env!("CARGO_PKG_VERSION")
-                    ),
+                    format!("maoclaw/{} (external, cli)", env!("CARGO_PKG_VERSION")),
                 );
         } else if kimi_oauth_token {
             request = request.header(
                 "user-agent",
-                format!(
-                    "pi_agent_rust/{} (kimi-oauth, cli)",
-                    env!("CARGO_PKG_VERSION")
-                ),
+                format!("maoclaw/{} (kimi-oauth, cli)", env!("CARGO_PKG_VERSION")),
             );
             for (name, value) in kimi_common_headers() {
                 request = request.header(name, value);
@@ -1821,7 +1815,7 @@ mod tests {
             captured
                 .headers
                 .get("user-agent")
-                .is_some_and(|value| value.contains("pi_agent_rust/"))
+                .is_some_and(|value| value.contains("maoclaw/"))
         );
     }
 

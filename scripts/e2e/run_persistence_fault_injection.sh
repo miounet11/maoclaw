@@ -15,10 +15,10 @@ export RUST_LOG="${RUST_LOG:-info}"
 
 AGENT_SUFFIX="${PERSISTENCE_AGENT_SUFFIX:-${CODEX_THREAD_ID:-${USER:-agent}}}"
 if [[ -z "${CARGO_TARGET_DIR:-}" || "${CARGO_TARGET_DIR:-}" == "target" ]]; then
-    export CARGO_TARGET_DIR="/data/tmp/pi_agent_rust/$AGENT_SUFFIX/target"
+    export CARGO_TARGET_DIR="/data/tmp/maoclaw/$AGENT_SUFFIX/target"
 fi
 if [[ -z "${TMPDIR:-}" || "${TMPDIR:-}" == "/tmp" || "${TMPDIR:-}" == "/data/tmp" ]]; then
-    export TMPDIR="/data/tmp/pi_agent_rust/$AGENT_SUFFIX/tmp"
+    export TMPDIR="/data/tmp/maoclaw/$AGENT_SUFFIX/tmp"
 fi
 mkdir -p "$CARGO_TARGET_DIR" "$TMPDIR"
 

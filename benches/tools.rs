@@ -1,4 +1,4 @@
-//! Benchmarks for `pi_agent_rust` core operations.
+//! Benchmarks for `maoclaw` core operations.
 //!
 //! Run with: cargo bench
 //! Run specific: cargo bench -- truncate

@@ -1,7 +1,7 @@
 # Extension Capture Scenario Suite (bd-2qd)
 
 This document defines a **scenario specification** for the frozen extension sample set in `docs/extension-sample.json`.
-It is intended to drive capture + conformance harness work (legacy `pi-mono` → Rust `pi_agent_rust`) with **deterministic**, **auditable** expectations.
+It is intended to drive capture + conformance harness work (legacy `pi-mono` → Rust `maoclaw`) with **deterministic**, **auditable** expectations.
 
 Artifacts for the sample set are vendored under `tests/ext_conformance/artifacts/<id>/` (copied from the pinned legacy snapshot; see `docs/EXTENSION_SAMPLE.md`).
 
@@ -581,4 +581,3 @@ The harness should prioritize running the headless paths in CI, and gate the hea
 - How do we represent `ctx.hasUI` / UI scripting in the Rust harness in a way that matches legacy behavior?
 - For provider/network scenarios, do we standardize on a VCR format (SSE recording) shared across providers and extensions?
 - What is the canonical “command execution transcript” format for asserting `pi.exec(...)` behavior deterministically (stdout/stderr/exitCode + timing)?
-

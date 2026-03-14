@@ -21,7 +21,7 @@ use std::pin::Pin;
 use std::sync::OnceLock;
 use std::task::{Context, Poll};
 
-const DEFAULT_USER_AGENT: &str = concat!("pi_agent_rust/", env!("CARGO_PKG_VERSION"));
+const DEFAULT_USER_AGENT: &str = concat!("maoclaw/", env!("CARGO_PKG_VERSION"));
 const ANTIGRAVITY_VERSION_ENV: &str = "PI_AI_ANTIGRAVITY_VERSION";
 const MAX_HEADER_BYTES: usize = 64 * 1024;
 const READ_CHUNK_BYTES: usize = 16 * 1024;
@@ -277,7 +277,7 @@ async fn send_parts(
     transport.flush().await?;
 
     let (status, response_headers, leftover) = Box::pin(read_response_head(&mut transport)).await?;
-    let body_kind = body_kind_from_headers(&response_headers);
+    let body_kind = body_kind_from_headers(&response_headers)?;
 
     let state = BodyStreamState::new(transport, body_kind, leftover);
     let stream = stream::try_unfold(state, |mut state| async move {
@@ -574,29 +574,65 @@ enum BodyKind {
     Eof,
 }
 
-fn body_kind_from_headers(headers: &[(String, String)]) -> BodyKind {
-    let mut content_length = None;
-    let mut transfer_encoding = None;
+fn body_kind_from_headers(headers: &[(String, String)]) -> Result<BodyKind> {
+    let mut content_length_values = Vec::new();
+    let mut transfer_encoding_values = Vec::new();
 
     for (name, value) in headers {
         let name_lc = name.to_ascii_lowercase();
         if name_lc == "content-length" {
-            content_length = value.trim().parse::<usize>().ok();
+            content_length_values.extend(
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_string),
+            );
         } else if name_lc == "transfer-encoding" {
-            transfer_encoding = Some(value.to_ascii_lowercase());
+            transfer_encoding_values.extend(
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_ascii_lowercase),
+            );
         }
     }
 
-    if let Some(te) = transfer_encoding {
-        if te.split(',').any(|v| v.trim() == "chunked") {
-            return BodyKind::Chunked;
+    if !transfer_encoding_values.is_empty() {
+        if transfer_encoding_values
+            .iter()
+            .any(|encoding| encoding != "chunked")
+        {
+            return Err(Error::api(format!(
+                "Unsupported Transfer-Encoding header: {}",
+                transfer_encoding_values.join(", ")
+            )));
         }
+        return Ok(BodyKind::Chunked);
     }
+
+    let content_length = if content_length_values.is_empty() {
+        None
+    } else {
+        let mut parsed_lengths = Vec::with_capacity(content_length_values.len());
+        for value in &content_length_values {
+            let parsed = value
+                .parse::<usize>()
+                .map_err(|_| Error::api(format!("Invalid Content-Length header: {value}")))?;
+            parsed_lengths.push(parsed);
+        }
+        let first = parsed_lengths[0];
+        if parsed_lengths.iter().any(|value| *value != first) {
+            return Err(Error::api("Conflicting Content-Length headers"));
+        }
+        Some(first)
+    };
 
     match content_length {
-        Some(0) => BodyKind::Empty,
-        Some(n) => BodyKind::ContentLength(n),
-        None => BodyKind::Eof,
+        Some(0) => Ok(BodyKind::Empty),
+        Some(n) => Ok(BodyKind::ContentLength(n)),
+        None => Ok(BodyKind::Eof),
     }
 }
 
@@ -1053,7 +1089,7 @@ mod tests {
     fn body_kind_content_length() {
         let headers = vec![("Content-Length".to_string(), "42".to_string())];
         assert!(matches!(
-            body_kind_from_headers(&headers),
+            body_kind_from_headers(&headers).unwrap(),
             BodyKind::ContentLength(42)
         ));
     }
@@ -1061,26 +1097,26 @@ mod tests {
     #[test]
     fn body_kind_content_length_zero() {
         let headers = vec![("Content-Length".to_string(), "0".to_string())];
-        assert!(matches!(body_kind_from_headers(&headers), BodyKind::Empty));
+        assert!(matches!(
+            body_kind_from_headers(&headers).unwrap(),
+            BodyKind::Empty
+        ));
     }
 
     #[test]
     fn body_kind_chunked() {
         let headers = vec![("Transfer-Encoding".to_string(), "chunked".to_string())];
         assert!(matches!(
-            body_kind_from_headers(&headers),
+            body_kind_from_headers(&headers).unwrap(),
             BodyKind::Chunked
         ));
     }
 
     #[test]
-    fn body_kind_chunked_mixed() {
-        // Transfer-Encoding with multiple values
+    fn body_kind_rejects_unsupported_transfer_encoding() {
         let headers = vec![("Transfer-Encoding".to_string(), "gzip, chunked".to_string())];
-        assert!(matches!(
-            body_kind_from_headers(&headers),
-            BodyKind::Chunked
-        ));
+        let err = body_kind_from_headers(&headers).expect_err("unsupported TE should fail");
+        assert!(err.to_string().contains("Unsupported Transfer-Encoding"));
     }
 
     #[test]
@@ -1091,7 +1127,7 @@ mod tests {
             ("Transfer-Encoding".to_string(), "chunked".to_string()),
         ];
         assert!(matches!(
-            body_kind_from_headers(&headers),
+            body_kind_from_headers(&headers).unwrap(),
             BodyKind::Chunked
         ));
     }
@@ -1099,14 +1135,17 @@ mod tests {
     #[test]
     fn body_kind_eof_no_headers() {
         let headers: Vec<(String, String)> = Vec::new();
-        assert!(matches!(body_kind_from_headers(&headers), BodyKind::Eof));
+        assert!(matches!(
+            body_kind_from_headers(&headers).unwrap(),
+            BodyKind::Eof
+        ));
     }
 
     #[test]
     fn body_kind_case_insensitive() {
         let headers = vec![("content-length".to_string(), "10".to_string())];
         assert!(matches!(
-            body_kind_from_headers(&headers),
+            body_kind_from_headers(&headers).unwrap(),
             BodyKind::ContentLength(10)
         ));
     }
@@ -1580,10 +1619,33 @@ mod tests {
     }
 
     #[test]
-    fn body_kind_invalid_content_length_falls_to_eof() {
+    fn body_kind_invalid_content_length_is_error() {
         let headers = vec![("Content-Length".to_string(), "not-a-number".to_string())];
-        // parse fails, content_length stays None → Eof
-        assert!(matches!(body_kind_from_headers(&headers), BodyKind::Eof));
+        let err = body_kind_from_headers(&headers).expect_err("invalid content length should fail");
+        assert!(err.to_string().contains("Invalid Content-Length"));
+    }
+
+    #[test]
+    fn body_kind_accepts_matching_repeated_content_length_headers() {
+        let headers = vec![
+            ("Content-Length".to_string(), "42".to_string()),
+            ("Content-Length".to_string(), "42".to_string()),
+        ];
+        assert!(matches!(
+            body_kind_from_headers(&headers).unwrap(),
+            BodyKind::ContentLength(42)
+        ));
+    }
+
+    #[test]
+    fn body_kind_rejects_conflicting_content_length_headers() {
+        let headers = vec![
+            ("Content-Length".to_string(), "42".to_string()),
+            ("Content-Length".to_string(), "43".to_string()),
+        ];
+        let err =
+            body_kind_from_headers(&headers).expect_err("conflicting content lengths should fail");
+        assert!(err.to_string().contains("Conflicting Content-Length"));
     }
 
     #[test]
@@ -1679,11 +1741,11 @@ mod tests {
         // Verify the format string used when PI_AI_ANTIGRAVITY_VERSION is set.
         let version = "1.2.3";
         let ua = format!("{DEFAULT_USER_AGENT} Antigravity/{version}");
-        assert!(ua.starts_with("pi_agent_rust/"));
+        assert!(ua.starts_with("maoclaw/"));
         assert!(ua.contains("Antigravity/1.2.3"));
 
         // Verify default user agent contains crate version.
-        assert!(DEFAULT_USER_AGENT.starts_with("pi_agent_rust/"));
+        assert!(DEFAULT_USER_AGENT.starts_with("maoclaw/"));
     }
 
     #[test]

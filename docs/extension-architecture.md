@@ -1,6 +1,6 @@
 # Extension Runtime Architecture
 
-This document describes the extension runtime architecture for `pi_agent_rust`,
+This document describes the extension runtime architecture for `maoclaw`,
 covering the runtime model, hostcall dispatch, capability policy, trust
 boundaries, and structured concurrency.
 

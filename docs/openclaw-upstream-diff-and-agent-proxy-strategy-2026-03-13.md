@@ -1,4 +1,4 @@
-# OpenClaw vs Upstream `pi_agent_rust` Assessment
+# OpenClaw Runtime Consistency Assessment
 
 Status: Draft  
 Date: 2026-03-13  
@@ -9,7 +9,7 @@ Audience: founders, product, architecture, runtime engineers
 
 ## Executive Summary
 
-OpenClaw should be treated as an additive product upgrade on top of `pi_agent_rust`, not as a semantic fork of the runtime.
+OpenClaw should be treated as an additive product upgrade on top of the shared runtime baseline, not as a semantic fork of the runtime.
 
 That means:
 
@@ -41,7 +41,7 @@ Bottom line:
 
 Upstream facts verified on 2026-03-13:
 
-- repo: `https://github.com/Dicklesworthstone/pi_agent_rust`
+- reference repo: legacy shared runtime baseline
 - latest release: `v0.1.9` on 2026-03-12
 - repo push activity continued on 2026-03-13
 
@@ -352,7 +352,7 @@ The actual reasoning and tool-execution engine:
 - permissions
 - output generation
 
-Today this is still the `pi_agent_rust` runtime core.
+Today this is still the shared maoclaw runtime core.
 
 #### Agent Profile
 
@@ -595,13 +595,13 @@ This is the correct OpenClaw operating model.
 
 Use this when aligning the team:
 
-> OpenClaw is an upgraded product platform built on the `pi_agent_rust` runtime. We intentionally extend the product layer, but we do not intentionally fork the low-level runtime logic away from upstream correctness.
+> OpenClaw is an upgraded product platform built on the maoclaw runtime. We intentionally extend the product layer, but we do not intentionally fork the low-level runtime logic away from baseline correctness.
 
 ### 10.2 External product statement
 
 Use this for product pages and investor/operator explanation:
 
-> OpenClaw keeps the proven `pi_agent_rust` execution core at the bottom, then adds a higher-level system layer on top: desktop onboarding, role-based agents, channel bindings, local bridge coordination, memory, artifacts, vault snapshots, and multi-surface workflows.
+> OpenClaw keeps the proven maoclaw execution core at the bottom, then adds a higher-level system layer on top: desktop onboarding, role-based agents, channel bindings, local bridge coordination, memory, artifacts, vault snapshots, and multi-surface workflows.
 
 ### 10.3 Short positioning line
 

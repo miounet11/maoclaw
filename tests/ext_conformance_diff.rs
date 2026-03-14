@@ -225,7 +225,7 @@ fn ts_oracle_node_path() -> &'static Path {
         fn symlink_pkg(_scope_dir: &Path, _name: &str, _target: &Path) {}
 
         let base = PathBuf::from(format!(
-            "/tmp/pi_agent_rust_ts_oracle_node_path-{}",
+            "/tmp/maoclaw_ts_oracle_node_path-{}",
             std::process::id()
         ));
 

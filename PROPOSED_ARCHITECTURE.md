@@ -1,4 +1,4 @@
-# Proposed Architecture (Pi Rust Port)
+# Proposed Architecture (maoclaw)
 
 ## Goals
 - Single binary, fast startup, low memory

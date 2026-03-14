@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-This audit documents the concrete security controls in `pi_agent_rust`'s extension
+This audit documents the concrete security controls in `maoclaw`'s extension
 runtime, compares them with the ambient-access model of Node.js/Bun, and classifies
 gaps by severity with exploit narratives and proposed mitigations.
 

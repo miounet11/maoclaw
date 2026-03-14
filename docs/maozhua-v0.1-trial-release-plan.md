@@ -21,7 +21,7 @@ Companions: [README.md](../README.md), [FEATURE_PARITY.md](../FEATURE_PARITY.md)
 - 产品形态：终端优先的 AI coding agent 产品
 - 首版定位：**小范围试用版**
 - 命令兼容策略：继续保留 `pi` 命令
-- 技术包与仓库策略：暂不改 `pi_agent_rust`、`pi` crate、`pi` binary 的既有结构
+- 技术包与仓库策略：对外统一为 `maoclaw` / `猫爪`，同时保留 `pi` 命令兼容层
 - 发布口径：强调“可试用”和“兼容 Pi 工作流”，不宣称 strict drop-in replacement
 
 ## 2. 当前项目状态结论
@@ -54,7 +54,7 @@ Companions: [README.md](../README.md), [FEATURE_PARITY.md](../FEATURE_PARITY.md)
 
 当前仓库中同时存在多层命名：
 
-- 仓库 / package：`pi_agent_rust`
+- 仓库 / package：`maoclaw`
 - 用户命令：`pi`
 - 历史/兼容语义：Pi / Pi Agent
 - 部分未来产品线：OpenClaw / OpenClaw V2
@@ -371,7 +371,7 @@ Companions: [README.md](../README.md), [FEATURE_PARITY.md](../FEATURE_PARITY.md)
 
 - 猫爪是对外产品名
 - 命令仍为 `pi`
-- 当前仓库仍为 `pi_agent_rust`
+- 当前仓库对外统一为 `maoclaw`
 - 当前是 Trial Beta，不是 strict drop-in release
 - OpenClaw V2 相关文档属于未来产品层参考，不是猫爪 v0.1 的默认能力承诺
 
@@ -382,7 +382,7 @@ Companions: [README.md](../README.md), [FEATURE_PARITY.md](../FEATURE_PARITY.md)
 - 产品名：猫爪
 - 技术基座：built on top of the current Rust Pi runtime
 - 命令名：`pi`
-- 仓库名：`pi_agent_rust`
+- 仓库名：`maoclaw`
 
 ## 9. 对外试用包组成
 

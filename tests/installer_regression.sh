@@ -59,6 +59,19 @@ STUB
   chmod +x "${dir}/fakebin/pi"
 }
 
+write_typescript_pi_stub() {
+  local dir="$1"
+  cat > "${dir}/fakebin/pi" <<'STUB'
+#!/usr/bin/env node
+if (process.argv[2] === '--version') {
+  console.log('pi 0.1.0 (typescript-stub)')
+  process.exit(0)
+}
+console.log('existing typescript pi stub')
+STUB
+  chmod +x "${dir}/fakebin/pi"
+}
+
 write_cosign_stub() {
   local dir="$1"
   local mode="$2"
@@ -337,6 +350,7 @@ run_installer() {
     XDG_STATE_HOME="${dir}/state" \
     XDG_DATA_HOME="${dir}/data" \
     XDG_CONFIG_HOME="${dir}/config" \
+    PI_INSTALLER_LOCK_DIR="${dir}/install.lock.d" \
     PATH="${path_value}" \
     SHELL="/bin/bash" \
     bash "${INSTALLER}" "$@" >"${out}" 2>&1
@@ -357,6 +371,7 @@ run_uninstaller() {
     XDG_STATE_HOME="${dir}/state" \
     XDG_DATA_HOME="${dir}/data" \
     XDG_CONFIG_HOME="${dir}/config" \
+    PI_INSTALLER_LOCK_DIR="${dir}/install.lock.d" \
     PATH="${path_value}" \
     SHELL="/bin/bash" \
     bash "${UNINSTALLER}" "$@" >"${out}" 2>&1
@@ -367,6 +382,17 @@ run_uninstaller() {
 exit_code_of() {
   local dir="$1"
   cat "${dir}/exit_code"
+}
+
+state_value() {
+  local state_file="$1"
+  local key="$2"
+  bash -c '
+    set -euo pipefail
+    # shellcheck disable=SC1090
+    . "$1"
+    eval "printf %s \"\${$2:-}\""
+  ' bash "$state_file" "$key"
 }
 
 assert_exit_code() {
@@ -415,6 +441,8 @@ test_help_lists_installer_flags() {
   assert_output_contains "$dir" "--sigstore-bundle-url URL"
   assert_output_contains "$dir" "--completions SHELL"
   assert_output_contains "$dir" "--no-agent-skills"
+  assert_output_contains "$dir" "--macos-launcher-path PATH"
+  assert_output_contains "$dir" "--no-macos-launcher"
 }
 
 test_skill_smoke_script_passes() {
@@ -563,6 +591,42 @@ test_offline_relative_tarball_path_is_accepted() {
   [ -x "$installed" ] || { echo "expected installed binary at ${installed}" >&2; return 1; }
 }
 
+test_macos_launcher_installed_for_darwin() {
+  local dir artifact checksum launcher state_file
+  dir="$(case_dir "macos-launcher-installed")"
+  write_existing_pi_stub "$dir"
+  write_uname_stub "$dir" "Darwin" "arm64"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/dest" \
+    --artifact-url "file://${artifact}" \
+    --checksum "${checksum}" \
+    --no-completions \
+    --no-agent-skills
+
+  launcher="${dir}/home/Applications/Pi.command"
+  state_file="${dir}/state/pi-agent-rust/install-state.env"
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Installed macOS launcher to ${launcher}"
+  [ -x "$launcher" ] || { echo "expected macOS launcher at ${launcher}" >&2; return 1; }
+  if ! grep -Fq "maoclaw installer managed macOS launcher" "$launcher"; then
+    echo "expected installer-managed launcher marker in ${launcher}" >&2
+    return 1
+  fi
+  [ "$(state_value "$state_file" "PIAR_MACOS_LAUNCHER_PATH")" = "$launcher" ] || {
+    echo "expected recorded macOS launcher path ${launcher}" >&2
+    cat "$state_file" >&2
+    return 1
+  }
+}
+
 test_proxy_args_are_applied_to_curl_downloads() {
   local dir artifact checksum curl_log
   dir="$(case_dir "proxy-args-curl")"
@@ -629,6 +693,7 @@ test_wsl_detection_warning_is_emitted() {
   local dir artifact artifact_url checksum
   dir="$(case_dir "wsl-detection-warning")"
   write_existing_pi_stub "$dir"
+  write_uname_stub "$dir" "Linux" "x86_64"
 
   artifact="${dir}/fixtures/pi-fixture"
   write_artifact_binary "$artifact" "unsupported"
@@ -647,6 +712,152 @@ test_wsl_detection_warning_is_emitted() {
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "WSL detected"
+}
+
+test_adopt_existing_pi_creates_legacy_alias_and_records_adoption_state() {
+  local dir artifact artifact_url checksum state_file install_bin legacy_alias preserved_pi real_fakebin
+  dir="$(case_dir "adopt-existing-pi")"
+  write_typescript_pi_stub "$dir"
+  real_fakebin="$(cd "${dir}/fakebin" && pwd -P)"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  artifact_url="file://${artifact}"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${real_fakebin}" \
+    --artifact-url "${artifact_url}" \
+    --checksum "${checksum}" \
+    --adopt \
+    --no-completions \
+    --no-agent-skills
+
+  install_bin="${real_fakebin}/pi"
+  legacy_alias="${real_fakebin}/legacy-pi"
+  preserved_pi="${real_fakebin}/.pi-legacy-typescript"
+  state_file="${dir}/state/pi-agent-rust/install-state.env"
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Mode:      Rust is canonical 'pi'"
+  assert_output_contains "$dir" "Legacy:    legacy-pi -> ${preserved_pi}"
+  [ -x "$install_bin" ] || { echo "expected canonical pi install at ${install_bin}" >&2; return 1; }
+  [ -x "$legacy_alias" ] || { echo "expected legacy alias at ${legacy_alias}" >&2; return 1; }
+  [ -x "$preserved_pi" ] || { echo "expected preserved legacy pi at ${preserved_pi}" >&2; return 1; }
+  [ -f "$state_file" ] || { echo "expected installer state file at ${state_file}" >&2; return 1; }
+
+  if [ "$("${install_bin}" --version)" != "pi 9.9.9 (fixture)" ]; then
+    echo "expected canonical pi to point to Rust fixture build" >&2
+    "${install_bin}" --version >&2 || true
+    return 1
+  fi
+  if [ "$("${legacy_alias}" --version)" != "pi 0.1.0 (typescript-stub)" ]; then
+    echo "expected legacy alias to preserve prior TypeScript pi" >&2
+    "${legacy_alias}" --version >&2 || true
+    return 1
+  fi
+  if [ "$(state_value "$state_file" PIAR_INSTALL_VERSION)" != "v9.9.9" ]; then
+    echo "expected pinned version in installer state" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
+  if [ "$(state_value "$state_file" PIAR_INSTALL_BIN_NAME)" != "pi" ]; then
+    echo "expected canonical install bin name in installer state" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
+  if [ "$(state_value "$state_file" PIAR_ADOPTED_TYPESCRIPT)" != "1" ]; then
+    echo "expected installer state to record TypeScript adoption" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
+}
+
+test_keep_existing_pi_installs_pi_rust_side_by_side() {
+  local dir artifact artifact_url checksum state_file canonical_pi rust_pi
+  dir="$(case_dir "keep-existing-pi")"
+  write_typescript_pi_stub "$dir"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  artifact_url="file://${artifact}"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/fakebin" \
+    --artifact-url "${artifact_url}" \
+    --checksum "${checksum}" \
+    --keep-existing-pi \
+    --no-completions \
+    --no-agent-skills
+
+  canonical_pi="${dir}/fakebin/pi"
+  rust_pi="${dir}/fakebin/pi-rust"
+  state_file="${dir}/state/pi-agent-rust/install-state.env"
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Mode:      Existing pi kept; Rust installed as pi-rust"
+  [ -x "$canonical_pi" ] || { echo "expected existing pi to remain at ${canonical_pi}" >&2; return 1; }
+  [ -x "$rust_pi" ] || { echo "expected Rust side-by-side binary at ${rust_pi}" >&2; return 1; }
+  [ -f "$state_file" ] || { echo "expected installer state file at ${state_file}" >&2; return 1; }
+
+  if [ "$("${canonical_pi}" --version)" != "pi 0.1.0 (typescript-stub)" ]; then
+    echo "expected existing canonical pi to remain the TypeScript stub" >&2
+    "${canonical_pi}" --version >&2 || true
+    return 1
+  fi
+  if [ "$("${rust_pi}" --version)" != "pi 9.9.9 (fixture)" ]; then
+    echo "expected side-by-side pi-rust to be the Rust fixture build" >&2
+    "${rust_pi}" --version >&2 || true
+    return 1
+  fi
+  if [ "$(state_value "$state_file" PIAR_INSTALL_BIN_NAME)" != "pi-rust" ]; then
+    echo "expected side-by-side install bin name in installer state" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
+}
+
+test_pinned_version_is_recorded_for_fresh_install() {
+  local dir artifact artifact_url checksum state_file install_bin
+  dir="$(case_dir "pinned-version-state")"
+  write_existing_pi_stub "$dir"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  artifact_url="file://${artifact}"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/dest" \
+    --artifact-url "${artifact_url}" \
+    --checksum "${checksum}" \
+    --no-completions \
+    --no-agent-skills
+
+  install_bin="${dir}/dest/pi"
+  state_file="${dir}/state/pi-agent-rust/install-state.env"
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Version:   v9.9.9"
+  [ -x "$install_bin" ] || { echo "expected installed binary at ${install_bin}" >&2; return 1; }
+  [ -f "$state_file" ] || { echo "expected installer state file at ${state_file}" >&2; return 1; }
+  if [ "$(state_value "$state_file" PIAR_INSTALL_VERSION)" != "v9.9.9" ]; then
+    echo "expected pinned version recorded in installer state" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
+  if [ "$(state_value "$state_file" PIAR_INSTALL_BIN)" != "$(cd "${dir}/dest" && pwd -P)/pi" ]; then
+    echo "expected installed binary path recorded in installer state" >&2
+    cat "$state_file" >&2
+    return 1
+  fi
 }
 
 test_legacy_agent_settings_cleanup_is_safe_and_idempotent() {
@@ -835,11 +1046,11 @@ test_agent_skills_install_by_default() {
   assert_output_contains "$dir" "Skills:    installed (claude,codex)"
   [ -f "$claude_skill" ] || { echo "missing Claude skill: $claude_skill" >&2; return 1; }
   [ -f "$codex_skill" ] || { echo "missing Codex skill: $codex_skill" >&2; return 1; }
-  grep -Fq "pi_agent_rust installer managed skill" "$claude_skill" || {
+  grep -Fq "maoclaw installer managed skill" "$claude_skill" || {
     echo "missing managed marker in Claude skill" >&2
     return 1
   }
-  grep -Fq "pi_agent_rust installer managed skill" "$codex_skill" || {
+  grep -Fq "maoclaw installer managed skill" "$codex_skill" || {
     echo "missing managed marker in Codex skill" >&2
     return 1
   }
@@ -925,11 +1136,11 @@ test_skill_copy_failure_preserves_existing_managed_skills() {
   codex_skill="${dir}/home/.codex/skills/pi-agent-rust/SKILL.md"
   mkdir -p "$(dirname "$claude_skill")" "$(dirname "$codex_skill")"
   cat > "$claude_skill" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # OLD CLAUDE SKILL
 SKILL
   cat > "$codex_skill" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # OLD CODEX SKILL
 SKILL
 
@@ -1004,7 +1215,7 @@ test_uninstall_removes_only_installer_managed_skills() {
   mkdir -p "$(dirname "$managed_skill")" "$(dirname "$custom_skill")"
 
   cat > "$managed_skill" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # Managed skill
 SKILL
   cat > "$custom_skill" <<'SKILL'
@@ -1132,11 +1343,11 @@ test_uninstall_uses_recorded_skill_paths() {
   mkdir -p "$(dirname "$managed_claude")" "$(dirname "$managed_codex")"
 
   cat > "$managed_claude" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # Managed Claude skill
 SKILL
   cat > "$managed_codex" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # Managed Codex skill (recorded path)
 SKILL
 
@@ -1171,7 +1382,7 @@ test_uninstall_skips_unexpected_skill_paths() {
   mkdir -p "$unexpected_dir"
 
   cat > "$unexpected_skill" <<'SKILL'
-<!-- pi_agent_rust installer managed skill -->
+<!-- maoclaw installer managed skill -->
 # Managed marker on unexpected path
 SKILL
 
@@ -1187,6 +1398,38 @@ STATE
   assert_output_contains "$dir" "Skipping unexpected skill directory path: ${unexpected_dir}"
   if [ ! -f "$unexpected_skill" ]; then
     echo "unexpected skill path should be preserved" >&2
+    return 1
+  fi
+}
+
+test_uninstall_removes_managed_macos_launcher() {
+  local dir artifact checksum launcher
+  dir="$(case_dir "uninstall-macos-launcher")"
+  write_existing_pi_stub "$dir"
+  write_uname_stub "$dir" "Darwin" "arm64"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/dest" \
+    --artifact-url "file://${artifact}" \
+    --checksum "${checksum}" \
+    --no-completions \
+    --no-agent-skills
+
+  launcher="${dir}/home/Applications/Pi.command"
+  [ -x "$launcher" ] || { echo "expected macOS launcher before uninstall at ${launcher}" >&2; return 1; }
+
+  run_uninstaller "$dir" --yes --no-gum
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Removed macOS launcher: ${launcher}"
+  if [ -e "$launcher" ]; then
+    echo "expected managed macOS launcher to be removed" >&2
     return 1
   fi
 }
@@ -1590,9 +1833,13 @@ main() {
   run_test test_offline_tarball_mode_installs_local_artifact
   run_test test_offline_mode_blocks_network_artifact_urls
   run_test test_offline_relative_tarball_path_is_accepted
+  run_test test_macos_launcher_installed_for_darwin
   run_test test_proxy_args_are_applied_to_curl_downloads
   run_test test_linux_target_uses_supported_linux_artifact_naming
   run_test test_wsl_detection_warning_is_emitted
+  run_test test_adopt_existing_pi_creates_legacy_alias_and_records_adoption_state
+  run_test test_keep_existing_pi_installs_pi_rust_side_by_side
+  run_test test_pinned_version_is_recorded_for_fresh_install
   run_test test_legacy_agent_settings_cleanup_is_safe_and_idempotent
   run_test test_legacy_cleanup_skips_unexpected_settings_paths
   run_test test_agent_skills_install_by_default
@@ -1604,6 +1851,7 @@ main() {
   run_test test_uninstall_cleans_legacy_agent_settings_hooks
   run_test test_uninstall_uses_recorded_skill_paths
   run_test test_uninstall_skips_unexpected_skill_paths
+  run_test test_uninstall_removes_managed_macos_launcher
   run_test test_checksum_inline_success
   run_test test_checksum_mismatch_fails_hard
   run_test test_checksum_missing_manifest_entry_fails_hard

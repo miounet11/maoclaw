@@ -300,7 +300,7 @@ fn run() -> Result<()> {
 
 fn setup_native_runtime_bench_handle() -> Result<ExtensionRuntimeHandle> {
     let descriptor_path = std::env::temp_dir().join(format!(
-        "pi_agent_rust_native_bench_descriptor_{}.native.json",
+        "maoclaw_native_bench_descriptor_{}.native.json",
         std::process::id()
     ));
     fs::write(&descriptor_path, NATIVE_RUNTIME_DESCRIPTOR).map_err(|err| {

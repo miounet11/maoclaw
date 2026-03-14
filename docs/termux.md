@@ -15,7 +15,7 @@ mobile environment.
 
 Pi detects `termux-clipboard-get` and `termux-clipboard-set` when standard clipboard access fails.
 
-> Note: `pi_agent_rust` requires **Rust nightly**. If Termux can’t provide nightly easily,
+> Note: `maoclaw` requires **Rust nightly**. If Termux can’t provide nightly easily,
 > build the binary on a desktop and copy it over.
 
 ## Clipboard Support

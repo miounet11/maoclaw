@@ -14,13 +14,13 @@ rch exec -- cargo build --release
 
 ## Sibling Crates (Published vs Local Dev)
 
-By default, `pi_agent_rust` depends on **published crates.io versions** of the sibling libraries:
+By default, `maoclaw` depends on **published crates.io versions** of the sibling libraries:
 - `asupersync`
 - `rich_rust`
 - `charmed-*` (bubbletea/lipgloss/bubbles/glamour)
 - `sqlmodel-*` (core/sqlite)
 
-If you want to hack on those repos locally (in lockstep), use a local-only Cargo patch. Assuming the sibling repos are checked out next to `pi_agent_rust` (e.g. `../asupersync`, `../rich_rust`, etc), add this to **your local checkout** (do not commit):
+If you want to hack on those repos locally (in lockstep), use a local-only Cargo patch. Assuming the sibling repos are checked out next to `maoclaw` (e.g. `../asupersync`, `../rich_rust`, etc), add this to **your local checkout** (do not commit):
 
 ```toml
 [patch.crates-io]
