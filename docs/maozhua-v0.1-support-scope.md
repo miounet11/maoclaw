@@ -19,7 +19,7 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 ## 2. 版本定位
 
-猫爪 v0.1 是一个**小范围试用版**，不是严格替代现有 Pi / OpenClaw 的正式发布版。
+猫爪 v0.1 是一个**小范围试用版**，不是覆盖所有使用场景的正式发布版。
 
 本版本的目标是：
 
@@ -247,7 +247,7 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 - 全量扩展 CLI flag 透传语义完全成熟
 - 全量生命周期 hook parity
-- OpenClaw 插件生态兼容
+- 第三方插件生态全面兼容
 - 复杂第三方扩展的正式商用稳定性
 
 ## 11. 安装与分发支持范围
@@ -298,11 +298,11 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 以下事项明确不在猫爪 v0.1 承诺中：
 
-- 严格替代 TS Pi / OpenClaw
+- 覆盖所有历史工具链与外部生态
 - 完整 SDK drop-in parity
 - 全量 JSON/RPC parity
 - 全量扩展生态兼容
-- OpenClaw V2 全产品层交付
+- 更大范围的平台层默认交付
 - 桌面 GUI shell
 - 云同步与多端协同
 - Browser Operator 全量成熟交付

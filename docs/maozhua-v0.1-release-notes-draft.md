@@ -9,12 +9,12 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 猫爪 v0.1 是首个面向小范围试用用户的产品版本。
 
-这个版本的目标不是宣布“已经完全替代现有 Pi / OpenClaw 体系”，而是把当前 Rust 运行时和终端产品能力，整理成一个可以安装、可以试用、可以反馈的首版产品。
+这个版本的目标不是宣布“已经覆盖所有场景”，而是把当前 Rust 运行时和终端产品能力，整理成一个可以安装、可以试用、可以反馈的首版产品。
 
-它采用的是 migration-first 路线：
+它采用的是 focused-trial 路线：
 
-- 先让现有 Pi 用户有可信的迁移主路径
-- 先让高频 CLI 工作流完成上线验证
+- 先让核心 CLI 工作流稳定可用
+- 先让安装、配置、会话和基础集成路径跑通
 - 先把不能承诺的边界说清楚
 
 本版本重点提供：
@@ -75,11 +75,11 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 猫爪 v0.1 当前**不宣称**：
 
-- strict drop-in replacement
+- default-stable release across every scenario
 - 完整 SDK drop-in parity
 - 完整 JSON/RPC parity
 - 完整第三方扩展生态兼容
-- OpenClaw V2 全产品层默认成熟交付
+- 全平台、全生态、全场景的默认成熟交付
 
 ## 建议试用方式
 
@@ -117,7 +117,7 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 推荐对外使用如下口径：
 
-> 猫爪 v0.1 是一个小范围试用版，适合早期开发者和设计伙伴客户试用。它重点提供终端优先的 AI coding workflow，并保留当前 `pi` 命令兼容路径。它支持已验证的迁移路径，但尚未通过 strict drop-in certification。
+> 猫爪 v0.1 是一个小范围试用版，适合早期开发者和设计伙伴客户试用。它重点提供终端优先的 AI coding workflow，并保留当前 `pi` 运行命令。它强调真实可用的能力边界，而不是过度宣传。
 
 ## 下一步
 

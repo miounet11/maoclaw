@@ -14,6 +14,8 @@ Choose a language:
 
 Each language portal includes:
 
+- status
+- open-source overview
 - product overview
 - quick start
 - installation and deployment
@@ -21,6 +23,8 @@ Each language portal includes:
 - provider and API key setup
 - RPC and integration guidance
 - FAQ
+- support scope and known limitations
+- release notes
 - release changelog
 
 Canonical repository-level references:

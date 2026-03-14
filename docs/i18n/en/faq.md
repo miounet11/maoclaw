@@ -12,9 +12,9 @@ Because the current release keeps the compatibility command to reduce migration 
 
 Not yet. The public posture is still trial release plus active iteration.
 
-## Is it a full replacement for Pi / OpenClaw today?
+## Is it already a broad stable release?
 
-That claim would be too strong. The current direction is migration-first, not strict drop-in replacement.
+Not yet. The current public posture is focused trial release plus active iteration.
 
 ## What is it best for right now?
 

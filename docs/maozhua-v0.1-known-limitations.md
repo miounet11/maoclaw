@@ -32,9 +32,9 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 ## 3. 兼容性限制
 
-### 3.1 不是 strict drop-in replacement
+### 3.1 不是全场景默认稳定版
 
-猫爪 v0.1 不能宣称自己是对 TS Pi / OpenClaw 的严格替代实现。
+猫爪 v0.1 不能宣称自己已经覆盖所有历史工具链、所有集成方式和所有生态场景。
 
 影响：
 
@@ -116,13 +116,13 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 - 试用期不要把复杂 hook 依赖场景作为核心卖点
 
-### 4.3 OpenClaw 插件生态不在首版承诺中
+### 4.3 第三方插件生态不在首版承诺中
 
-猫爪 v0.1 不承诺与 OpenClaw 插件生态兼容。
+猫爪 v0.1 不承诺与所有第三方插件生态兼容。
 
 影响：
 
-- 不能直接把现有 OpenClaw 插件兼容写入销售或试用说明
+- 不能直接把任何外部插件生态兼容写入销售或试用说明
 
 建议：
 
@@ -242,7 +242,7 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 ### 8.2 不承诺 V2 存储层默认成熟可用
 
-仓库中已存在与 OpenClaw V2 相关的模块和文档，但这些不是猫爪 v0.1 的默认交付范围。
+仓库中已存在一些更大范围的模块和规划文档，但这些不是猫爪 v0.1 的默认交付范围。
 
 影响：
 
@@ -254,18 +254,18 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 
 ## 9. 文档与沟通限制
 
-### 9.1 品牌过渡期会存在旧名称残留
+### 9.1 命名并存会带来理解成本
 
-当前产品已经切换到 `maoclaw` 主仓库，但代码、兼容命令和部分历史文档仍保留 `Pi`、`pi_agent_rust`、`OpenClaw` 等名称。
+当前产品已经切换到 `maoclaw` 主仓库，但运行时命令仍保留 `pi`。
 
 影响：
 
-- 首版中仍可能看到部分旧名称
-- 若不统一，用户会困惑产品边界
+- 产品名与命令名并存
+- 若不统一说明，用户会困惑产品边界
 
 建议：
 
-- 对外文档优先统一，内部兼容命名与历史分析文档分阶段收敛
+- 对外文档优先统一，运行时命令和技术命名再分阶段收敛
 
 ### 9.2 某些历史文档反映的是工程状态，不是对外产品口径
 
@@ -310,7 +310,7 @@ Companions: [maozhua-v0.1-trial-release-plan.md](maozhua-v0.1-trial-release-plan
 在猫爪 v0.1 阶段，不建议对外使用以下表述：
 
 - “完全替代 Pi”
-- “完全兼容 OpenClaw”
+- “完全兼容所有外部生态”
 - “可无缝替换所有现有 SDK 集成”
 - “所有插件都可直接复用”
 - “所有平台都同等成熟”

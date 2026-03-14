@@ -9,7 +9,7 @@ The repository-level authoritative version log remains [../../CHANGELOG.md](../.
 
 ## 0.1.8 - Maozhua Public Trial Preparation
 
-- repositioned the public launch around a migration-first story instead of premature strict-replacement claims
+- repositioned the public launch around a focused original-product story instead of premature overclaiming
 - added a public status/truth document to separate validated behavior from non-promised scope
 - added an upgrade roadmap covering the staged path from `v0.1` to `v0.4`
 - aligned README, quick start, FAQ, and release-facing copy around the same brand and release message
@@ -20,7 +20,7 @@ Source: issues closed since 2026-02-03
 
 ### Representative upgrade areas
 
-- HTTP runtime migration onto `asupersync`
+- HTTP runtime upgrades
 - session indexing and persistence improvements
 - stronger extension runtime and capability controls
 - continued work on interactive flows, keybindings, and session picking

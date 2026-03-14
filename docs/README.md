@@ -80,9 +80,8 @@ These files are useful, but they are not the first stop for users or release com
 - `maozhua-v0.1-release-blockers.md`
 - `maoclaw-rebrand-and-repo-boundary-plan-2026-03-13.md`
 
-### Historical parity and upstream analysis
+### Historical engineering reference
 
-- `openclaw-upstream-diff-and-agent-proxy-strategy-2026-03-13.md`
 - `openclaw-*.md`
 - `dropin-*.json`
 - `parity-certification.json`

@@ -11,12 +11,17 @@ This directory is the English GitHub entrypoint for users who want installation,
 
 ## Start Here
 
+- [Status](status.md)
+- [Open Source Overview](overview.md)
 - [Quick Start](quick-start.md)
 - [Installation and Deployment](installation-and-deployment.md)
 - [Usage and Configuration](usage-and-configuration.md)
 - [Providers and API Keys](provider-and-auth.md)
 - [Integrations and Automation](integrations.md)
 - [FAQ](faq.md)
+- [Support Scope](support-scope.md)
+- [Known Limitations](known-limitations.md)
+- [Release Notes](release-notes.md)
 - [Changelog](changelog.md)
 
 ## Product Naming

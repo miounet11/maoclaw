@@ -32,15 +32,15 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 这是有意设计，不是安装错误。
 
-## 3. 猫爪是不是 `pi_agent_rust`？
+## 3. 为什么产品名和命令名不同？
 
 可以理解为：
 
 - `maoclaw` 是当前主仓库和发布包名
-- `pi` 仍然是兼容命令与库名的一部分
-- `pi_agent_rust` 只保留为历史上游/迁移语境中的旧名称
+- `猫爪` 是当前对外产品名
+- `pi` 是当前运行时命令名
 
-当前已经完成主仓库与发布包名切换，但不会在首版一次性移除所有兼容命名。
+这是一种发布与运行时兼容并行的设计，不代表产品身份不清晰。
 
 ## 4. 它已经是正式版了吗？
 
@@ -56,17 +56,16 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 它暂时不适合被描述为“正式商用稳定版”。
 
-## 5. 它是不是可以完全替代原来的 Pi / OpenClaw？
+## 5. 它现在是不是广泛稳定版？
 
-不能这样承诺。
+还不是。
 
-当前版本可以兼容 Pi 工作流主路径，但不能宣称是 strict drop-in replacement。
+当前版本更适合：
 
-更准确的说法是：
-
-- v0.1 是 migration-first public trial
-- 它支持已验证的迁移路径
-- 它还没有拿到 strict replacement certification
+- 试用
+- 团队内部评估
+- 产品集成验证
+- 小范围真实工作流验证
 
 ## 6. 首版最适合哪些人？
 
@@ -127,7 +126,7 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 - 所有第三方扩展都可直接复用
 - 所有扩展 hook 行为都完全一致
-- OpenClaw 插件生态兼容
+- 所有外部生态插件都无需适配即可工作
 
 ## 13. 它支持 macOS 以外的平台吗？
 
@@ -135,15 +134,17 @@ Companions: [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md), [maozhua
 
 Linux / Windows 可验证，但不是首版对外重点承诺平台。
 
-## 14. 为什么有些文档里还会看到 Pi / OpenClaw？
+## 14. 为什么有些地方还会看到 `pi`？
 
-因为当前产品既有品牌独立化目标，也有兼容迁移目标。
+因为当前运行时命令仍然使用 `pi`。
 
-- 猫爪 / maoclaw：当前仓库、发布与产品名
-- Pi：现有命令与兼容层
-- OpenClaw：部分产品路线、代理协作形态与历史上下文
+对外产品识别应优先理解为：
 
-首版会优先统一用户可见文档，但内部技术和历史名称不会一次性全部清除。
+- 产品名：`猫爪 / maoclaw`
+- 仓库与发布名：`maoclaw`
+- 运行命令：`pi`
+
+这不是安装错误，而是当前版本的命名策略。
 
 ## 15. 我第一次试用应该做什么？
 
@@ -201,7 +202,7 @@ Linux / Windows 可验证，但不是首版对外重点承诺平台。
 
 按当前计划，路线会分为四段：
 
-- `v0.1`：migration-first public trial
+- `v0.1`：public trial
 - `v0.2`：migration confidence beta
 - `v0.3`：integration beta
 - `v0.4`：certification track

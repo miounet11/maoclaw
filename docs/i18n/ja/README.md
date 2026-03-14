@@ -11,12 +11,17 @@ GitHub メインリポジトリ: `https://github.com/miounet11/maoclaw`
 
 ## まず読むページ
 
+- [現在の状態](status.md)
+- [オープンソース概要](overview.md)
 - [クイックスタート](quick-start.md)
 - [インストールとデプロイ](installation-and-deployment.md)
 - [使い方と設定](usage-and-configuration.md)
 - [Provider と API キー設定](provider-and-auth.md)
 - [連携と自動化](integrations.md)
 - [FAQ](faq.md)
+- [サポート範囲](support-scope.md)
+- [既知の制約](known-limitations.md)
+- [リリースノート](release-notes.md)
 - [更新ログ](changelog.md)
 
 ## 製品名

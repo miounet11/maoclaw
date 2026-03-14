@@ -11,12 +11,17 @@
 
 ## 先看这里
 
+- [当前状态](status.md)
+- [开源概览](overview.md)
 - [快速开始](quick-start.md)
 - [安装与部署](installation-and-deployment.md)
 - [使用与配置](usage-and-configuration.md)
 - [Provider 与 API 密钥配置](provider-and-auth.md)
 - [集成与自动化](integrations.md)
 - [常见问题](faq.md)
+- [支持范围](support-scope.md)
+- [已知限制](known-limitations.md)
+- [版本说明](release-notes.md)
 - [版本更新日志](changelog.md)
 
 ## 产品定位

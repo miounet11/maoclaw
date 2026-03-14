@@ -216,7 +216,7 @@ For open-source launch, present `maoclaw` as:
 
 - a serious Rust AI coding agent runtime
 - a terminal-first product with an optional desktop shell
-- a migration-safe upgrade path for Pi/OpenClaw-style users
+- a product-ready runtime for local use and external integration
 - a project with explicit release boundaries instead of inflated parity claims
 
 That positioning is strong enough to publish and honest enough to defend.

@@ -100,6 +100,5 @@ References:
 
 - product name: `猫爪 / maoclaw`
 - compatibility command: `pi`
-- historical codebase name: `pi_agent_rust`
 
-That naming split is intentional during the transition period.
+That naming split is intentional in the current release.

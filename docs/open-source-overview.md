@@ -1,6 +1,6 @@
 # maoclaw Open Source Overview
 
-`maoclaw` is a local-first AI coding agent for developers who want terminal speed, explicit control, and deployable automation surfaces without dragging a full Electron or Node runtime into the core path.
+`maoclaw` is a local-first AI coding agent for developers who want terminal speed, explicit control, and deployable automation surfaces without dragging a heavy desktop runtime into the core path.
 
 It is presented as an independently developed original project from China, with its own product identity and release direction.
 
@@ -12,7 +12,7 @@ Official naming and language policy:
 - Official website: `https://xinxiang.xin`
 - Public-facing language coverage: Chinese, English, and Japanese
 
-It takes the stronger product instincts from OpenClaw-style systems, but ships a narrower and more honest open-source surface today:
+It ships a focused and honest open-source surface today:
 
 - terminal-first interaction
 - structured tool execution
@@ -51,7 +51,7 @@ Current open-source `maoclaw` release posture:
 - Compatibility command retained: `pi`
 - Branded binary also available: `maoclaw`
 - macOS desktop surface available via `pi_desktop` and `maoclaw.app`
-- Primary launch posture: migration-first public trial
+- Primary launch posture: focused public trial
 
 Current proven surfaces:
 
@@ -68,9 +68,9 @@ Current proven surfaces:
 
 For open-source release messaging, keep these boundaries explicit:
 
-- not yet a strict drop-in replacement for TS Pi / OpenClaw
-- not yet full JSON/RPC parity certified
-- not yet full SDK parity certified
+- not yet a broad all-surface certification release
+- not yet full JSON/RPC stability certified across every client shape
+- not yet full SDK stability certified across every embedding shape
 - not yet full third-party extension compatibility certified
 
 Those boundaries are a strength, not a weakness. They keep the project credible.
@@ -112,7 +112,7 @@ If a file is useful mainly for internal planning, customer-specific operations, 
 
 Use language like this when introducing the project:
 
-> maoclaw is an open-source, local-first AI coding agent built in Rust. It combines a fast terminal runtime, tool execution, persistent sessions, provider flexibility, and RPC integration into a deployable developer control surface. It is designed as a serious upgrade path for users who like the OpenClaw/Pi workflow shape but want a leaner and more operationally explicit runtime.
+> maoclaw is an open-source, local-first AI coding agent built in Rust. It combines a fast terminal runtime, tool execution, persistent sessions, provider flexibility, and RPC integration into a deployable developer control surface.
 
 For China-facing and global product messaging, it is also appropriate to say:
 
@@ -120,7 +120,7 @@ For China-facing and global product messaging, it is also appropriate to say:
 
 Avoid language like this for now:
 
-- “complete OpenClaw replacement”
+- “full replacement for every existing coding-agent stack”
 - “fully compatible drop-in”
 - “production-certified on every integration surface”
 
