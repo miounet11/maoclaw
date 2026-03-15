@@ -1,4 +1,8 @@
 # Releasing maoclaw
+
+Formal public `maoclaw` releases start at `v0.1.9`.
+
+Earlier transition-era Maozhua launch notes are archival context, not the official public release ledger. The canonical public release history lives in [`../CHANGELOG.md`](../CHANGELOG.md).
 This repo ships:
 - A crates.io package: `maoclaw` (Cargo `[package].name`)
 - A library crate: `pi` (Cargo `[lib].name`)

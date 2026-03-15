@@ -43,7 +43,7 @@ Best for:
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | \
-  bash -s -- --version v0.1.8 --yes --easy-mode
+  bash -s -- --version v0.1.9 --yes --easy-mode
 ```
 
 ### 3. Source build

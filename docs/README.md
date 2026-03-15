@@ -36,7 +36,7 @@ Each language portal includes quick start, installation, usage, provider setup, 
 - [maozhua-v0.1-support-scope.md](maozhua-v0.1-support-scope.md) - what is in scope for the current release
 - [maozhua-v0.1-known-limitations.md](maozhua-v0.1-known-limitations.md) - explicit boundaries and non-promises
 - [maozhua-v0.1-faq.md](maozhua-v0.1-faq.md) - operator/customer questions
-- [maozhua-v0.1-release-notes-draft.md](maozhua-v0.1-release-notes-draft.md) - release-facing summary
+- [maoclaw-v0.1.9-release-notes.md](maoclaw-v0.1.9-release-notes.md) - first formal maoclaw release notes
 - [maozhua-upgrade-roadmap.md](maozhua-upgrade-roadmap.md) - staged upgrade route
 - [releasing.md](releasing.md) - release process and artifacts
 
@@ -82,6 +82,9 @@ These files are useful, but they are not the first stop for users or release com
 
 ### Historical engineering reference
 
+- `original-developer-arc-ef68e11-to-cd6b6ef-analysis.md`
+- `maoclaw-inherit-original-developer-method-playbook.md`
+- `maoclaw-upgrade-roadmap-derived-from-original-method.md`
 - `openclaw-*.md`
 - `dropin-*.json`
 - `parity-certification.json`
