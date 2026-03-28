@@ -1,6 +1,6 @@
 {
   "schema": "pi.qa.final_certification.v1",
-  "generated_at": "2026-03-03T22:07:40Z",
+  "generated_at": "2026-03-17T01:22:56Z",
   "certification_verdict": "FAIL",
   "evidence": [
     {
@@ -15,9 +15,9 @@
       "gate": "e2e_evidence",
       "bead": "bd-1f42.3",
       "status": "PASS",
-      "detail": "E2E conformance: 60/224 extensions tested",
+      "detail": "E2E conformance: 217/224 extensions tested",
       "artifact_path": "tests/ext_conformance/reports/conformance_summary.json",
-      "artifact_sha256": "content-hash-5a982977b3d47e59-len-1058"
+      "artifact_sha256": "content-hash-16ef7231de137b7a-len-1043"
     },
     {
       "gate": "must_pass_208",
@@ -31,25 +31,25 @@
       "gate": "evidence_bundle",
       "bead": "bd-1f42.6.8",
       "status": "FAIL",
-      "detail": "Evidence bundle incomplete or missing (insufficient, artifacts=1553)",
+      "detail": "Evidence bundle incomplete or missing (insufficient, artifacts=94)",
       "artifact_path": "tests/evidence_bundle/index.json",
-      "artifact_sha256": "content-hash-53d0462f753c221d-len-11059"
+      "artifact_sha256": "content-hash-53dcb2fe2d9259fd-len-10760"
     },
     {
       "gate": "cross_platform",
       "bead": "bd-1f42.6.7",
-      "status": "PASS",
-      "detail": "10/10 platform checks pass",
-      "artifact_path": "tests/cross_platform_reports/linux/platform_report.json",
-      "artifact_sha256": "content-hash-7beb0d4f17c4d8f0-len-4205"
+      "status": "WARN",
+      "detail": "9/10 platform checks pass",
+      "artifact_path": "tests/cross_platform_reports/macos/platform_report.json",
+      "artifact_sha256": "content-hash-0c416e13acbeb7cd-len-4303"
     },
     {
       "gate": "full_suite_gate",
       "bead": "bd-1f42.6.5",
       "status": "WARN",
-      "detail": "18/0 gates pass (fail)",
+      "detail": "16/0 gates pass (fail)",
       "artifact_path": "tests/full_suite_gate/full_suite_verdict.json",
-      "artifact_sha256": "content-hash-345363cb218c3330-len-8038"
+      "artifact_sha256": "content-hash-ff29e6a9e66840ba-len-8309"
     },
     {
       "gate": "extension_remediation_backlog",
@@ -57,7 +57,7 @@
       "status": "PASS",
       "detail": "Remediation backlog valid: 36 entries (31 actionable, 5 non-actionable)",
       "artifact_path": "tests/full_suite_gate/extension_remediation_backlog.json",
-      "artifact_sha256": "content-hash-632b5b6175a4b87a-len-56760"
+      "artifact_sha256": "content-hash-65db21b1a97fe1b7-len-56760"
     },
     {
       "gate": "practical_finish_checkpoint",
@@ -65,7 +65,7 @@
       "status": "PASS",
       "detail": "Practical-finish checkpoint satisfied: 0 docs/report residual issue(s)",
       "artifact_path": "tests/full_suite_gate/practical_finish_checkpoint.json",
-      "artifact_sha256": "content-hash-b52b367dd5f2ec26-len-436"
+      "artifact_sha256": "content-hash-2376dfd4ff2f7f0a-len-436"
     },
     {
       "gate": "parameter_sweeps_integrity",
@@ -108,13 +108,19 @@
     {
       "id": "bd-1f42.6.8",
       "severity": "high",
-      "description": "evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=1553)",
+      "description": "evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=94)",
       "mitigation": "Investigate and fix before release (bead bd-1f42.6.8)"
+    },
+    {
+      "id": "bd-1f42.6.7",
+      "severity": "medium",
+      "description": "cross_platform: 9/10 platform checks pass",
+      "mitigation": "Monitor and track in bead bd-1f42.6.7"
     },
     {
       "id": "bd-1f42.6.5",
       "severity": "medium",
-      "description": "full_suite_gate: 18/0 gates pass (fail)",
+      "description": "full_suite_gate: 16/0 gates pass (fail)",
       "mitigation": "Monitor and track in bead bd-1f42.6.5"
     },
     {

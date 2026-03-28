@@ -65,6 +65,8 @@ pub mod conformance;
 pub mod conformance_shapes;
 pub mod connectors;
 pub mod crypto_shim;
+#[cfg(feature = "desktop-iced")]
+pub mod desktop_iced;
 pub mod doctor;
 pub mod error;
 pub mod error_hints;
@@ -83,6 +85,7 @@ pub mod extension_validation;
 pub mod extensions;
 pub mod extensions_js;
 pub mod flake_classifier;
+pub mod goals;
 pub mod hostcall_amac;
 pub mod hostcall_io_uring_lane;
 pub mod hostcall_queue;
@@ -124,6 +127,20 @@ pub mod tools;
 pub mod tui;
 pub mod vcr;
 pub mod version_check;
+
+// ── maoclaw desktop/control modules ───────────────────────────────────────────
+pub mod agent_profiles;
+pub mod artifacts;
+pub mod automations;
+pub mod bindings;
+pub mod bridge;
+pub mod cloud;
+pub mod memory_v2;
+pub mod onboarding;
+pub mod setup_registry;
+pub mod system_profile;
+pub mod templates;
+pub mod vault;
 
 pub use error::{Error, Result as PiResult};
 pub use extension_dispatcher::ExtensionDispatcher;

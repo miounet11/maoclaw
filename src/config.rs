@@ -4,6 +4,7 @@ use crate::agent::QueueMode;
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
@@ -38,6 +39,8 @@ pub struct Config {
     // Version check
     #[serde(alias = "checkForUpdates")]
     pub check_for_updates: Option<bool>,
+    #[serde(alias = "desktopLanguage")]
+    pub desktop_language: Option<String>,
 
     // Terminal Behavior
     #[serde(alias = "quietStartup")]
@@ -114,6 +117,32 @@ pub struct Config {
     // Runtime Risk Controller
     #[serde(alias = "extensionRisk")]
     pub extension_risk: Option<ExtensionRiskConfig>,
+
+    // ── maoclaw desktop/runtime surfaces ──────────────────────────────────────
+    /// Active work system id.
+    #[serde(alias = "activeSystemId", default)]
+    pub active_system_id: Option<String>,
+    /// Work systems registered in this workspace.
+    #[serde(default)]
+    pub systems: Option<Vec<crate::system_profile::SystemProfile>>,
+    /// Channel bindings (Telegram, QQ, Feishu, etc.).
+    #[serde(default)]
+    pub bindings: Option<Vec<BindingConfig>>,
+    /// Onboarding wizard state.
+    #[serde(default)]
+    pub onboarding: Option<OnboardingConfig>,
+    /// Starter agent profiles available at onboarding.
+    #[serde(alias = "agentProfiles", default)]
+    pub agent_profiles: Option<BTreeMap<String, AgentProfileConfig>>,
+    /// Selected starter agent profile id.
+    #[serde(alias = "starterAgent", default)]
+    pub starter_agent: Option<String>,
+    /// Selected starter agent profile id.
+    #[serde(alias = "activeAgentProfile", default)]
+    pub active_agent_profile: Option<String>,
+    /// Local web bridge settings.
+    #[serde(default)]
+    pub bridge: Option<crate::bridge::BridgeSettings>,
 }
 
 /// Extension capability policy configuration.
@@ -286,6 +315,56 @@ pub struct ThinkingBudgets {
     pub xhigh: Option<u32>,
 }
 
+// ── maoclaw desktop/runtime config types ──────────────────────────────────────
+
+/// A channel binding configuration (Telegram, QQ, Feishu, etc.).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BindingConfig {
+    /// Binding id (e.g. `"tg_main"`).
+    pub id: String,
+    /// Platform id: `"telegram"`, `"qq"`, `"feishu_push"`, `"feishu_chat"`.
+    #[serde(alias = "kind")]
+    pub platform: String,
+    /// Whether this binding is enabled.
+    pub enabled: Option<bool>,
+    /// Agent preset to dispatch this binding through.
+    #[serde(alias = "agentProfile")]
+    pub agent_profile: Option<String>,
+    /// Provider-specific config payload.
+    pub config: Option<Value>,
+}
+
+/// Onboarding wizard persistent state.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct OnboardingConfig {
+    /// Whether onboarding has been completed.
+    pub completed: Option<bool>,
+    /// Schema version for future migrations.
+    pub version: Option<u32>,
+    /// Provider chosen during onboarding.
+    pub chosen_provider: Option<String>,
+    /// Model chosen during onboarding.
+    pub chosen_model: Option<String>,
+    /// Starter agent profile id chosen during onboarding.
+    pub chosen_agent_profile: Option<String>,
+}
+
+/// A starter agent profile shown at onboarding.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AgentProfileConfig {
+    pub display_name: Option<String>,
+    pub description: Option<String>,
+    /// `"follow_main"` or `"override"`.
+    pub mode: Option<String>,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub skills: Option<Vec<String>>,
+    pub prompts: Option<Vec<String>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PackageSource {
@@ -311,6 +390,135 @@ const fn effective_profile_str(profile: crate::extensions::PolicyProfile) -> &'s
         crate::extensions::PolicyProfile::Safe => "safe",
         crate::extensions::PolicyProfile::Standard => "balanced",
         crate::extensions::PolicyProfile::Permissive => "permissive",
+    }
+}
+
+fn normalize_alias_keys(
+    object: &mut serde_json::Map<String, Value>,
+    canonical: &str,
+    aliases: &[&str],
+) {
+    let mut alias_value = None;
+    for alias in aliases {
+        if let Some(value) = object.remove(*alias)
+            && alias_value.is_none()
+        {
+            alias_value = Some(value);
+        }
+    }
+
+    if !object.contains_key(canonical)
+        && let Some(value) = alias_value
+    {
+        object.insert(canonical.to_string(), value);
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+fn normalize_settings_aliases(value: &mut Value) {
+    let Some(root) = value.as_object_mut() else {
+        return;
+    };
+
+    normalize_alias_keys(root, "hide_thinking_block", &["hideThinkingBlock"]);
+    normalize_alias_keys(root, "show_hardware_cursor", &["showHardwareCursor"]);
+    normalize_alias_keys(root, "default_provider", &["defaultProvider"]);
+    normalize_alias_keys(root, "default_model", &["defaultModel"]);
+    normalize_alias_keys(root, "default_thinking_level", &["defaultThinkingLevel"]);
+    normalize_alias_keys(root, "enabled_models", &["enabledModels"]);
+    normalize_alias_keys(root, "steering_mode", &["steeringMode", "queueMode"]);
+    normalize_alias_keys(root, "follow_up_mode", &["followUpMode"]);
+    normalize_alias_keys(root, "check_for_updates", &["checkForUpdates"]);
+    normalize_alias_keys(root, "desktop_language", &["desktopLanguage"]);
+    normalize_alias_keys(root, "quiet_startup", &["quietStartup"]);
+    normalize_alias_keys(root, "collapse_changelog", &["collapseChangelog"]);
+    normalize_alias_keys(root, "last_changelog_version", &["lastChangelogVersion"]);
+    normalize_alias_keys(root, "double_escape_action", &["doubleEscapeAction"]);
+    normalize_alias_keys(root, "editor_padding_x", &["editorPaddingX"]);
+    normalize_alias_keys(
+        root,
+        "autocomplete_max_visible",
+        &["autocompleteMaxVisible"],
+    );
+    normalize_alias_keys(root, "session_picker_input", &["sessionPickerInput"]);
+    normalize_alias_keys(root, "session_store", &["sessionStore", "sessionBackend"]);
+    normalize_alias_keys(root, "session_durability", &["sessionDurability"]);
+    normalize_alias_keys(root, "branch_summary", &["branchSummary"]);
+    normalize_alias_keys(root, "shell_path", &["shellPath"]);
+    normalize_alias_keys(root, "shell_command_prefix", &["shellCommandPrefix"]);
+    normalize_alias_keys(root, "gh_path", &["ghPath"]);
+    normalize_alias_keys(root, "thinking_budgets", &["thinkingBudgets"]);
+    normalize_alias_keys(root, "enable_skill_commands", &["enableSkillCommands"]);
+    normalize_alias_keys(root, "extension_policy", &["extensionPolicy"]);
+    normalize_alias_keys(root, "repair_policy", &["repairPolicy"]);
+    normalize_alias_keys(root, "extension_risk", &["extensionRisk"]);
+    normalize_alias_keys(root, "active_system_id", &["activeSystemId"]);
+    normalize_alias_keys(root, "agent_profiles", &["agentProfiles"]);
+    normalize_alias_keys(root, "starter_agent", &["starterAgent"]);
+    normalize_alias_keys(root, "active_agent_profile", &["activeAgentProfile"]);
+
+    if let Some(compaction) = root.get_mut("compaction").and_then(Value::as_object_mut) {
+        normalize_alias_keys(compaction, "reserve_tokens", &["reserveTokens"]);
+        normalize_alias_keys(compaction, "keep_recent_tokens", &["keepRecentTokens"]);
+    }
+    if let Some(branch_summary) = root
+        .get_mut("branch_summary")
+        .and_then(Value::as_object_mut)
+    {
+        normalize_alias_keys(branch_summary, "reserve_tokens", &["reserveTokens"]);
+    }
+    if let Some(retry) = root.get_mut("retry").and_then(Value::as_object_mut) {
+        normalize_alias_keys(retry, "max_retries", &["maxRetries"]);
+        normalize_alias_keys(retry, "base_delay_ms", &["baseDelayMs"]);
+        normalize_alias_keys(retry, "max_delay_ms", &["maxDelayMs"]);
+    }
+    if let Some(images) = root.get_mut("images").and_then(Value::as_object_mut) {
+        normalize_alias_keys(images, "auto_resize", &["autoResize"]);
+        normalize_alias_keys(images, "block_images", &["blockImages"]);
+    }
+    if let Some(markdown) = root.get_mut("markdown").and_then(Value::as_object_mut) {
+        normalize_alias_keys(markdown, "code_block_indent", &["codeBlockIndent"]);
+    }
+    if let Some(terminal) = root.get_mut("terminal").and_then(Value::as_object_mut) {
+        normalize_alias_keys(terminal, "show_images", &["showImages"]);
+        normalize_alias_keys(terminal, "clear_on_shrink", &["clearOnShrink"]);
+    }
+    if let Some(extension_policy) = root
+        .get_mut("extension_policy")
+        .and_then(Value::as_object_mut)
+    {
+        normalize_alias_keys(
+            extension_policy,
+            "default_permissive",
+            &["defaultPermissive"],
+        );
+        normalize_alias_keys(extension_policy, "allow_dangerous", &["allowDangerous"]);
+    }
+    if let Some(extension_risk) = root
+        .get_mut("extension_risk")
+        .and_then(Value::as_object_mut)
+    {
+        normalize_alias_keys(extension_risk, "window_size", &["windowSize"]);
+        normalize_alias_keys(extension_risk, "ledger_limit", &["ledgerLimit"]);
+        normalize_alias_keys(
+            extension_risk,
+            "decision_timeout_ms",
+            &["decisionTimeoutMs"],
+        );
+        normalize_alias_keys(extension_risk, "fail_closed", &["failClosed"]);
+    }
+    if let Some(onboarding) = root.get_mut("onboarding").and_then(Value::as_object_mut) {
+        normalize_alias_keys(onboarding, "chosen_provider", &["chosenProvider"]);
+        normalize_alias_keys(onboarding, "chosen_model", &["chosenModel"]);
+        normalize_alias_keys(onboarding, "chosen_agent_profile", &["chosenAgentProfile"]);
+    }
+    if let Some(bindings) = root.get_mut("bindings").and_then(Value::as_array_mut) {
+        for binding in bindings {
+            if let Some(binding_obj) = binding.as_object_mut() {
+                normalize_alias_keys(binding_obj, "platform", &["kind"]);
+                normalize_alias_keys(binding_obj, "agent_profile", &["agentProfile"]);
+            }
+        }
     }
 }
 
@@ -401,7 +609,14 @@ impl Config {
             return Ok(Self::default());
         }
 
-        let config: Self = serde_json::from_str(&content).map_err(|e| {
+        let mut value: Value = serde_json::from_str(&content).map_err(|e| {
+            Error::config(format!(
+                "Failed to parse settings file {}: {e}",
+                path.display()
+            ))
+        })?;
+        normalize_settings_aliases(&mut value);
+        let config: Self = serde_json::from_value(value).map_err(|e| {
             Error::config(format!(
                 "Failed to parse settings file {}: {e}",
                 path.display()
@@ -470,6 +685,7 @@ impl Config {
 
             // Version check
             check_for_updates: other.check_for_updates.or(base.check_for_updates),
+            desktop_language: other.desktop_language.or(base.desktop_language),
 
             // Terminal Behavior
             quiet_startup: other.quiet_startup.or(base.quiet_startup),
@@ -526,6 +742,16 @@ impl Config {
 
             // Runtime Risk Controller
             extension_risk: merge_extension_risk(base.extension_risk, other.extension_risk),
+
+            // maoclaw desktop/runtime surfaces
+            active_system_id: other.active_system_id.or(base.active_system_id),
+            systems: other.systems.or(base.systems),
+            bindings: other.bindings.or(base.bindings),
+            onboarding: other.onboarding.or(base.onboarding),
+            agent_profiles: other.agent_profiles.or(base.agent_profiles),
+            starter_agent: other.starter_agent.or(base.starter_agent),
+            active_agent_profile: other.active_agent_profile.or(base.active_agent_profile),
+            bridge: merge_bridge(base.bridge, other.bridge),
         }
     }
 
@@ -572,14 +798,14 @@ impl Config {
     }
 
     pub fn retry_max_retries(&self) -> u32 {
-        self.retry.as_ref().and_then(|r| r.max_retries).unwrap_or(3)
+        self.retry.as_ref().and_then(|r| r.max_retries).unwrap_or(5)
     }
 
     pub fn retry_base_delay_ms(&self) -> u32 {
         self.retry
             .as_ref()
             .and_then(|r| r.base_delay_ms)
-            .unwrap_or(2000)
+            .unwrap_or(1000)
     }
 
     pub fn retry_max_delay_ms(&self) -> u32 {
@@ -1183,6 +1409,33 @@ fn merge_extension_risk(
     }
 }
 
+fn merge_bridge(
+    base: Option<crate::bridge::BridgeSettings>,
+    other: Option<crate::bridge::BridgeSettings>,
+) -> Option<crate::bridge::BridgeSettings> {
+    match (base, other) {
+        (Some(base), Some(other)) => Some(crate::bridge::BridgeSettings {
+            enabled: other.enabled || base.enabled,
+            port: if other.port == crate::bridge::DEFAULT_BRIDGE_PORT {
+                base.port
+            } else {
+                other.port
+            },
+            control_plane_url: other.control_plane_url.or(base.control_plane_url),
+            device_label: other.device_label.or(base.device_label),
+            device_id: other.device_id.or(base.device_id),
+            allowed_scopes: if other.allowed_scopes.is_empty() {
+                base.allowed_scopes
+            } else {
+                other.allowed_scopes
+            },
+        }),
+        (None, Some(other)) => Some(other),
+        (Some(base), None) => Some(base),
+        (None, None) => None,
+    }
+}
+
 fn load_settings_json_object(path: &Path) -> Result<Value> {
     if !path.exists() {
         return Ok(Value::Object(serde_json::Map::new()));
@@ -1458,8 +1711,8 @@ mod tests {
         assert_eq!(config.compaction_reserve_tokens(), 16384);
         assert_eq!(config.compaction_keep_recent_tokens(), 20000);
         assert!(config.retry_enabled());
-        assert_eq!(config.retry_max_retries(), 3);
-        assert_eq!(config.retry_base_delay_ms(), 2000);
+        assert_eq!(config.retry_max_retries(), 5);
+        assert_eq!(config.retry_base_delay_ms(), 1000);
         assert_eq!(config.retry_max_delay_ms(), 60000);
         assert!(config.image_auto_resize());
         assert!(config.terminal_show_images());
@@ -2892,6 +3145,33 @@ mod tests {
         let json = r#"{"check_for_updates": true}"#;
         let config: Config = serde_json::from_str(json).unwrap();
         assert!(config.should_check_for_updates());
+    }
+
+    #[test]
+    fn load_from_path_tolerates_alias_and_canonical_duplicates() {
+        let temp = TempDir::new().expect("tempdir");
+        let path = temp.path().join("settings.json");
+        write_file(
+            &path,
+            r#"{
+              "checkForUpdates": true,
+              "check_for_updates": false,
+              "defaultProvider": "openai",
+              "default_provider": "anthropic",
+              "onboarding": {
+                "chosenProvider": "openai",
+                "chosen_provider": "anthropic",
+                "chosenModel": "gpt-4o"
+              }
+            }"#,
+        );
+
+        let config = Config::load_from_path(&path).expect("load config");
+        assert_eq!(config.check_for_updates, Some(false));
+        assert_eq!(config.default_provider.as_deref(), Some("anthropic"));
+        let onboarding = config.onboarding.as_ref().expect("onboarding");
+        assert_eq!(onboarding.chosen_provider.as_deref(), Some("anthropic"));
+        assert_eq!(onboarding.chosen_model.as_deref(), Some("gpt-4o"));
     }
 
     // ── merge function property tests ──────────────────────────────────

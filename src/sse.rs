@@ -158,10 +158,8 @@ impl SseParser {
             match field {
                 "event" => current.event = Self::intern_event_type(value),
                 "data" => Self::append_data_line(current, value, has_data, max_event_data_bytes),
-                "id" => {
-                    if !value.contains('\0') {
-                        current.id = Some(value.to_string());
-                    }
+                "id" if !value.contains('\0') => {
+                    current.id = Some(value.to_string());
                 }
                 "retry" => current.retry = value.parse().ok(),
                 _ => {} // Unknown field - ignore

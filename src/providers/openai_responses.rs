@@ -303,7 +303,7 @@ impl Provider for OpenAIResponsesProvider {
                 .unwrap_or_else(|e| format!("<failed to read body: {e}>"));
             return Err(Error::provider(
                 self.name(),
-                format!("OpenAI API error (HTTP {status}): {body}"),
+                super::format_openai_http_error(status, &body),
             ));
         }
 

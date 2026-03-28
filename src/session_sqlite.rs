@@ -57,10 +57,8 @@ fn compute_message_count_and_name(entries: &[SessionEntry]) -> (u64, Option<Stri
     for entry in entries {
         match entry {
             SessionEntry::Message(_) => message_count += 1,
-            SessionEntry::SessionInfo(info) => {
-                if info.name.is_some() {
-                    name.clone_from(&info.name);
-                }
+            SessionEntry::SessionInfo(info) if info.name.is_some() => {
+                name.clone_from(&info.name);
             }
             _ => {}
         }
@@ -153,10 +151,8 @@ pub async fn load_session_meta(path: &Path) -> Result<SqliteSessionMeta> {
         let value = row_get_str(&row, "value")?;
         match key {
             "message_count" => message_count = value.parse::<u64>().ok(),
-            "name" => {
-                if !value.is_empty() {
-                    name = Some(value.to_string());
-                }
+            "name" if !value.is_empty() => {
+                name = Some(value.to_string());
             }
             _ => {}
         }

@@ -1,8 +1,8 @@
 {
   "schema": "pi.ext.must_pass_gate.v1",
-  "generated_at": "2026-02-17T03:06:08.928Z",
-  "run_id": "local-20260217T030608928Z",
-  "correlation_id": "must-pass-gate-local-20260217T030608928Z",
+  "generated_at": "2026-03-17T02:32:54.918Z",
+  "run_id": "local-20260317T023254918Z",
+  "correlation_id": "must-pass-gate-local-20260317T023254918Z",
   "mode": "strict",
   "status": "pass",
   "thresholds": {
@@ -10,17 +10,17 @@
     "max_failures": 0
   },
   "observed": {
-    "must_pass_total": 125,
-    "must_pass_tested": 125,
-    "must_pass_passed": 125,
+    "must_pass_total": 123,
+    "must_pass_tested": 123,
+    "must_pass_passed": 123,
     "must_pass_failed": 0,
     "must_pass_skipped": 0,
     "must_pass_pass_rate_pct": 100.0,
-    "stretch_total": 98,
-    "stretch_tested": 94,
-    "stretch_passed": 91,
-    "stretch_failed": 3,
-    "stretch_skipped": 4
+    "stretch_total": 101,
+    "stretch_tested": 101,
+    "stretch_passed": 100,
+    "stretch_failed": 1,
+    "stretch_skipped": 0
   },
   "checks": [
     {
@@ -40,11 +40,11 @@
   ],
   "blocking_failures": [],
   "stretch_set_summary": {
-    "failed": 3,
+    "failed": 1,
     "note": "Stretch-set results are informational and non-blocking",
-    "passed": 91,
-    "skipped": 4,
-    "tested": 94,
-    "total": 98
+    "passed": 100,
+    "skipped": 0,
+    "tested": 101,
+    "total": 101
   }
 }

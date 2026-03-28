@@ -52,13 +52,13 @@ jobs:
     if: ${{ !contains(needs.plan.outputs.tag, '-') }}
     defaults:
       run:
-        working-directory: pi_agent_rust
+        working-directory: maoclaw
         shell: bash
     steps:
-      - name: Checkout pi_agent_rust
+      - name: Checkout maoclaw
         uses: actions/checkout@v4
         with:
-          path: pi_agent_rust
+          path: maoclaw
           fetch-depth: 0
           ref: ${{ needs.plan.outputs.tag }}
 

@@ -50,6 +50,7 @@ use pi::providers;
 use pi::resources::{ResourceCliOptions, ResourceLoader};
 use pi::session::Session;
 use pi::session_index::SessionIndex;
+use pi::setup_registry::{self, SetupChoice, SetupCredentialKind, SetupLane};
 use pi::tools::ToolRegistry;
 use pi::tui::PiConsole;
 use serde::{Deserialize, Serialize};
@@ -68,12 +69,16 @@ const USAGE_ERROR_PATTERNS: &[&str] = &[
     "theme spec is empty",
 ];
 
-fn main() {
+pub fn main_entry() {
     if let Err(err) = main_impl() {
         let exit_code = exit_code_for_error(&err);
         print_error_with_hints(&err);
         std::process::exit(exit_code);
     }
+}
+
+fn main() {
+    main_entry();
 }
 
 fn parse_cli_args(raw_args: Vec<String>) -> Result<Option<(cli::Cli, Vec<cli::ExtensionCliFlag>)>> {
@@ -257,6 +262,17 @@ fn main_impl() -> Result<()> {
     validate_theme_path_spec(cli.theme.as_deref(), &cwd)?;
 
     // Ultra-fast paths that don't need tracing or the async runtime.
+    if let Some(cli::Commands::Search {
+        query,
+        tag,
+        sort,
+        limit,
+    }) = &cli.command
+        && handle_search_blocking(query, tag.as_deref(), sort, *limit)?
+    {
+        return Ok(());
+    }
+
     if let Some(command) = &cli.command {
         match command {
             cli::Commands::List => {
@@ -267,16 +283,6 @@ fn main_impl() -> Result<()> {
             cli::Commands::Info { name } => {
                 handle_info_blocking(name)?;
                 return Ok(());
-            }
-            cli::Commands::Search {
-                query,
-                tag,
-                sort,
-                limit,
-            } => {
-                if handle_search_blocking(query, tag.as_deref(), sort, *limit)? {
-                    return Ok(());
-                }
             }
             cli::Commands::Doctor {
                 path,
@@ -427,7 +433,11 @@ fn main_impl() -> Result<()> {
 
     // Run the application
     let reactor = create_reactor()?;
-    let runtime = RuntimeBuilder::multi_thread()
+    let runtime_builder = match cli.mode.as_deref() {
+        Some("rpc" | "bridge") => RuntimeBuilder::current_thread(),
+        _ => RuntimeBuilder::multi_thread(),
+    };
+    let runtime = runtime_builder
         .blocking_threads(1, 2)
         .with_reactor(reactor)
         .build()
@@ -878,7 +888,7 @@ async fn run(
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
     if let Some(command) = cli.command.take() {
-        handle_subcommand(command, &cwd).await?;
+        handle_subcommand(command, &mut cli, &cwd).await?;
         return Ok(());
     }
 
@@ -1155,7 +1165,26 @@ async fn run(
     let allow_setup_prompt =
         is_interactive && io::stdin().is_terminal() && io::stdout().is_terminal();
     let has_extensions = !resources.extensions().is_empty();
-    let session = Box::pin(Session::new(&cli, &config)).await?;
+    let mut session = Box::pin(Session::new(&cli, &config)).await?;
+    let active_goal = pi::goals::resolve_active_goal(&cli, &session, &cwd)?;
+    if let Some(goal) = active_goal.as_ref() {
+        let persisted = pi::goals::persist_goal_contract(&mut session, goal);
+        if persisted {
+            let _ = pi::goals::persist_goal_run_state(&mut session, goal);
+        }
+    }
+    let active_goal_run = pi::goals::latest_goal_run_state(&session);
+
+    if mode == "bridge" {
+        return run_bridge_mode(
+            session,
+            config.clone(),
+            model_registry.get_available(),
+            global_dir.clone(),
+            cwd.clone(),
+        )
+        .await;
+    }
 
     let (mut selection, mut resolved_key) = match resolve_selection_with_auth(
         &mut cli,
@@ -1191,7 +1220,7 @@ async fn run(
         String::new()
     };
     let test_mode = std::env::var_os("PI_TEST_MODE").is_some();
-    let system_prompt = pi::app::build_system_prompt(
+    let base_system_prompt = pi::app::build_system_prompt(
         &cli,
         &cwd,
         &enabled_tools,
@@ -1200,10 +1229,31 @@ async fn run(
         } else {
             Some(skills_prompt.as_str())
         },
+        None,
         &global_dir,
         &package_dir,
         test_mode,
         !cli.hide_cwd_in_prompt,
+    );
+    let system_prompt = active_goal.as_ref().map_or_else(
+        || base_system_prompt.clone(),
+        |goal| {
+            pi::app::build_system_prompt(
+                &cli,
+                &cwd,
+                &enabled_tools,
+                if skills_prompt.is_empty() {
+                    None
+                } else {
+                    Some(skills_prompt.as_str())
+                },
+                Some(goal),
+                &global_dir,
+                &package_dir,
+                test_mode,
+                !cli.hide_cwd_in_prompt,
+            )
+        },
     );
     let provider =
         providers::create_provider(&selection.model_entry, None).map_err(anyhow::Error::new)?;
@@ -1229,6 +1279,11 @@ async fn run(
         session_arc,
         !cli.no_session,
         compaction_settings,
+    );
+    agent_session.configure_goal_contract_context(
+        Some(base_system_prompt),
+        active_goal.clone(),
+        active_goal_run,
     );
     let mut extension_model_entries = Vec::new();
 
@@ -1446,7 +1501,7 @@ async fn run(
                 thinking_level: sm.thinking_level,
             })
             .collect::<Vec<_>>();
-        run_rpc_mode(
+        Box::pin(run_rpc_mode(
             agent_session,
             resources,
             config.clone(),
@@ -1454,7 +1509,7 @@ async fn run(
             rpc_scoped_models,
             auth.clone(),
             runtime_handle.clone(),
-        )
+        ))
         .await
     } else if is_interactive {
         let model_scope = selection
@@ -1513,7 +1568,7 @@ async fn run(
     result
 }
 
-async fn handle_subcommand(command: cli::Commands, cwd: &Path) -> Result<()> {
+async fn handle_subcommand(command: cli::Commands, cli: &mut cli::Cli, cwd: &Path) -> Result<()> {
     let manager = PackageManager::new(cwd.to_path_buf());
     match command {
         cli::Commands::Install { source, local } => {
@@ -1544,6 +1599,18 @@ async fn handle_subcommand(command: cli::Commands, cwd: &Path) -> Result<()> {
         }
         cli::Commands::Config { show, paths, json } => {
             handle_config(&manager, cwd, show, paths, json).await?;
+        }
+        cli::Commands::Setup => {
+            let mut auth = AuthStorage::load(Config::auth_path())?;
+            let models_path = default_models_path(&Config::global_dir());
+            let _ = run_guided_setup(
+                None,
+                &mut auth,
+                cli,
+                &models_path,
+                SetupEntryPoint::Explicit,
+            )
+            .await?;
         }
         cli::Commands::Doctor {
             path,
@@ -3100,8 +3167,16 @@ fn handle_doctor(
 }
 
 fn print_version() {
+    let arg0 = std::env::args_os().next();
+    let binary_name = arg0
+        .as_deref()
+        .and_then(|arg0| Path::new(arg0).file_stem())
+        .and_then(|stem| stem.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("pi");
     println!(
-        "pi {} ({} {})",
+        "{} {} ({} {})",
+        binary_name,
         env!("CARGO_PKG_VERSION"),
         option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"),
         option_env!("VERGEN_BUILD_TIMESTAMP").unwrap_or(""),
@@ -3309,161 +3384,321 @@ fn list_providers() {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SetupCredentialKind {
-    ApiKey,
-    OAuthPkce,
-    OAuthDeviceFlow,
+enum SetupEntryPoint {
+    Recovery,
+    Explicit,
 }
 
-#[derive(Clone, Copy)]
-struct ProviderChoice {
-    provider: &'static str,
-    label: &'static str,
-    kind: SetupCredentialKind,
-    env: &'static str,
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SetupPromptOutcome<T> {
+    Cancelled,
+    Value(T),
 }
 
-const PROVIDER_CHOICES: &[ProviderChoice] = &[
-    ProviderChoice {
-        provider: "openai-codex",
-        label: "OpenAI Codex (ChatGPT)",
-        kind: SetupCredentialKind::OAuthPkce,
-        env: "",
-    },
-    ProviderChoice {
-        provider: "openai",
-        label: "OpenAI",
-        kind: SetupCredentialKind::ApiKey,
-        env: "OPENAI_API_KEY",
-    },
-    ProviderChoice {
-        provider: "anthropic",
-        label: "Anthropic (Claude Code)",
-        kind: SetupCredentialKind::OAuthPkce,
-        env: "",
-    },
-    ProviderChoice {
-        provider: "anthropic",
-        label: "Anthropic (Claude API key)",
-        kind: SetupCredentialKind::ApiKey,
-        env: "ANTHROPIC_API_KEY",
-    },
-    ProviderChoice {
-        provider: "kimi-for-coding",
-        label: "Kimi for Coding",
-        kind: SetupCredentialKind::OAuthDeviceFlow,
-        env: "KIMI_API_KEY",
-    },
-    ProviderChoice {
-        provider: "google-gemini-cli",
-        label: "Google Cloud Code Assist",
-        kind: SetupCredentialKind::OAuthPkce,
-        env: "",
-    },
-    ProviderChoice {
-        provider: "google",
-        label: "Google Gemini",
-        kind: SetupCredentialKind::ApiKey,
-        env: "GOOGLE_API_KEY",
-    },
-    ProviderChoice {
-        provider: "google-antigravity",
-        label: "Google Antigravity",
-        kind: SetupCredentialKind::OAuthPkce,
-        env: "",
-    },
-    ProviderChoice {
-        provider: "azure-openai",
-        label: "Azure OpenAI",
-        kind: SetupCredentialKind::ApiKey,
-        env: "AZURE_OPENAI_API_KEY",
-    },
-    ProviderChoice {
-        provider: "openrouter",
-        label: "OpenRouter",
-        kind: SetupCredentialKind::ApiKey,
-        env: "OPENROUTER_API_KEY",
-    },
-];
-
-fn provider_choice_default_for_provider(provider: &str) -> Option<ProviderChoice> {
-    let canonical = provider_metadata::canonical_provider_id(provider).unwrap_or(provider);
-    PROVIDER_CHOICES
-        .iter()
-        .copied()
-        .find(|choice| choice.provider.eq_ignore_ascii_case(canonical))
+fn same_setup_choice(left: SetupChoice, right: SetupChoice) -> bool {
+    left.credential_kind == right.credential_kind && left.preset.id == right.preset.id
 }
 
-fn provider_choice_from_token(token: &str) -> Option<ProviderChoice> {
+fn provider_choice_default_for_provider(provider: &str) -> Option<SetupChoice> {
+    setup_registry::provider_choice_default_for_provider(provider)
+}
+
+fn provider_choice_from_choices(token: &str, choices: &[SetupChoice]) -> Option<SetupChoice> {
     let raw = token.trim();
-    let normalized = raw.to_ascii_lowercase();
-    let (first, rest) = normalized
-        .split_once(char::is_whitespace)
-        .map_or((normalized.as_str(), ""), |(a, b)| (a, b.trim()));
-    let wants_oauth = rest.contains("oauth");
-    let wants_key = rest.contains("key") || rest.contains("api");
+    if raw.is_empty() {
+        return None;
+    }
 
-    let select_choice_for_provider = |provider: &str| -> Option<ProviderChoice> {
-        let canonical = provider_metadata::canonical_provider_id(provider).unwrap_or(provider);
-
-        if (wants_oauth || wants_key)
-            && let Some(found) = PROVIDER_CHOICES.iter().copied().find(|choice| {
-                choice.provider.eq_ignore_ascii_case(canonical)
-                    && ((wants_oauth
-                        && matches!(
-                            choice.kind,
-                            SetupCredentialKind::OAuthPkce | SetupCredentialKind::OAuthDeviceFlow
-                        ))
-                        || (wants_key && choice.kind == SetupCredentialKind::ApiKey))
-            })
-        {
-            return Some(found);
-        }
-
-        provider_choice_default_for_provider(canonical)
-    };
-
-    // Try numbered choice first (1-N).
-    if let Ok(num) = first.parse::<usize>() {
-        if num >= 1 && num <= PROVIDER_CHOICES.len() {
-            return Some(PROVIDER_CHOICES[num - 1]);
+    if let Ok(num) = raw.parse::<usize>() {
+        if num >= 1 && num <= choices.len() {
+            return choices.get(num - 1).copied();
         }
         return None;
     }
 
-    // Try exact match against listed labels.
-    for choice in PROVIDER_CHOICES {
-        if normalized == choice.label.to_ascii_lowercase() {
-            return Some(*choice);
+    let normalized = raw.to_ascii_lowercase();
+    choices.iter().copied().find(|choice| {
+        let preset = choice.preset;
+        preset.label.eq_ignore_ascii_case(raw)
+            || preset.id.eq_ignore_ascii_case(raw)
+            || preset.runtime_provider_id.eq_ignore_ascii_case(raw)
+            || preset
+                .aliases
+                .iter()
+                .any(|alias| alias.eq_ignore_ascii_case(raw))
+            || setup_registry::provider_choice_from_token(&normalized)
+                .is_some_and(|found| same_setup_choice(*choice, found))
+    })
+}
+
+fn provider_choice_from_token(token: &str) -> Option<SetupChoice> {
+    provider_choice_from_choices(token, &setup_registry::cli_setup_choices())
+}
+
+fn prompt_setup_lane(console: &PiConsole, default_lane: SetupLane) -> Result<Option<SetupLane>> {
+    console.print_markup("[bold]Choose a setup lane:[/]\n");
+    for (idx, lane) in SetupLane::all().iter().copied().enumerate() {
+        let default_marker = if lane == default_lane {
+            " [dim](default)[/]"
+        } else {
+            ""
+        };
+        console.print_markup(&format!(
+            "  [cyan]{})[/] {}  [dim]{}[/]{}\n",
+            idx + 1,
+            lane.label(),
+            lane.description(),
+            default_marker
+        ));
+    }
+    console.print_markup(&format!(
+        "  [cyan]{})[/] Exit setup\n\n",
+        SetupLane::all().len() + 1
+    ));
+
+    loop {
+        let Some(input) = prompt_line(&format!(
+            "Select 1-{} (Enter for {}): ",
+            SetupLane::all().len() + 1,
+            default_lane.label()
+        ))?
+        else {
+            console.render_warning("Setup cancelled (no input).");
+            return Ok(None);
+        };
+        let normalized = input.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            return Ok(Some(default_lane));
+        }
+        if normalized == "q"
+            || normalized == "quit"
+            || normalized == "exit"
+            || normalized == (SetupLane::all().len() + 1).to_string()
+        {
+            console.render_warning("Setup cancelled.");
+            return Ok(None);
+        }
+        if let Ok(num) = normalized.parse::<usize>()
+            && num >= 1
+            && num <= SetupLane::all().len()
+            && let Some(lane) = SetupLane::all().get(num - 1).copied()
+        {
+            return Ok(Some(lane));
+        }
+        console.render_warning("Unrecognized lane. Please try again.");
+    }
+}
+
+fn prompt_setup_choice(
+    console: &PiConsole,
+    choices: &[SetupChoice],
+    default_choice: Option<SetupChoice>,
+) -> Result<Option<SetupChoice>> {
+    console.print_markup("[bold]Choose a preset:[/]\n");
+    for (idx, choice) in choices.iter().copied().enumerate() {
+        let default_marker = if default_choice.is_some_and(|hint| same_setup_choice(hint, choice)) {
+            " [dim](default)[/]"
+        } else {
+            ""
+        };
+        let method = choice.credential_kind.label();
+        let hint = if choice.env_hint().trim().is_empty() {
+            method.to_string()
+        } else {
+            format!("{method}  {}", choice.env_hint())
+        };
+        console.print_markup(&format!(
+            "  [cyan]{})[/] {}  [dim]{}[/]{}\n",
+            idx + 1,
+            choice.label(),
+            hint,
+            default_marker
+        ));
+    }
+    console.print_markup(&format!("  [cyan]{})[/] Exit setup\n\n", choices.len() + 1));
+    console.print_markup("[dim]You can also type a preset or provider name directly.[/]\n\n");
+
+    loop {
+        let Some(input) = prompt_line(&format!(
+            "Select 1-{} or name{}: ",
+            choices.len() + 1,
+            default_choice.map_or_else(String::new, |choice| format!(
+                " (Enter for {})",
+                choice.label()
+            ))
+        ))?
+        else {
+            console.render_warning("Setup cancelled (no input).");
+            return Ok(None);
+        };
+        let normalized = input.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            if let Some(choice) = default_choice {
+                return Ok(Some(choice));
+            }
+            continue;
+        }
+        if normalized == "q"
+            || normalized == "quit"
+            || normalized == "exit"
+            || normalized == (choices.len() + 1).to_string()
+        {
+            console.render_warning("Setup cancelled.");
+            return Ok(None);
+        }
+        if let Some(choice) = provider_choice_from_choices(&normalized, choices) {
+            return Ok(Some(choice));
+        }
+        console.render_warning("Unrecognized preset. Please try again.");
+    }
+}
+
+fn prompt_setup_model(
+    console: &PiConsole,
+    choice: SetupChoice,
+    current: Option<&str>,
+) -> Result<Option<String>> {
+    let default_model = current
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| choice.preset.primary_model().map(ToOwned::to_owned));
+    let suggestion_line = if choice.preset.default_models.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "[dim]Suggestions:[/] {}\n",
+            choice.preset.default_models.join(", ")
+        )
+    };
+    if !suggestion_line.is_empty() {
+        console.print_markup(&suggestion_line);
+    }
+
+    let prompt = default_model.as_ref().map_or_else(
+        || "Model ID: ".to_string(),
+        |value| format!("Model ID (Enter for {value}): "),
+    );
+    let Some(input) = prompt_line(&prompt)? else {
+        console.render_warning("Setup cancelled (no input).");
+        return Ok(None);
+    };
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Ok(default_model);
+    }
+    Ok(Some(trimmed.to_string()))
+}
+
+fn prompt_setup_base_url(
+    console: &PiConsole,
+    choice: SetupChoice,
+    current_override: Option<&str>,
+) -> Result<SetupPromptOutcome<Option<String>>> {
+    if !choice.preset.requires_base_url {
+        return Ok(SetupPromptOutcome::Value(
+            current_override
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(ToOwned::to_owned),
+        ));
+    }
+
+    let default_value = current_override
+        .filter(|value| !value.trim().is_empty())
+        .map(ToOwned::to_owned);
+    let prompt = default_value.as_ref().map_or_else(
+        || "Gateway URL: ".to_string(),
+        |value| format!("Gateway URL (Enter for {value}): "),
+    );
+    let Some(input) = prompt_line(&prompt)? else {
+        console.render_warning("Setup cancelled (no input).");
+        return Ok(SetupPromptOutcome::Cancelled);
+    };
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        if default_value.is_some() {
+            return Ok(SetupPromptOutcome::Value(default_value));
+        }
+        console.render_warning("Gateway URL is required for this preset.");
+        return Ok(SetupPromptOutcome::Cancelled);
+    }
+    Ok(SetupPromptOutcome::Value(Some(trimmed.to_string())))
+}
+
+fn read_json_object_file(path: &Path) -> Result<Value> {
+    if !path.exists() {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+
+    let content = std::fs::read_to_string(path)?;
+    if content.trim().is_empty() {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+
+    let value: Value = serde_json::from_str(&content)?;
+    if value.is_object() {
+        Ok(value)
+    } else {
+        bail!("{} must contain a JSON object", path.display());
+    }
+}
+
+fn save_provider_base_url_override(
+    models_path: &Path,
+    provider: &str,
+    base_url: Option<&str>,
+) -> Result<()> {
+    let provider = provider_metadata::canonical_provider_id(provider)
+        .unwrap_or(provider)
+        .trim();
+    if provider.is_empty() {
+        return Ok(());
+    }
+
+    let mut root = read_json_object_file(models_path)?;
+    let root_obj = root
+        .as_object_mut()
+        .ok_or_else(|| anyhow::anyhow!("{} must contain a JSON object", models_path.display()))?;
+    let providers_slot = root_obj
+        .entry("providers".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let providers = providers_slot.as_object_mut().ok_or_else(|| {
+        anyhow::anyhow!("providers in {} must be an object", models_path.display())
+    })?;
+
+    if let Some(value) = base_url.map(str::trim).filter(|value| !value.is_empty()) {
+        let entry_slot = providers
+            .entry(provider.to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let provider_obj = entry_slot.as_object_mut().ok_or_else(|| {
+            anyhow::anyhow!(
+                "provider entry {} in {} must be an object",
+                provider,
+                models_path.display()
+            )
+        })?;
+        provider_obj.insert("baseUrl".to_string(), Value::String(value.to_string()));
+    } else {
+        let remove_provider = providers
+            .get_mut(provider)
+            .and_then(Value::as_object_mut)
+            .is_some_and(|provider_obj| {
+                provider_obj.remove("baseUrl");
+                provider_obj.is_empty()
+            });
+        if remove_provider {
+            providers.remove(provider);
         }
     }
-    if let Some(found) = select_choice_for_provider(first) {
-        return Some(found);
-    }
 
-    // Common nicknames.
-    match first {
-        "codex" | "chatgpt" | "gpt" => return select_choice_for_provider("openai-codex"),
-        "claude" => return select_choice_for_provider("anthropic"),
-        "gemini" => return select_choice_for_provider("google"),
-        "kimi" => return select_choice_for_provider("kimi-for-coding"),
-        _ => {}
+    if providers.is_empty() {
+        root_obj.remove("providers");
     }
-
-    // Fall back to provider_metadata registry for any canonical ID or alias.
-    let meta = provider_metadata::provider_metadata(first)?;
-    let canonical = meta.canonical_id;
-    if let Some(found) = select_choice_for_provider(canonical) {
-        return Some(found);
+    if let Some(parent) = models_path.parent() {
+        std::fs::create_dir_all(parent)?;
     }
-
-    // Otherwise, fall back to API-key style with whatever env var hint we have.
-    Some(ProviderChoice {
-        provider: canonical,
-        label: canonical,
-        kind: SetupCredentialKind::ApiKey,
-        env: meta.auth_env_keys.first().copied().unwrap_or(""),
-    })
+    std::fs::write(models_path, serde_json::to_string_pretty(&root)?)?;
+    Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
@@ -3473,107 +3708,106 @@ async fn run_first_time_setup(
     cli: &mut cli::Cli,
     models_path: &Path,
 ) -> Result<bool> {
+    run_guided_setup(
+        Some(startup_error),
+        auth,
+        cli,
+        models_path,
+        SetupEntryPoint::Recovery,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_lines)]
+async fn run_guided_setup(
+    startup_error: Option<&StartupError>,
+    auth: &mut AuthStorage,
+    cli: &mut cli::Cli,
+    models_path: &Path,
+    entrypoint: SetupEntryPoint,
+) -> Result<bool> {
     let console = PiConsole::new();
 
-    console.render_rule(Some("Welcome to Pi"));
-    match startup_error {
-        StartupError::NoModelsAvailable { .. } => {
-            console.print_markup("[bold]No authenticated models are available yet.[/]\n");
-        }
-        StartupError::MissingApiKey { provider } => {
-            console.print_markup(&format!(
-                "[bold]Missing credentials for provider:[/] {provider}\n"
-            ));
-        }
-    }
-    console.print_markup("Let’s authenticate.\n\n");
-
-    let provider_hint = match startup_error {
-        StartupError::MissingApiKey { provider } => provider_choice_from_token(provider),
-        StartupError::NoModelsAvailable { .. } => {
-            provider_choice_default_for_provider("openai-codex")
-        }
-    }
-    .or_else(|| Some(PROVIDER_CHOICES[0]));
-
-    console.print_markup("[bold]Choose a provider:[/]\n");
-    for (idx, provider) in PROVIDER_CHOICES.iter().enumerate() {
-        let is_default = provider_hint
-            .is_some_and(|hint| hint.provider == provider.provider && hint.kind == provider.kind);
-        let default_marker = if is_default { " [dim](default)[/]" } else { "" };
-        let method = match provider.kind {
-            SetupCredentialKind::ApiKey => "API key",
-            SetupCredentialKind::OAuthPkce => "OAuth",
-            SetupCredentialKind::OAuthDeviceFlow => "OAuth (device flow)",
-        };
-        let hint = if provider.env.trim().is_empty() {
-            method.to_string()
-        } else {
-            format!("{method}  {}", provider.env)
-        };
-        console.print_markup(&format!(
-            "  [cyan]{})[/] {}  [dim]{}[/]{}\n",
-            idx + 1,
-            provider.label,
-            hint,
-            default_marker
-        ));
-    }
-    let num_choices = PROVIDER_CHOICES.len();
-    console.print_markup(&format!(
-        "  [cyan]{})[/] Custom provider via models.json\n",
-        num_choices + 1
-    ));
-    console.print_markup(&format!("  [cyan]{})[/] Exit setup\n\n", num_choices + 2));
-    console
-        .print_markup("[dim]Or type any provider name (e.g., deepseek, cerebras, ollama).[/]\n\n");
-
-    let custom_num = (num_choices + 1).to_string();
-    let exit_num = (num_choices + 2).to_string();
-    let provider = loop {
-        let prompt = provider_hint.map_or_else(
-            || format!("Select 1-{} or provider name: ", num_choices + 2),
-            |default_provider| {
-                format!(
-                    "Select 1-{} or name (Enter for {}): ",
-                    num_choices + 2,
-                    default_provider.label
-                )
-            },
-        );
-        let Some(input) = prompt_line(&prompt)? else {
-            console.render_warning("Setup cancelled (no input).");
-            return Ok(false);
-        };
-        let normalized = input.trim().to_lowercase();
-        if normalized.is_empty() {
-            if let Some(default_provider) = provider_hint {
-                break default_provider;
+    match entrypoint {
+        SetupEntryPoint::Recovery => {
+            console.render_rule(Some("Welcome to Pi"));
+            match startup_error.expect("recovery setup requires startup error") {
+                StartupError::NoModelsAvailable { .. } => {
+                    console.print_markup("[bold]No configured models are available yet.[/]\n");
+                }
+                StartupError::MissingApiKey { provider } => {
+                    console.print_markup(&format!(
+                        "[bold]Missing credentials for provider:[/] {provider}\n"
+                    ));
+                }
             }
-            continue;
+            console.print_markup("Let’s finish setup.\n\n");
         }
-        if normalized == custom_num || normalized == "custom" || normalized == "models" {
-            console.render_info(&format!(
-                "Create models.json at {} and restart Pi.",
-                models_path.display()
-            ));
-            return Ok(false);
+        SetupEntryPoint::Explicit => {
+            console.render_rule(Some("maoclaw Setup"));
+            console.print_markup(
+                "Choose one lane, save one working runtime, and leave with a real default provider/model.\n\n",
+            );
         }
-        if normalized == exit_num
-            || normalized == "q"
-            || normalized == "quit"
-            || normalized == "exit"
-        {
-            console.render_warning("Setup cancelled.");
-            return Ok(false);
+    }
+    let choice_hint = startup_error
+        .and_then(|err| match err {
+            StartupError::MissingApiKey { provider } => {
+                provider_choice_default_for_provider(provider)
+            }
+            StartupError::NoModelsAvailable { .. } => {
+                provider_choice_default_for_provider("openai")
+            }
+        })
+        .or_else(|| {
+            provider_choice_default_for_provider(cli.provider.as_deref().unwrap_or("openai"))
+        });
+
+    let lane = match entrypoint {
+        SetupEntryPoint::Recovery => {
+            choice_hint.map_or(SetupLane::OfficialApi, |choice| choice.preset.lane)
         }
-        if let Some(provider) = provider_choice_from_token(&normalized) {
-            break provider;
+        SetupEntryPoint::Explicit => {
+            let default_lane =
+                choice_hint.map_or(SetupLane::OfficialApi, |choice| choice.preset.lane);
+            let Some(selected_lane) = prompt_setup_lane(&console, default_lane)? else {
+                return Ok(false);
+            };
+            selected_lane
         }
-        console.render_warning("Unrecognized choice. Please try again.");
     };
 
-    let credential = match provider.kind {
+    let available_choices = match entrypoint {
+        SetupEntryPoint::Recovery => setup_registry::cli_setup_choices(),
+        SetupEntryPoint::Explicit => setup_registry::cli_setup_choices_for_lane(lane),
+    };
+    let default_choice = choice_hint
+        .filter(|choice| entrypoint == SetupEntryPoint::Recovery || choice.preset.lane == lane);
+
+    let Some(choice) = prompt_setup_choice(&console, &available_choices, default_choice)? else {
+        return Ok(false);
+    };
+
+    let model = if choice.preset.requires_model_selection {
+        let Some(model) = prompt_setup_model(&console, choice, cli.model.as_deref())? else {
+            return Ok(false);
+        };
+        model
+    } else {
+        choice
+            .preset
+            .primary_model()
+            .unwrap_or("gpt-4.1")
+            .to_string()
+    };
+
+    let base_url_override = match prompt_setup_base_url(&console, choice, None)? {
+        SetupPromptOutcome::Cancelled => return Ok(false),
+        SetupPromptOutcome::Value(value) => value,
+    };
+    let provider = choice.provider();
+
+    let credential = match choice.credential_kind {
         SetupCredentialKind::ApiKey => {
             console.print_markup("Paste your API key (input will be visible):\n");
             let Some(raw_key) = prompt_line("API key: ")? else {
@@ -3586,20 +3820,19 @@ async fn run_first_time_setup(
                 return Ok(false);
             }
 
-            AuthCredential::ApiKey {
+            Some(AuthCredential::ApiKey {
                 key: key.to_string(),
-            }
+            })
         }
         SetupCredentialKind::OAuthPkce => {
-            let start = match provider.provider {
+            let start = match provider {
                 "openai-codex" => pi::auth::start_openai_codex_oauth()?,
                 "anthropic" => pi::auth::start_anthropic_oauth()?,
                 "google-gemini-cli" => pi::auth::start_google_gemini_cli_oauth()?,
                 "google-antigravity" => pi::auth::start_google_antigravity_oauth()?,
                 _ => {
                     console.render_warning(&format!(
-                        "OAuth login is not supported for {} in this setup flow. Start Pi and run /login {} instead.",
-                        provider.provider, provider.provider
+                        "OAuth login is not supported for {provider} in this setup flow. Start Pi and run /login {provider} instead."
                     ));
                     return Ok(false);
                 }
@@ -3689,11 +3922,11 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                 drop(prompt_thread);
                 code
             } else {
-                let Some(line) = prompt_line("Paste callback URL or code: ")? else {
+                let Some(pasted_input) = prompt_line("Paste callback URL or code: ")? else {
                     console.render_warning("Setup cancelled (no input).");
                     return Ok(false);
                 };
-                line
+                pasted_input
             };
 
             let code_input = code_input.trim();
@@ -3702,7 +3935,7 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                 return Ok(false);
             }
 
-            match start.provider.as_str() {
+            Some(match start.provider.as_str() {
                 "openai-codex" => {
                     pi::auth::complete_openai_codex_oauth(code_input, &start.verifier).await?
                 }
@@ -3721,13 +3954,12 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                     ));
                     return Ok(false);
                 }
-            }
+            })
         }
         SetupCredentialKind::OAuthDeviceFlow => {
-            if provider.provider != "kimi-for-coding" {
+            if provider != "kimi-for-coding" {
                 console.render_warning(&format!(
-                    "Device-flow login not supported for {} in this setup flow. Start Pi and run /login {} instead.",
-                    provider.provider, provider.provider
+                    "Device-flow login not supported for {provider} in this setup flow. Start Pi and run /login {provider} instead."
                 ));
                 return Ok(false);
             }
@@ -3785,35 +4017,87 @@ Code expires in {} seconds.\n",
                     }
                 }
             }
+            .into()
+        }
+        SetupCredentialKind::None => {
+            console.render_info("No credential is required for this preset.");
+            None
         }
     };
 
-    let _ = auth.remove_provider_aliases(provider.provider);
-    auth.set(provider.provider.to_string(), credential);
-    auth.save_async().await?;
+    if let Some(credential) = credential {
+        let _ = auth.remove_provider_aliases(provider);
+        auth.set(provider.to_string(), credential);
+        auth.save_async().await?;
+    }
+
+    let global_dir = Config::global_dir();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let resolved_base_url = base_url_override
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| {
+            let base = choice.preset.api_base_url.trim();
+            (!base.is_empty()).then(|| base.to_string())
+        });
+    let api_protocol = choice.preset.api_protocol.trim();
+    let settings_patch = json!({
+        "defaultProvider": provider,
+        "defaultModel": model,
+        "default_provider": provider,
+        "default_model": model,
+        "providerPreset": choice.preset.id.as_str(),
+        "defaultProviderName": provider,
+        "defaultApiProtocol": if api_protocol.is_empty() { Value::Null } else { Value::String(api_protocol.to_string()) },
+        "defaultApiBaseURL": resolved_base_url
+            .as_ref()
+            .map_or(Value::Null, |value| Value::String(value.clone())),
+        "onboarding": {
+            "completed": true,
+            "version": 1,
+            "chosenProvider": provider,
+            "chosenProviderPreset": choice.preset.id.as_str(),
+            "chosenModel": model,
+            "chosenAgentProfile": "main",
+            "chosenApiBaseURL": resolved_base_url
+                .as_ref()
+                .map_or(Value::Null, |value| Value::String(value.clone())),
+            "chosenApiProtocol": if api_protocol.is_empty() { Value::Null } else { Value::String(api_protocol.to_string()) }
+        }
+    });
+    Config::patch_settings_with_roots(SettingsScope::Global, &global_dir, &cwd, settings_patch)?;
+    save_provider_base_url_override(models_path, provider, base_url_override.as_deref())?;
 
     // Make the next startup attempt use the credential we just created.
-    if cli.provider.as_deref() != Some(provider.provider) {
-        cli.provider = Some(provider.provider.to_string());
-        cli.model = None;
-    }
-    if provider.provider == "openai-codex" {
-        cli.model = Some("gpt-5.4".to_string());
-    }
+    cli.provider = Some(provider.to_string());
+    cli.model = Some(model.clone());
 
-    let saved_label = match provider.kind {
+    let saved_label = match choice.credential_kind {
         SetupCredentialKind::ApiKey => "API key",
         SetupCredentialKind::OAuthPkce | SetupCredentialKind::OAuthDeviceFlow => {
             "OAuth credentials"
         }
+        SetupCredentialKind::None => "runtime defaults",
     };
     console.render_success(&format!(
-        "Saved {label} for {provider} to {path}",
+        "Saved {label} for {provider}.",
         label = saved_label,
-        provider = provider.provider,
-        path = Config::auth_path().display()
+        provider = choice.label()
     ));
-    console.render_info("Continuing startup...");
+    console.render_info(&format!(
+        "Defaults: {provider}/{model} · settings: {} · auth: {} · models: {}",
+        global_dir.join("settings.json").display(),
+        Config::auth_path().display(),
+        models_path.display()
+    ));
+    console.render_info(
+        "Next step: run a real task, for example `pi \"summarize this repository\"`, to confirm the setup works end-to-end.",
+    );
+    if entrypoint == SetupEntryPoint::Recovery {
+        console.render_info("Continuing startup...");
+    }
     Ok(true)
 }
 
@@ -4057,6 +4341,19 @@ async fn run_rpc_mode(
             Ok(())
         }
     }
+}
+
+async fn run_bridge_mode(
+    session: Session,
+    config: Config,
+    available_models: Vec<ModelEntry>,
+    global_dir: PathBuf,
+    cwd: PathBuf,
+) -> Result<()> {
+    let session = Arc::new(Mutex::new(session));
+    let options = pi::bridge::LocalBridgeOptions::from_config(&config, &global_dir, &cwd);
+    pi::bridge::run_local_bridge(session, config, available_models, options)
+        .map_err(anyhow::Error::new)
 }
 
 #[allow(clippy::too_many_lines, clippy::too_many_arguments)]
@@ -4789,161 +5086,159 @@ mod tests {
     #[test]
     fn provider_choice_from_token_numbered_choices() {
         let choice = provider_choice_from_token("1").expect("provider 1");
-        assert_eq!(choice.provider, "openai-codex");
-        assert_eq!(choice.kind, SetupCredentialKind::OAuthPkce);
+        assert_eq!(choice.provider(), "anthropic");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("2").expect("provider 2");
-        assert_eq!(choice.provider, "openai");
-        assert_eq!(choice.kind, SetupCredentialKind::ApiKey);
+        assert_eq!(choice.provider(), "openai");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("3").expect("provider 3");
-        assert_eq!(choice.provider, "anthropic");
-        assert_eq!(choice.kind, SetupCredentialKind::OAuthPkce);
+        assert_eq!(choice.provider(), "google");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("4").expect("provider 4");
-        assert_eq!(choice.provider, "anthropic");
-        assert_eq!(choice.kind, SetupCredentialKind::ApiKey);
+        assert_eq!(choice.provider(), "moonshotai");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("5").expect("provider 5");
-        assert_eq!(choice.provider, "kimi-for-coding");
-        assert_eq!(choice.kind, SetupCredentialKind::OAuthDeviceFlow);
+        assert_eq!(choice.provider(), "deepseek");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("6").expect("provider 6");
-        assert_eq!(choice.provider, "google-gemini-cli");
-        assert_eq!(choice.kind, SetupCredentialKind::OAuthPkce);
+        assert_eq!(choice.provider(), "alibaba");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("7").expect("provider 7");
-        assert_eq!(choice.provider, "google");
-        assert_eq!(choice.kind, SetupCredentialKind::ApiKey);
+        assert_eq!(choice.provider(), "openrouter");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("8").expect("provider 8");
-        assert_eq!(choice.provider, "google-antigravity");
-        assert_eq!(choice.kind, SetupCredentialKind::OAuthPkce);
+        assert_eq!(choice.preset.id, "compatible-gateway");
+        assert_eq!(choice.provider(), "openai");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::ApiKey);
 
         let choice = provider_choice_from_token("9").expect("provider 9");
-        assert_eq!(choice.provider, "azure-openai");
-        assert_eq!(choice.kind, SetupCredentialKind::ApiKey);
+        assert_eq!(choice.provider(), "ollama");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::None);
 
         let choice = provider_choice_from_token("10").expect("provider 10");
-        assert_eq!(choice.provider, "openrouter");
-        assert_eq!(choice.kind, SetupCredentialKind::ApiKey);
+        assert_eq!(choice.provider(), "lmstudio");
+        assert_eq!(choice.credential_kind, SetupCredentialKind::None);
         // Out of range
         assert!(provider_choice_from_token("0").is_none());
-        assert!(provider_choice_from_token("11").is_none());
+        assert!(provider_choice_from_token("15").is_none());
     }
 
     #[test]
     fn provider_choice_from_token_common_nicknames() {
         assert_eq!(
-            provider_choice_from_token("claude").unwrap().provider,
+            provider_choice_from_token("claude").unwrap().provider(),
             "anthropic"
         );
         assert_eq!(
-            provider_choice_from_token("gpt").unwrap().provider,
-            "openai-codex"
+            provider_choice_from_token("gpt").unwrap().provider(),
+            "openai"
         );
         assert_eq!(
-            provider_choice_from_token("chatgpt").unwrap().provider,
-            "openai-codex"
+            provider_choice_from_token("chatgpt").unwrap().provider(),
+            "openai"
         );
         assert_eq!(
-            provider_choice_from_token("gemini").unwrap().provider,
+            provider_choice_from_token("gemini").unwrap().provider(),
             "google"
         );
         assert_eq!(
-            provider_choice_from_token("kimi").unwrap().provider,
-            "kimi-for-coding"
+            provider_choice_from_token("kimi").unwrap().provider(),
+            "moonshotai"
         );
     }
 
     #[test]
     fn provider_choice_from_token_canonical_ids() {
         assert_eq!(
-            provider_choice_from_token("anthropic").unwrap().provider,
+            provider_choice_from_token("anthropic").unwrap().provider(),
             "anthropic"
         );
         assert_eq!(
-            provider_choice_from_token("openai").unwrap().provider,
+            provider_choice_from_token("openai").unwrap().provider(),
             "openai"
         );
         assert_eq!(
-            provider_choice_from_token("openai-codex").unwrap().provider,
+            provider_choice_from_token("openai-codex")
+                .unwrap()
+                .provider(),
             "openai-codex"
         );
-        assert_eq!(provider_choice_from_token("groq").unwrap().provider, "groq");
         assert_eq!(
-            provider_choice_from_token("openrouter").unwrap().provider,
+            provider_choice_from_token("openrouter").unwrap().provider(),
             "openrouter"
         );
         assert_eq!(
-            provider_choice_from_token("mistral").unwrap().provider,
-            "mistral"
+            provider_choice_from_token("ollama").unwrap().provider(),
+            "ollama"
         );
     }
 
     #[test]
     fn provider_choice_from_token_case_insensitive() {
         assert_eq!(
-            provider_choice_from_token("ANTHROPIC").unwrap().provider,
+            provider_choice_from_token("ANTHROPIC").unwrap().provider(),
             "anthropic"
         );
-        assert_eq!(provider_choice_from_token("Groq").unwrap().provider, "groq");
         assert_eq!(
-            provider_choice_from_token("OpenRouter").unwrap().provider,
+            provider_choice_from_token("OpenRouter").unwrap().provider(),
             "openrouter"
         );
     }
 
     #[test]
-    fn provider_choice_from_token_metadata_fallback() {
-        // Providers not in the top-10 list but in provider_metadata registry
+    fn provider_choice_from_token_first_wow_registry_aliases() {
         assert_eq!(
-            provider_choice_from_token("deepseek").unwrap().provider,
+            provider_choice_from_token("deepseek").unwrap().provider(),
             "deepseek"
         );
         assert_eq!(
-            provider_choice_from_token("cerebras").unwrap().provider,
-            "cerebras"
+            provider_choice_from_token("dashscope").unwrap().provider(),
+            "alibaba"
         );
         assert_eq!(
-            provider_choice_from_token("cohere").unwrap().provider,
-            "cohere"
-        );
-        assert_eq!(
-            provider_choice_from_token("perplexity").unwrap().provider,
-            "perplexity"
-        );
-        // Aliases resolve through metadata
-        assert_eq!(
-            provider_choice_from_token("open-router").unwrap().provider,
+            provider_choice_from_token("open-router")
+                .unwrap()
+                .provider(),
             "openrouter"
         );
         assert_eq!(
-            provider_choice_from_token("dashscope").unwrap().provider,
-            "alibaba"
+            provider_choice_from_token("newapi").unwrap().preset.id,
+            "compatible-gateway"
         );
     }
 
     #[test]
-    fn provider_choice_from_token_honors_method_preference() {
-        let provider = provider_choice_from_token("anthropic oauth").expect("anthropic oauth");
-        assert_eq!(provider.provider, "anthropic");
-        assert_eq!(provider.kind, SetupCredentialKind::OAuthPkce);
+    fn provider_choice_from_token_recognizes_connected_account_routes() {
+        let provider = provider_choice_from_token("codex").expect("codex");
+        assert_eq!(provider.provider(), "openai-codex");
+        assert_eq!(provider.credential_kind, SetupCredentialKind::OAuthPkce);
 
-        let provider = provider_choice_from_token("anthropic key").expect("anthropic key");
-        assert_eq!(provider.provider, "anthropic");
-        assert_eq!(provider.kind, SetupCredentialKind::ApiKey);
+        let provider = provider_choice_from_token("kimi-for-coding").expect("kimi-for-coding");
+        assert_eq!(provider.provider(), "kimi-for-coding");
+        assert_eq!(
+            provider.credential_kind,
+            SetupCredentialKind::OAuthDeviceFlow
+        );
     }
 
     #[test]
     fn provider_choice_from_token_whitespace_handling() {
         assert_eq!(
-            provider_choice_from_token("  groq  ").unwrap().provider,
-            "groq"
+            provider_choice_from_token("  deepseek  ")
+                .unwrap()
+                .provider(),
+            "deepseek"
         );
         assert_eq!(
-            provider_choice_from_token(" 1 ").unwrap().provider,
-            "openai-codex"
+            provider_choice_from_token(" 1 ").unwrap().provider(),
+            "anthropic"
         );
     }
 

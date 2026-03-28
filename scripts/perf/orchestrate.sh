@@ -80,22 +80,23 @@ declare -a CARGO_RUNNER_ARGS=("cargo")
 SEEN_NO_RCH=false
 SEEN_REQUIRE_RCH=false
 
-# Suite registry: name -> cargo test target or bench name
-declare -A SUITE_TARGETS=(
-  [bench_schema]="bench_schema"
-  [bench_scenario]="bench_scenario_runner"
-  [ext_bench_harness]="ext_bench_harness"
-  [perf_bench_harness]="perf_bench_harness"
-  [perf_budgets]="perf_budgets"
-  [perf_regression]="perf_regression"
-  [perf_comparison]="perf_comparison"
-  [perf_baseline_variance]="perf_baseline_variance"
+# Suite registry. Keep this Bash 3.2 compatible for macOS by avoiding
+# associative arrays.
+SUITE_NAMES=(
+  "bench_schema"
+  "bench_scenario"
+  "ext_bench_harness"
+  "perf_bench_harness"
+  "perf_budgets"
+  "perf_regression"
+  "perf_comparison"
+  "perf_baseline_variance"
 )
 
-declare -A CRITERION_BENCHES=(
-  [criterion_tools]="tools"
-  [criterion_extensions]="extensions"
-  [criterion_system]="system"
+CRITERION_SUITE_NAMES=(
+  "criterion_tools"
+  "criterion_extensions"
+  "criterion_system"
 )
 
 SELECTED_SUITES=()
@@ -148,6 +149,29 @@ generate_correlation_id() {
   python3 -c "import uuid; print(uuid.uuid4().hex)" 2>/dev/null \
     || head -c 16 /dev/urandom | xxd -p 2>/dev/null \
     || echo "local-$(date +%s)-$$"
+}
+
+suite_target() {
+  case "$1" in
+    bench_schema) printf '%s\n' "bench_schema" ;;
+    bench_scenario) printf '%s\n' "bench_scenario_runner" ;;
+    ext_bench_harness) printf '%s\n' "ext_bench_harness" ;;
+    perf_bench_harness) printf '%s\n' "perf_bench_harness" ;;
+    perf_budgets) printf '%s\n' "perf_budgets" ;;
+    perf_regression) printf '%s\n' "perf_regression" ;;
+    perf_comparison) printf '%s\n' "perf_comparison" ;;
+    perf_baseline_variance) printf '%s\n' "perf_baseline_variance" ;;
+    *) return 1 ;;
+  esac
+}
+
+criterion_bench_target() {
+  case "$1" in
+    criterion_tools) printf '%s\n' "tools" ;;
+    criterion_extensions) printf '%s\n' "extensions" ;;
+    criterion_system) printf '%s\n' "system" ;;
+    *) return 1 ;;
+  esac
 }
 
 # ─── CLI Parsing ─────────────────────────────────────────────────────────────
@@ -223,13 +247,13 @@ if [[ "$LIST_ONLY" == "true" ]]; then
   bold "Available performance suites:"
   echo ""
   echo "  Test suites:"
-  for suite in "${!SUITE_TARGETS[@]}"; do
-    printf "    %-25s cargo test --test %s\n" "$suite" "${SUITE_TARGETS[$suite]}"
+  for suite in "${SUITE_NAMES[@]}"; do
+    printf "    %-25s cargo test --test %s\n" "$suite" "$(suite_target "$suite")"
   done | sort
   echo ""
   echo "  Criterion benchmarks:"
-  for bench in "${!CRITERION_BENCHES[@]}"; do
-    printf "    %-25s cargo bench --bench %s\n" "$bench" "${CRITERION_BENCHES[$bench]}"
+  for bench in "${CRITERION_SUITE_NAMES[@]}"; do
+    printf "    %-25s cargo bench --bench %s\n" "$bench" "$(criterion_bench_target "$bench")"
   done | sort
   echo ""
   echo "  Profiles: full, quick, ci"
@@ -310,9 +334,9 @@ resolve_suites() {
   case "$PROFILE" in
     full)
       # All test suites + criterion benchmarks
-      SELECTED_SUITES=("${!SUITE_TARGETS[@]}")
+      SELECTED_SUITES=("${SUITE_NAMES[@]}")
       if [[ "$SKIP_CRITERION" != "1" ]]; then
-        SELECTED_SUITES+=("${!CRITERION_BENCHES[@]}")
+        SELECTED_SUITES+=("${CRITERION_SUITE_NAMES[@]}")
       fi
       export PI_PERF_STRICT=1
       ;;
@@ -324,7 +348,7 @@ resolve_suites() {
       ;;
     ci)
       # CI: all test suites, skip heavy criterion benches
-      SELECTED_SUITES=("${!SUITE_TARGETS[@]}")
+      SELECTED_SUITES=("${SUITE_NAMES[@]}")
       SKIP_CRITERION=1
       export PI_PERF_STRICT=1
       ;;
@@ -452,8 +476,8 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   # Build criterion benches if needed
   if [[ "$SKIP_CRITERION" != "1" ]]; then
     log_step "Building criterion benchmarks..."
-    for bench in "${!CRITERION_BENCHES[@]}"; do
-      bench_name="${CRITERION_BENCHES[$bench]}"
+    for bench in "${CRITERION_SUITE_NAMES[@]}"; do
+      bench_name="$(criterion_bench_target "$bench")"
       if "${CARGO_RUNNER_ARGS[@]}" bench --bench "$bench_name" --no-run --profile "$CARGO_PROFILE" 2>>"$OUTPUT_DIR/logs/build_benches.log"; then
         log_ok "Built bench: $bench_name"
       else
@@ -601,10 +625,10 @@ EOF
 
 # Execute each selected suite
 for suite in "${SELECTED_SUITES[@]}"; do
-  if [[ -n "${SUITE_TARGETS[$suite]+x}" ]]; then
-    run_test_suite "$suite" "${SUITE_TARGETS[$suite]}"
-  elif [[ -n "${CRITERION_BENCHES[$suite]+x}" ]]; then
-    run_criterion_bench "$suite" "${CRITERION_BENCHES[$suite]}"
+  if target="$(suite_target "$suite" 2>/dev/null)"; then
+    run_test_suite "$suite" "$target"
+  elif bench_target="$(criterion_bench_target "$suite" 2>/dev/null)"; then
+    run_criterion_bench "$suite" "$bench_target"
   else
     log_warn "Unknown suite: $suite (skipping)"
     suite_skip=$((suite_skip + 1))
@@ -768,6 +792,7 @@ def load_json(path: Path) -> dict:
 
 
 manifest = load_json(manifest_path)
+correlation_id = str(manifest.get("correlation_id", correlation_id))
 env = load_json(env_path) if env_path.exists() else {}
 perf_sli = load_json(perf_sli_path)
 scenario_matrix = load_json(scenario_matrix_path)
@@ -1055,6 +1080,7 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 manifest = load_json(manifest_path)
+correlation_id = str(manifest.get("correlation_id", correlation_id))
 events = load_jsonl(events_path)
 
 comparison_artifacts = []
@@ -1223,6 +1249,7 @@ def suite_log_paths(name: str) -> dict[str, str]:
 
 manifest = load_json(manifest_path)
 run_id = str(manifest.get("timestamp", timestamp))
+correlation_id = str(manifest.get("correlation_id", correlation_id))
 suite_results = manifest.get("suite_results", [])
 if not isinstance(suite_results, list):
     suite_results = []
@@ -1302,7 +1329,7 @@ full_e2e_abs_ms = mean(full_e2e_samples_ms)
 
 # ── Relative ratios (Rust vs Node/Bun) by layer ────────────────────────────
 
-def comparison_row(metric_substr: str, category_substr: str | None = None):
+def comparison_row(metric_substr: str, category_substr=None):
     metric_substr = metric_substr.lower()
     category_substr = category_substr.lower() if category_substr else None
     for row in comparison_rows:
@@ -1803,6 +1830,7 @@ def suite_status(name, suite_map):
 
 manifest = load_json(manifest_path)
 run_id = str(manifest.get("timestamp", timestamp))
+correlation_id = str(manifest.get("correlation_id", correlation_id))
 
 suite_results = manifest.get("suite_results", [])
 if not isinstance(suite_results, list):

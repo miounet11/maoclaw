@@ -1,6 +1,6 @@
 use pi::sdk;
 use serde_json::json;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const fn assert_clone_debug_send_sync<T: Clone + std::fmt::Debug + Send + Sync>() {}
 
@@ -128,6 +128,12 @@ while IFS= read -r line; do
     extension_ui_response)
       printf '{"type":"response","id":"%s","command":"extension_ui_response","success":true,"data":{"resolved":true}}\n' "$id"
       ;;
+    new_session|switch_session)
+      printf '{"type":"response","id":"%s","command":"%s","success":true,"data":{"cancelled":false}}\n' "$id" "$cmd"
+      ;;
+    fork)
+      printf '{"type":"response","id":"%s","command":"fork","success":true,"data":{"text":"forked","cancelled":false}}\n' "$id"
+      ;;
     *)
       printf '{"type":"response","id":"%s","command":"%s","success":true}\n' "$id" "$cmd"
       ;;
@@ -160,6 +166,23 @@ done
             .expect("set_model");
         assert_eq!(model.provider, "anthropic");
         assert_eq!(model.id, "m1");
+
+        client
+            .set_session_name("demo")
+            .await
+            .expect("set_session_name");
+
+        let new_session = client.new_session(None).await.expect("new_session");
+        assert!(!new_session.cancelled);
+
+        let switch_session = client
+            .switch_session(Path::new("/tmp/demo.jsonl"))
+            .await
+            .expect("switch_session");
+        assert!(!switch_session.cancelled);
+
+        let fork = client.fork("entry-1").await.expect("fork");
+        assert_eq!(fork.text, "forked");
 
         let events = client
             .prompt_with_options("hello", None, Some("steer"))

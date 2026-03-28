@@ -162,6 +162,7 @@ fn proptest_session_header() -> impl Strategy<Value = SessionHeader> {
                 provider,
                 model_id,
                 thinking_level,
+                agent_profile: None,
                 parent_session,
             },
         )
@@ -263,6 +264,7 @@ proptest! {
             provider: None,
             model_id: None,
             thinking_level: None,
+            agent_profile: None,
             parent_session: None,
         };
         session.entries = decoded_entries;

@@ -93,14 +93,22 @@ fn make_model_entry(provider: &str, model_id: &str) -> ModelEntry {
         headers: HashMap::new(),
     };
 
-    ModelEntry {
+    let mut entry = ModelEntry {
         model,
         api_key: None,
         headers: HashMap::new(),
         auth_header: false,
         compat: None,
         oauth_config: None,
+    };
+
+    if pi::provider_metadata::provider_metadata(provider)
+        .is_some_and(|meta| !meta.auth_env_keys.is_empty())
+    {
+        entry.api_key = Some(format!("{provider}-test-key"));
     }
+
+    entry
 }
 
 fn build_app_with_models(

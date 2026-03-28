@@ -17,7 +17,7 @@ mod common;
 
 use clap::Parser as _;
 use common::run_async;
-use common::tmux::TuiSession;
+use common::tmux::{TmuxInstance, TuiSession};
 use fs4::fs_std::FileExt as _;
 use pi::app::build_system_prompt;
 use pi::cli;
@@ -205,6 +205,7 @@ fn build_vcr_system_prompt_for_args(
         &cli,
         workdir,
         &enabled_tools,
+        None,
         None,
         &global_dir,
         &package_dir,
@@ -2295,7 +2296,9 @@ fn e2e_scenario_runner_help_command() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     // Verify transcript structure
     assert_eq!(transcript.scenario_name, "scenario_help");
@@ -2425,6 +2428,25 @@ fn assert_transcript_invariants(transcript: &common::scenario_runner::ScenarioTr
     );
 }
 
+fn ensure_tmux_or_skip(context: &str) -> bool {
+    if TmuxInstance::tmux_available() {
+        return true;
+    }
+
+    eprintln!("skipping {context}: tmux unavailable in this environment");
+    false
+}
+
+fn run_scenario_or_skip(
+    scenario: CliScenario,
+) -> Option<common::scenario_runner::ScenarioTranscript> {
+    if !ensure_tmux_or_skip(&scenario.name) {
+        return None;
+    }
+
+    ScenarioRunner::run(scenario)
+}
+
 /// Helper: build an expected transcript from step definitions for diff comparison.
 fn build_expected_transcript_jsonl(
     scenario_name: &str,
@@ -2487,7 +2509,9 @@ fn e2e_scenario_startup_normal() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     // Structural assertions
     assert_eq!(transcript.scenario_name, "startup_normal");
@@ -2537,7 +2561,9 @@ fn e2e_scenario_startup_no_session() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "startup_no_session");
     assert_eq!(transcript.steps.len(), 1);
@@ -2582,7 +2608,9 @@ fn e2e_scenario_slash_command_workflow() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "slash_cmd_workflow");
     assert_eq!(transcript.steps.len(), 3);
@@ -2675,7 +2703,9 @@ fn e2e_scenario_provider_switch_missing_key() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "provider_switch_missing_key");
     assert_eq!(transcript.steps.len(), 3);
@@ -2725,7 +2755,9 @@ fn e2e_scenario_unknown_slash_command() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.steps.len(), 3);
     assert_transcript_invariants(&transcript);
@@ -2836,7 +2868,9 @@ fn e2e_scenario_error_api_failure() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, test_name);
     assert_transcript_invariants(&transcript);
@@ -2871,7 +2905,9 @@ fn e2e_scenario_exit_ctrl_d() {
         )
         .exit(ExitStrategy::CtrlD);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "exit_ctrl_d");
     assert_transcript_invariants(&transcript);
@@ -2906,7 +2942,9 @@ fn e2e_scenario_exit_ctrl_c() {
         )
         .exit(ExitStrategy::CtrlC);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "exit_ctrl_c");
     assert_transcript_invariants(&transcript);
@@ -2976,7 +3014,9 @@ fn e2e_scenario_session_persistence_and_tree() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.steps.len(), 2);
     assert_transcript_invariants(&transcript);
@@ -3108,7 +3148,9 @@ fn e2e_scenario_session_restore_explicit_path() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "session_restore_explicit_path");
     assert_eq!(transcript.steps.len(), 2);
@@ -3191,7 +3233,9 @@ fn e2e_scenario_tool_chain_read_response() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, test_name);
     assert_eq!(transcript.steps.len(), 2);
@@ -3259,7 +3303,9 @@ fn e2e_scenario_tool_chain_multi_turn() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, "tool_chain_multi_turn");
     assert_eq!(transcript.steps.len(), 2);
@@ -3465,7 +3511,9 @@ fn e2e_scenario_prompt_loop_multi_round() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
 
     assert_eq!(transcript.scenario_name, test_name);
     assert_eq!(transcript.steps.len(), 3);
@@ -3503,6 +3551,10 @@ fn e2e_scenario_prompt_loop_multi_round() {
 /// and produces independent transcripts with distinct run IDs.
 #[test]
 fn e2e_scenario_batch_execution() {
+    if !ensure_tmux_or_skip("e2e_scenario_batch_execution") {
+        return;
+    }
+
     let _lock = TmuxE2eLock::acquire();
 
     let scenarios = vec![
@@ -3575,7 +3627,9 @@ fn e2e_scenario_transcript_diff_self_compare() {
         )
         .exit(ExitStrategy::Graceful);
 
-    let transcript = ScenarioRunner::run(scenario).expect("tmux unavailable");
+    let Some(transcript) = run_scenario_or_skip(scenario) else {
+        return;
+    };
     assert_transcript_invariants(&transcript);
 
     // Find the transcript artifact

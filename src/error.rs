@@ -654,6 +654,17 @@ fn provider_hints(provider: &str, message: &str) -> ErrorHints {
             context,
         );
     }
+    if contains_any(&lower, &["504", "gateway timeout", "upstream timeout"]) {
+        return build_hints(
+            "Provider gateway timed out.",
+            vec![
+                "Retry after a short delay.".to_string(),
+                "If using a custom base URL or proxy, increase its timeout or bypass it."
+                    .to_string(),
+            ],
+            context,
+        );
+    }
     if contains_any(&lower, &["529", "overloaded"]) {
         return build_hints(
             "Provider is overloaded.",
@@ -1614,6 +1625,17 @@ mod tests {
         let hints = err.hints();
         assert_eq!(context_value(&hints, "provider"), Some("cohere"));
         assert!(context_value(&hints, "details").is_some());
+    }
+
+    #[test]
+    fn native_provider_http_504_timeout_hints() {
+        let err = Error::provider(
+            "openai",
+            "OpenAI upstream timeout (HTTP 504): Gateway Timeout",
+        );
+        let hints = err.hints();
+        assert!(hints.summary.contains("timed out"));
+        assert!(hints.hints.iter().any(|hint| hint.contains("proxy")));
     }
 
     #[test]

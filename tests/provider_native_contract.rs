@@ -754,11 +754,10 @@ mod openai_contract {
 mod gemini_contract {
     use super::*;
 
-    /// Gemini appends `?alt=sse&key={key}` to the path.  The mock server
-    /// matches on the full request-line path (including query string), so we
-    /// must register routes with the expected query params.
-    fn gemini_route(key: &str) -> String {
-        format!("/v1beta/models/gemini-test:streamGenerateContent?alt=sse&key={key}")
+    /// Gemini now authenticates with `x-goog-api-key` and keeps the request
+    /// path stable at `?alt=sse`.
+    const fn gemini_route() -> &'static str {
+        "/v1beta/models/gemini-test:streamGenerateContent?alt=sse"
     }
 
     #[test]
@@ -766,11 +765,11 @@ mod gemini_contract {
         let harness = TestHarness::new("gemini_contract_request_payload_shape");
         let server = harness.start_mock_http_server();
         let api_key = "gemini-test-key";
-        let endpoint = gemini_route(api_key);
+        let endpoint = gemini_route();
 
         server.add_route(
             "POST",
-            &endpoint,
+            endpoint,
             text_event_stream_response(gemini_simple_sse()),
         );
 
@@ -809,15 +808,15 @@ mod gemini_contract {
     }
 
     #[test]
-    fn auth_via_query_param() {
-        let harness = TestHarness::new("gemini_contract_auth_query_param");
+    fn auth_via_x_goog_api_key_header() {
+        let harness = TestHarness::new("gemini_contract_auth_x_goog_api_key_header");
         let server = harness.start_mock_http_server();
         let api_key = "gemini-key-test";
-        let endpoint = gemini_route(api_key);
+        let endpoint = gemini_route();
 
         server.add_route(
             "POST",
-            &endpoint,
+            endpoint,
             text_event_stream_response(gemini_simple_sse()),
         );
 
@@ -832,10 +831,14 @@ mod gemini_contract {
 
         let req = &server.requests()[0];
 
-        // Gemini uses key as query parameter
         assert!(
-            req.path.contains("key=gemini-key-test"),
-            "Gemini must pass API key as query parameter"
+            req.path.ends_with("?alt=sse"),
+            "Gemini request path must keep the SSE query string"
+        );
+        assert_eq!(
+            request_header(&req.headers, "x-goog-api-key").as_deref(),
+            Some(api_key),
+            "Gemini must pass API key via x-goog-api-key header"
         );
 
         harness.log().info("contract", "gemini auth validated");
@@ -846,11 +849,11 @@ mod gemini_contract {
         let harness = TestHarness::new("gemini_contract_tool_schema");
         let server = harness.start_mock_http_server();
         let api_key = "gemini-tool-test";
-        let endpoint = gemini_route(api_key);
+        let endpoint = gemini_route();
 
         server.add_route(
             "POST",
-            &endpoint,
+            endpoint,
             text_event_stream_response(gemini_simple_sse()),
         );
 
@@ -892,11 +895,11 @@ mod gemini_contract {
         let harness = TestHarness::new("gemini_contract_response_decoding_text");
         let server = harness.start_mock_http_server();
         let api_key = "gemini-decode-test";
-        let endpoint = gemini_route(api_key);
+        let endpoint = gemini_route();
 
         server.add_route(
             "POST",
-            &endpoint,
+            endpoint,
             text_event_stream_response(gemini_simple_sse()),
         );
 
@@ -2663,7 +2666,7 @@ mod docs_runtime_consistency {
     ];
 
     fn load_doc(path: &str) -> serde_json::Value {
-        let full = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), path,);
+        let full = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), path);
         let content =
             std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("Failed to read {full}: {e}"));
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("Failed to parse {full}: {e}"))

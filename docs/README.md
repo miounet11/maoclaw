@@ -1,17 +1,17 @@
 # maoclaw Documentation Map
 
-This directory contains both canonical `maoclaw` documentation and a large amount of planning, audit, parity, and contract material.
+This directory contains both canonical `maoclaw` product documentation and a large amount of planning, audit, parity, and contract material.
 
-Brand baseline for canonical docs:
+For public-facing docs, the brand baseline is:
 
-- Chinese name: `猫爪`
-- Global / English name: `maoclaw`
-- Japanese-facing name: `猫爪 / maoclaw`
+- Official global name: `maoclaw`
+- Official Chinese name: `猫爪`
+- Community nickname in Chinese: `机器猫`
 - Official website: `https://xinxiang.xin`
 - Public-facing language targets: Chinese, English, and Japanese
 
-If you are looking for the current product story, do **not** start by opening random files in `docs/`.
-Start with the canonical set below.
+If you want the real public product story, do **not** start by opening random files in `docs/`.
+Start with the curated canonical set below.
 
 ## Multilingual Portals
 
@@ -25,6 +25,8 @@ GitHub-facing language entrypoints:
 Each language portal includes quick start, installation, usage, provider setup, integration guidance, FAQ, and changelog pages.
 
 ## Canonical Docs
+
+These are the pages that should shape first impression for GitHub readers, integrators, and open-source evaluators.
 
 ### Product and release
 
@@ -49,6 +51,10 @@ Each language portal includes quick start, installation, usage, provider setup, 
 - [skills.md](skills.md)
 - [prompt-templates.md](prompt-templates.md)
 - [themes.md](themes.md)
+- [i18n/en/usage-and-configuration.md](i18n/en/usage-and-configuration.md) - need-driven English workflow guide
+- [i18n/zh/usage-and-configuration.md](i18n/zh/usage-and-configuration.md) - 面向真实需求的中文工作流手册
+- [i18n/en/release-and-upgrades.md](i18n/en/release-and-upgrades.md) - public release line vs current build upgrades
+- [i18n/zh/release-and-upgrades.md](i18n/zh/release-and-upgrades.md) - 发布线与当前构建升级说明
 
 ### Integrators and operators
 
@@ -85,6 +91,10 @@ These files are useful, but they are not the first stop for users or release com
 - `original-developer-arc-ef68e11-to-cd6b6ef-analysis.md`
 - `maoclaw-inherit-original-developer-method-playbook.md`
 - `maoclaw-upgrade-roadmap-derived-from-original-method.md`
+- `shengjing-stitch-ui-method-adoption.md`
+- `frontend-workbench-implementation-contract.md`
+- `ui-surface-brief-template.md`
+- `desktop-chat-workbench-next-iteration-backlog.md`
 - `openclaw-*.md`
 - `dropin-*.json`
 - `parity-certification.json`

@@ -99,15 +99,13 @@ impl PiApp {
             }
             TreeUiState::SummaryPrompt(mut prompt) => {
                 match key.key_type {
-                    KeyType::Up => {
-                        if prompt.selected > 0 {
-                            prompt.selected -= 1;
-                        }
+                    KeyType::Up if prompt.selected > 0 => {
+                        prompt.selected -= 1;
                     }
-                    KeyType::Down => {
-                        if prompt.selected < TreeSummaryChoice::all().len().saturating_sub(1) {
-                            prompt.selected += 1;
-                        }
+                    KeyType::Down
+                        if prompt.selected < TreeSummaryChoice::all().len().saturating_sub(1) =>
+                    {
+                        prompt.selected += 1;
                     }
                     KeyType::Esc | KeyType::CtrlC => {
                         self.status_message = Some("Tree navigation cancelled".to_string());
@@ -311,8 +309,6 @@ impl PiApp {
                 session_guard.reset_leaf();
             }
 
-            let (messages, usage) = conversation_from_session(&session_guard);
-            let agent_messages = session_guard.to_messages_for_current_path();
             let status_leaf = pending
                 .new_leaf_id
                 .clone()
@@ -321,25 +317,24 @@ impl PiApp {
 
             self.spawn_save_session();
 
-            if let Ok(mut agent_guard) = self.agent.try_lock() {
-                agent_guard.replace_messages(agent_messages);
-            }
+            let (messages, usage) =
+                match refresh_interactive_agent_from_session_try(&self.session, &self.agent) {
+                    Ok(snapshot) => snapshot,
+                    Err(err) => {
+                        self.status_message = Some(err);
+                        return;
+                    }
+                };
 
-            self.messages = messages;
-            self.message_render_cache.clear();
-            self.total_usage = usage;
-            self.current_response.clear();
-            self.current_thinking.clear();
-            self.agent_state = AgentState::Idle;
-            self.current_tool = None;
-            self.abort_handle = None;
-            self.status_message = Some(format!("Switched to {status_leaf}"));
-            self.scroll_to_bottom();
+            let _ = self.handle_pi_message(PiMsg::ConversationReset {
+                messages,
+                usage,
+                status: Some(format!("Switched to {status_leaf}")),
+            });
 
             if let Some(text) = pending.editor_text {
-                self.input.set_value(&text);
+                let _ = self.handle_pi_message(PiMsg::SetEditorText(text));
             }
-            self.input.focus();
 
             return;
         }
@@ -389,9 +384,11 @@ impl PiApp {
                     .await
                     .unwrap_or(false);
                 if cancelled {
-                    let _ = event_tx.try_send(PiMsg::System(
-                        "Session switch cancelled by extension".to_string(),
-                    ));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::System("Session switch cancelled by extension".to_string()),
+                    )
+                    .await;
                     return;
                 }
             }
@@ -412,8 +409,11 @@ impl PiApp {
                 {
                     Ok(summary) => summary,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Branch summary failed: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Branch summary failed: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 }
@@ -421,21 +421,26 @@ impl PiApp {
                 None
             };
 
-            let messages_for_agent = {
+            {
                 let mut guard = match session.lock(&cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
 
                 if let Some(target_id) = &pending.new_leaf_id {
                     if !guard.navigate_to(target_id) {
-                        let _ = event_tx.try_send(PiMsg::AgentError(format!(
-                            "Branch target not found: {target_id}"
-                        )));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Branch target not found: {target_id}")),
+                        )
+                        .await;
                         return;
                     }
                 } else {
@@ -452,31 +457,16 @@ impl PiApp {
                 }
 
                 let _ = guard.save().await;
-                guard.to_messages_for_current_path()
-            };
-
-            {
-                let mut agent_guard = match agent.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
-                        return;
-                    }
-                };
-                agent_guard.replace_messages(messages_for_agent);
             }
 
-            let (messages, usage) = {
-                let guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                conversation_from_session(&guard)
+            let (messages, usage) = match refresh_interactive_agent_from_session(&session, &agent)
+                .await
+            {
+                Ok(snapshot) => snapshot,
+                Err(err) => {
+                    let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                    return;
+                }
             };
 
             let status = if summary_skipped {
@@ -487,14 +477,18 @@ impl PiApp {
                 Some(format!("Switched to {to_id_for_event}"))
             };
 
-            let _ = event_tx.try_send(PiMsg::ConversationReset {
-                messages,
-                usage,
-                status,
-            });
+            let _ = send_pi_msg_with_backpressure(
+                &event_tx,
+                PiMsg::ConversationReset {
+                    messages,
+                    usage,
+                    status,
+                },
+            )
+            .await;
 
             if let Some(text) = pending.editor_text {
-                let _ = event_tx.try_send(PiMsg::SetEditorText(text));
+                let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::SetEditorText(text)).await;
             }
 
             if let Some(manager) = extensions {

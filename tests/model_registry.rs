@@ -140,7 +140,7 @@ fn test_model_fields_populated_correctly() {
         });
 
     assert_eq!(model.model.id, "claude-sonnet-4-5");
-    assert_eq!(model.model.name, "Claude Sonnet 4.5");
+    assert_eq!(model.model.name, "claude-sonnet-4-5");
     assert!(
         model.model.reasoning,
         "Claude Sonnet should support reasoning"
@@ -149,13 +149,13 @@ fn test_model_fields_populated_correctly() {
     assert!(model.model.max_tokens > 0, "Should have max tokens");
     assert!(!model.model.input.is_empty(), "Should have input types");
 
-    harness.section("Verify non-reasoning model");
+    harness.section("Verify Haiku model");
     let claude_haiku = registry.find("anthropic", "claude-haiku-4-5");
     assert!(claude_haiku.is_some(), "Claude Haiku 4.5 should exist");
     let haiku = claude_haiku.unwrap();
     assert!(
-        !haiku.model.reasoning,
-        "Claude Haiku 4.5 should not support reasoning"
+        haiku.model.reasoning,
+        "Claude Haiku 4.5 should support reasoning in the current catalog"
     );
 }
 

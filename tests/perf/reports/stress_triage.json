@@ -21,35 +21,207 @@
     ],
     "rss_interval_secs": 5
   },
-  "run_id": "local-20260206T012910000Z",
-  "correlation_id": "stress-triage-local-20260206T012910000Z",
-  "generated_at": "2026-02-06T01:29:10Z",
+  "correlation_id": "stress-triage-local-20260317T023705748Z",
+  "generated_at": "2026-03-17T02:37:05Z",
   "pass": true,
   "results": {
     "error_count": 0,
-    "event_count": 1350,
+    "event_count": 1500,
     "extensions_loaded": 15,
     "latency": {
       "ok": true,
-      "p99_first_us": 29788,
-      "p99_last_us": 20266,
+      "p99_first_us": 615,
+      "p99_last_us": 203,
       "summary": {
-        "count": 1350,
-        "max": 35995,
-        "mean": 17929,
-        "min": 11379,
-        "p50": 17415,
-        "p95": 21190,
-        "p99": 26540
+        "count": 1500,
+        "max": 6836,
+        "mean": 80,
+        "min": 30,
+        "p50": 49,
+        "p95": 113,
+        "p99": 382
       }
     },
+    "reactor": {
+      "enabled": true,
+      "max_queue_depths": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "migration_event_total": 0,
+      "migration_events": {},
+      "queue_depths_final": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "queue_samples": [
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 0,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 5,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 10,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 15,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 20,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "max_queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "queue_depths": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "rejected_enqueues": 0,
+          "t_s": 25,
+          "total_dispatched": 0,
+          "total_enqueued_by_shard": [
+            0,
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "rejected_enqueues": 0,
+      "s3fifo": {
+        "fairness_budget_rejections": 0,
+        "fallback_event_total": 0,
+        "lane_overflow_rejections": 0
+      },
+      "shard_count": 4,
+      "stall_reasons": {},
+      "total_dispatched": 0,
+      "total_enqueued_by_shard": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
     "rss": {
-      "growth_pct": 0.0,
-      "initial_kb": 58707968,
-      "max_kb": 58707968,
+      "growth_pct": 0.008640120210368144,
+      "initial_kb": 43614208,
+      "max_kb": 43991040,
       "ok": true
     },
     "sample_errors": []
   },
+  "run_id": "local-20260317T023705748Z",
   "schema": "pi.ext.stress_triage.v1"
 }

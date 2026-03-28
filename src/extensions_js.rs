@@ -67,6 +67,17 @@ use crate::extensions::{
     evaluate_exec_mediation,
 };
 
+const PI_SECRET_MARKERS: &[&str] = &[
+    "API_KEY",
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "PASSWD",
+    "PRIVATE_KEY",
+    "CREDENTIAL",
+    "ACCESS_KEY",
+];
+
 /// Helper to check `exec` capability for sync execution where we cannot prompt.
 fn check_exec_capability(policy: &ExtensionPolicy, extension_id: Option<&str>) -> bool {
     let cap = "exec";
@@ -114,7 +125,18 @@ pub fn is_env_var_allowed(key: &str) -> bool {
     let policy = SecretBrokerPolicy::default();
     // is_secret returns true if it IS a secret (should be blocked).
     // So we allow it if it is NOT a secret.
-    !policy.is_secret(key)
+    if policy.is_secret(key) {
+        return false;
+    }
+
+    let upper = key.to_ascii_uppercase();
+    let Some(stripped) = upper.strip_prefix("PI_") else {
+        return true;
+    };
+
+    !PI_SECRET_MARKERS
+        .iter()
+        .any(|marker| stripped.contains(marker))
 }
 
 fn parse_truthy_flag(value: &str) -> bool {
@@ -5190,10 +5212,32 @@ fn builtin_overlay_module_key(base: &str, canonical: &str) -> String {
     format!("pijs-compat://builtin/{canonical}/{short}")
 }
 
+const MODULE_RELOAD_QUERY_KEY: &str = "pi_reload";
+
+fn split_reload_specifier(specifier: &str) -> (&str, Option<&str>) {
+    let specifier = specifier.trim();
+    if let Some((base, query)) = specifier.rsplit_once('?')
+        && let Some(token) = query.strip_prefix(&format!("{MODULE_RELOAD_QUERY_KEY}="))
+        && !token.is_empty()
+    {
+        return (base, Some(token));
+    }
+
+    (specifier, None)
+}
+
+fn append_reload_specifier_token(specifier: String, token: Option<&str>) -> String {
+    match token {
+        Some(token) => format!("{specifier}?{MODULE_RELOAD_QUERY_KEY}={token}"),
+        None => specifier,
+    }
+}
+
 /// Read up to 1MB of a source file for import extraction.
 /// This prevents OOM vulnerabilities if a module path resolves to a massive file or /dev/zero.
 fn read_source_for_import_extraction(path: &str) -> Option<String> {
     use std::io::Read;
+    let (path, _) = split_reload_specifier(path);
     let file = std::fs::File::open(path).ok()?;
     let mut handle = file.take(1024 * 1024); // 1MB limit
     let mut buffer = String::new();
@@ -5244,7 +5288,9 @@ fn maybe_register_builtin_compat_overlay(
 impl JsModuleResolver for PiJsResolver {
     #[allow(clippy::too_many_lines)]
     fn resolve(&mut self, _ctx: &Ctx<'_>, base: &str, name: &str) -> rquickjs::Result<String> {
-        let spec = name.trim();
+        let (base_path, base_reload_token) = split_reload_specifier(base);
+        let (spec, explicit_reload_token) = split_reload_specifier(name);
+        let reload_token = explicit_reload_token.or(base_reload_token);
         if spec.is_empty() {
             return Err(rquickjs::Error::new_resolving(base, name));
         }
@@ -5281,7 +5327,7 @@ impl JsModuleResolver for PiJsResolver {
             let state = self.state.borrow();
             state.canonical_extension_roots.clone()
         };
-        if let Some(path) = resolve_module_path(base, spec, repair_mode, &canonical_roots) {
+        if let Some(path) = resolve_module_path(base_path, spec, repair_mode, &canonical_roots) {
             // Canonicalize to collapse `.` / `..` segments and normalise
             // separators (Windows backslashes → forward slashes for QuickJS).
             let canonical = crate::extensions::safe_canonicalize(&path);
@@ -5301,7 +5347,10 @@ impl JsModuleResolver for PiJsResolver {
                 return Err(rquickjs::Error::new_resolving(base, name));
             }
 
-            return Ok(canonical.to_string_lossy().replace('\\', "/"));
+            return Ok(append_reload_specifier_token(
+                canonical.to_string_lossy().replace('\\', "/"),
+                reload_token,
+            ));
         }
 
         // Pattern 3 (bd-k5q5.8.4): monorepo sibling module stubs.
@@ -5313,9 +5362,9 @@ impl JsModuleResolver for PiJsResolver {
             let canonical_roots = state.canonical_extension_roots.clone();
             drop(state);
 
-            if let Some(escaped_path) = detect_monorepo_escape(base, spec, &canonical_roots) {
+            if let Some(escaped_path) = detect_monorepo_escape(base_path, spec, &canonical_roots) {
                 // Read the importing file to extract import names.
-                let source = read_source_for_import_extraction(base).unwrap_or_default();
+                let source = read_source_for_import_extraction(base_path).unwrap_or_default();
                 let names = extract_import_names(&source, spec);
 
                 let stub = generate_monorepo_stub(&names);
@@ -5337,7 +5386,7 @@ impl JsModuleResolver for PiJsResolver {
                         extension_id: String::new(),
                         pattern: RepairPattern::MonorepoEscape,
                         original_error: format!(
-                            "monorepo escape: {} from {base}",
+                            "monorepo escape: {} from {base_path}",
                             escaped_path.display()
                         ),
                         repair_action: format!(
@@ -5374,15 +5423,15 @@ impl JsModuleResolver for PiJsResolver {
             let scopes = state.extension_root_scopes.clone();
             drop(state);
 
-            if should_auto_stub_package(spec, base, &roots, &tiers, &scopes) {
+            if should_auto_stub_package(spec, base_path, &roots, &tiers, &scopes) {
                 tracing::info!(
                     event = "pijs.repair.missing_npm_dep",
-                    base = %base,
+                    base = %base_path,
                     specifier = %spec,
                     "auto-repair: generated proxy stub for missing npm dependency"
                 );
 
-                let source = read_source_for_import_extraction(base).unwrap_or_default();
+                let source = read_source_for_import_extraction(base_path).unwrap_or_default();
                 let extracted_names = extract_import_names(&source, spec);
                 let mut state = self.state.borrow_mut();
                 let entry_key = spec.to_string();
@@ -5415,7 +5464,7 @@ impl JsModuleResolver for PiJsResolver {
                     events.push(ExtensionRepairEvent {
                         extension_id: String::new(),
                         pattern: RepairPattern::MissingNpmDep,
-                        original_error: format!("missing npm dependency: {spec} from {base}"),
+                        original_error: format!("missing npm dependency: {spec} from {base_path}"),
                         repair_action: format!(
                             "generated proxy stub for package '{spec}' with {} named export(s)",
                             export_names.len()
@@ -5462,26 +5511,30 @@ fn compile_module_source(
     dynamic_virtual_modules: &HashMap<String, String>,
     name: &str,
 ) -> rquickjs::Result<Vec<u8>> {
+    let (source_name, _) = split_reload_specifier(name);
     if let Some(source) = dynamic_virtual_modules
         .get(name)
+        .or_else(|| dynamic_virtual_modules.get(source_name))
         .or_else(|| static_virtual_modules.get(name))
+        .or_else(|| static_virtual_modules.get(source_name))
     {
-        return Ok(prefix_import_meta_url(name, source));
+        return Ok(prefix_import_meta_url(source_name, source));
     }
 
-    let path = Path::new(name);
+    let path = Path::new(source_name);
     if !path.is_file() {
         return Err(rquickjs::Error::new_loading_message(
-            name,
+            source_name,
             "Module is not a file",
         ));
     }
 
-    let metadata = fs::metadata(path)
-        .map_err(|err| rquickjs::Error::new_loading_message(name, format!("metadata: {err}")))?;
+    let metadata = fs::metadata(path).map_err(|err| {
+        rquickjs::Error::new_loading_message(source_name, format!("metadata: {err}"))
+    })?;
     if metadata.len() > MAX_MODULE_SOURCE_BYTES {
         return Err(rquickjs::Error::new_loading_message(
-            name,
+            source_name,
             format!(
                 "Module source exceeds size limit: {} > {}",
                 metadata.len(),
@@ -5492,15 +5545,15 @@ fn compile_module_source(
 
     let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
     let file = fs::File::open(path)
-        .map_err(|err| rquickjs::Error::new_loading_message(name, format!("open: {err}")))?;
+        .map_err(|err| rquickjs::Error::new_loading_message(source_name, format!("open: {err}")))?;
     let mut handle = std::io::Read::take(file, MAX_MODULE_SOURCE_BYTES + 1);
     let mut raw = String::new();
     std::io::Read::read_to_string(&mut handle, &mut raw)
-        .map_err(|err| rquickjs::Error::new_loading_message(name, format!("read: {err}")))?;
+        .map_err(|err| rquickjs::Error::new_loading_message(source_name, format!("read: {err}")))?;
 
     if raw.len() as u64 > MAX_MODULE_SOURCE_BYTES {
         return Err(rquickjs::Error::new_loading_message(
-            name,
+            source_name,
             format!(
                 "Module source exceeds size limit: {} > {}",
                 raw.len(),
@@ -5511,24 +5564,50 @@ fn compile_module_source(
 
     let compiled = match extension {
         "ts" | "tsx" => {
-            let transpiled = transpile_typescript_module(&raw, name).map_err(|message| {
-                rquickjs::Error::new_loading_message(name, format!("transpile: {message}"))
+            let transpiled = transpile_typescript_module(&raw, source_name).map_err(|message| {
+                rquickjs::Error::new_loading_message(source_name, format!("transpile: {message}"))
             })?;
             rewrite_legacy_private_identifiers(&maybe_cjs_to_esm(&transpiled))
         }
         "js" | "mjs" => rewrite_legacy_private_identifiers(&maybe_cjs_to_esm(&raw)),
-        "json" => json_module_to_esm(&raw, name).map_err(|message| {
-            rquickjs::Error::new_loading_message(name, format!("json: {message}"))
+        "json" => json_module_to_esm(&raw, source_name).map_err(|message| {
+            rquickjs::Error::new_loading_message(source_name, format!("json: {message}"))
         })?,
         other => {
             return Err(rquickjs::Error::new_loading_message(
-                name,
+                source_name,
                 format!("Unsupported module extension: {other}"),
             ));
         }
     };
 
-    Ok(prefix_import_meta_url(name, &compiled))
+    Ok(prefix_import_meta_url(source_name, &compiled))
+}
+
+const MODULE_TRANSFORM_CACHE_VERSION: &str = "pijs-module-cache-v3";
+
+fn hash_file_module_contents(path: &Path) -> Option<String> {
+    use std::io::Read;
+
+    let file = fs::File::open(path).ok()?;
+    let mut handle = file.take(MAX_MODULE_SOURCE_BYTES + 1);
+    let mut hasher = Sha256::new();
+    let mut total = 0_u64;
+    let mut buffer = [0_u8; 8192];
+
+    loop {
+        let read = handle.read(&mut buffer).ok()?;
+        if read == 0 {
+            break;
+        }
+        total = total.saturating_add(u64::try_from(read).ok()?);
+        if total > MAX_MODULE_SOURCE_BYTES {
+            return None;
+        }
+        hasher.update(&buffer[..read]);
+    }
+
+    Some(format!("{:x}", hasher.finalize()))
 }
 
 fn module_cache_key(
@@ -5536,31 +5615,39 @@ fn module_cache_key(
     dynamic_virtual_modules: &HashMap<String, String>,
     name: &str,
 ) -> Option<String> {
+    let (source_name, _) = split_reload_specifier(name);
     if let Some(source) = dynamic_virtual_modules
         .get(name)
+        .or_else(|| dynamic_virtual_modules.get(source_name))
         .or_else(|| static_virtual_modules.get(name))
+        .or_else(|| static_virtual_modules.get(source_name))
     {
         let mut hasher = Sha256::new();
+        hasher.update(MODULE_TRANSFORM_CACHE_VERSION.as_bytes());
+        hasher.update(b"\0");
         hasher.update(b"virtual\0");
-        hasher.update(name.as_bytes());
+        hasher.update(source_name.as_bytes());
         hasher.update(b"\0");
         hasher.update(source.as_bytes());
         return Some(format!("v:{:x}", hasher.finalize()));
     }
 
-    let path = Path::new(name);
+    let path = Path::new(source_name);
     if !path.is_file() {
         return None;
     }
 
     let metadata = fs::metadata(path).ok()?;
-    let modified_nanos = metadata
-        .modified()
-        .ok()
-        .and_then(|ts| ts.duration_since(UNIX_EPOCH).ok())
-        .map_or(0, |duration| duration.as_nanos());
+    if metadata.len() > MAX_MODULE_SOURCE_BYTES {
+        return None;
+    }
 
-    Some(format!("f:{name}:{}:{modified_nanos}", metadata.len()))
+    let content_hash = hash_file_module_contents(path)?;
+
+    Some(format!(
+        "f:{MODULE_TRANSFORM_CACHE_VERSION}:{source_name}:{}:{content_hash}",
+        metadata.len(),
+    ))
 }
 
 // ============================================================================
@@ -6168,6 +6255,7 @@ struct BindingScanner {
     mode: BindingLexMode,
     escaped: bool,
     state: DeclState,
+    brace_depth: usize,
 }
 
 impl BindingScanner {
@@ -6297,6 +6385,156 @@ fn consume_js_identifier<'a>(source: &'a str, bytes: &[u8], index: &mut usize) -
     &source[start..*index]
 }
 
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct ModuleSurfaceAnalysis {
+    has_default_export: bool,
+    declares_require: bool,
+    declares_filename: bool,
+    declares_dirname: bool,
+    declares_module: bool,
+    declares_exports: bool,
+}
+
+fn record_declared_binding(analysis: &mut ModuleSurfaceAnalysis, name: &str) {
+    match name {
+        "require" => analysis.declares_require = true,
+        "__filename" => analysis.declares_filename = true,
+        "__dirname" => analysis.declares_dirname = true,
+        "module" => analysis.declares_module = true,
+        "exports" => analysis.declares_exports = true,
+        _ => {}
+    }
+}
+
+fn collect_declared_pat_bindings(pat: &swc_ecma_ast::Pat, analysis: &mut ModuleSurfaceAnalysis) {
+    match pat {
+        swc_ecma_ast::Pat::Ident(binding) => {
+            record_declared_binding(analysis, binding.id.sym.as_ref());
+        }
+        swc_ecma_ast::Pat::Array(array) => {
+            for elem in array.elems.iter().flatten() {
+                collect_declared_pat_bindings(elem, analysis);
+            }
+        }
+        swc_ecma_ast::Pat::Object(object) => {
+            for prop in &object.props {
+                match prop {
+                    swc_ecma_ast::ObjectPatProp::Assign(assign) => {
+                        record_declared_binding(analysis, assign.key.sym.as_ref());
+                    }
+                    swc_ecma_ast::ObjectPatProp::KeyValue(key_value) => {
+                        collect_declared_pat_bindings(&key_value.value, analysis);
+                    }
+                    swc_ecma_ast::ObjectPatProp::Rest(rest) => {
+                        collect_declared_pat_bindings(&rest.arg, analysis);
+                    }
+                }
+            }
+        }
+        swc_ecma_ast::Pat::Rest(rest) => {
+            collect_declared_pat_bindings(&rest.arg, analysis);
+        }
+        swc_ecma_ast::Pat::Assign(assign) => {
+            collect_declared_pat_bindings(&assign.left, analysis);
+        }
+        swc_ecma_ast::Pat::Expr(_) | swc_ecma_ast::Pat::Invalid(_) => {}
+    }
+}
+
+fn collect_declared_bindings(decl: &swc_ecma_ast::Decl, analysis: &mut ModuleSurfaceAnalysis) {
+    match decl {
+        swc_ecma_ast::Decl::Class(class_decl) => {
+            record_declared_binding(analysis, class_decl.ident.sym.as_ref());
+        }
+        swc_ecma_ast::Decl::Fn(fn_decl) => {
+            record_declared_binding(analysis, fn_decl.ident.sym.as_ref());
+        }
+        swc_ecma_ast::Decl::Var(var_decl) => {
+            for decl in &var_decl.decls {
+                collect_declared_pat_bindings(&decl.name, analysis);
+            }
+        }
+        swc_ecma_ast::Decl::TsInterface(_)
+        | swc_ecma_ast::Decl::TsTypeAlias(_)
+        | swc_ecma_ast::Decl::TsEnum(_)
+        | swc_ecma_ast::Decl::TsModule(_) => {}
+        swc_ecma_ast::Decl::Using(using_decl) => {
+            for decl in &using_decl.decls {
+                collect_declared_pat_bindings(&decl.name, analysis);
+            }
+        }
+    }
+}
+
+fn module_export_name_is_default(name: &swc_ecma_ast::ModuleExportName) -> bool {
+    match name {
+        swc_ecma_ast::ModuleExportName::Ident(ident) => ident.sym.as_ref() == "default",
+        swc_ecma_ast::ModuleExportName::Str(name) => name.value == "default",
+    }
+}
+
+fn analyze_module_surface(source: &str, name: &str) -> Option<ModuleSurfaceAnalysis> {
+    let globals = Globals::new();
+    GLOBALS.set(&globals, || {
+        let cm: Lrc<SourceMap> = Lrc::default();
+        let fm = cm.new_source_file(
+            FileName::Custom(name.to_string()).into(),
+            source.to_string(),
+        );
+        let syntax = Syntax::Es(swc_ecma_parser::EsSyntax {
+            jsx: true,
+            decorators: true,
+            ..Default::default()
+        });
+        let mut parser = SwcParser::new(syntax, StringInput::from(&*fm), None);
+        let module = parser.parse_module().ok()?;
+
+        let mut analysis = ModuleSurfaceAnalysis::default();
+        for item in &module.body {
+            match item {
+                swc_ecma_ast::ModuleItem::Stmt(swc_ecma_ast::Stmt::Decl(decl)) => {
+                    collect_declared_bindings(decl, &mut analysis);
+                }
+                swc_ecma_ast::ModuleItem::Stmt(_) => {}
+                swc_ecma_ast::ModuleItem::ModuleDecl(decl) => match decl {
+                    swc_ecma_ast::ModuleDecl::ExportDecl(export_decl) => {
+                        collect_declared_bindings(&export_decl.decl, &mut analysis);
+                    }
+                    swc_ecma_ast::ModuleDecl::ExportDefaultDecl(_)
+                    | swc_ecma_ast::ModuleDecl::ExportDefaultExpr(_) => {
+                        analysis.has_default_export = true;
+                    }
+                    swc_ecma_ast::ModuleDecl::ExportNamed(named) => {
+                        for specifier in &named.specifiers {
+                            match specifier {
+                                swc_ecma_ast::ExportSpecifier::Named(named_spec) => {
+                                    let exported =
+                                        named_spec.exported.as_ref().unwrap_or(&named_spec.orig);
+                                    if module_export_name_is_default(exported) {
+                                        analysis.has_default_export = true;
+                                    }
+                                }
+                                swc_ecma_ast::ExportSpecifier::Default(_) => {
+                                    analysis.has_default_export = true;
+                                }
+                                swc_ecma_ast::ExportSpecifier::Namespace(_) => {}
+                            }
+                        }
+                    }
+                    swc_ecma_ast::ModuleDecl::Import(_)
+                    | swc_ecma_ast::ModuleDecl::ExportAll(_)
+                    | swc_ecma_ast::ModuleDecl::TsImportEquals(_)
+                    | swc_ecma_ast::ModuleDecl::TsExportAssignment(_)
+                    | swc_ecma_ast::ModuleDecl::TsNamespaceExport(_) => {}
+                },
+            }
+        }
+
+        Some(analysis)
+    })
+}
+
 fn source_declares_binding(source: &str, name: &str) -> bool {
     if name.is_empty() || !name.is_ascii() {
         return false;
@@ -6314,6 +6552,20 @@ fn source_declares_binding(source: &str, name: &str) -> bool {
             continue;
         }
 
+        if b == b'{' {
+            scanner.brace_depth = scanner.brace_depth.saturating_add(1);
+            scanner.state = DeclState::None;
+            i += 1;
+            continue;
+        }
+
+        if b == b'}' {
+            scanner.brace_depth = scanner.brace_depth.saturating_sub(1);
+            scanner.state = DeclState::None;
+            i += 1;
+            continue;
+        }
+
         if b.is_ascii_whitespace() {
             i += 1;
             continue;
@@ -6321,13 +6573,16 @@ fn source_declares_binding(source: &str, name: &str) -> bool {
 
         if is_js_ident_start(b) {
             let token = consume_js_identifier(source, bytes, &mut i);
-            if scanner.advance_state(token, name) {
+            if scanner.brace_depth == 0 && scanner.advance_state(token, name) {
                 return true;
+            }
+            if scanner.brace_depth > 0 {
+                scanner.state = DeclState::None;
             }
             continue;
         }
 
-        if scanner.state == DeclState::AfterDeclKeyword && b == b'*' {
+        if scanner.state == DeclState::AfterDeclKeyword && scanner.brace_depth == 0 && b == b'*' {
             i += 1;
             continue;
         }
@@ -6552,7 +6807,11 @@ fn maybe_cjs_to_esm(source: &str) -> String {
         (trimmed.starts_with("import ") || trimmed.starts_with("export "))
             && !trimmed.starts_with("//")
     });
-    let has_export_default = source.contains("export default");
+    let surface = analyze_module_surface(source, "<pijs-cjs-scan>");
+    let has_export_default = surface.map_or_else(
+        || source.contains("export default") || source.contains(" as default"),
+        |analysis| analysis.has_default_export,
+    );
 
     // Extract all require() specifiers
     let specifiers = extract_static_require_specifiers(source);
@@ -6583,7 +6842,10 @@ fn maybe_cjs_to_esm(source: &str) -> String {
     }
 
     // Build require map + function
-    let has_require_binding = source_declares_binding(source, "require");
+    let has_require_binding = surface.map_or_else(
+        || source_declares_binding(source, "require"),
+        |analysis| analysis.declares_require,
+    );
     if !specifiers.is_empty() && !has_require_binding {
         output.push_str("const __cjs_req_map = {");
         for (i, spec) in specifiers.iter().enumerate() {
@@ -6603,10 +6865,22 @@ fn maybe_cjs_to_esm(source: &str) -> String {
         );
     }
 
-    let has_filename_binding = source_declares_binding(source, "__filename");
-    let has_dirname_binding = source_declares_binding(source, "__dirname");
-    let has_module_binding = source_declares_binding(source, "module");
-    let has_exports_binding = source_declares_binding(source, "exports");
+    let has_filename_binding = surface.map_or_else(
+        || source_declares_binding(source, "__filename"),
+        |analysis| analysis.declares_filename,
+    );
+    let has_dirname_binding = surface.map_or_else(
+        || source_declares_binding(source, "__dirname"),
+        |analysis| analysis.declares_dirname,
+    );
+    let has_module_binding = surface.map_or_else(
+        || source_declares_binding(source, "module"),
+        |analysis| analysis.declares_module,
+    );
+    let has_exports_binding = surface.map_or_else(
+        || source_declares_binding(source, "exports"),
+        |analysis| analysis.declares_exports,
+    );
     let needs_filename = has_filename_refs && !has_filename_binding;
     let needs_dirname = has_dirname_refs && !has_dirname_binding;
     let needs_module = (has_module_exports || has_exports_usage) && !has_module_binding;
@@ -6936,14 +7210,19 @@ const _numCpus = {num_cpus};
 const _cpus = [];
 for (let i = 0; i < _numCpus; i++) _cpus.push({{ model: "cpu", speed: 2400, times: {{ user: 0, nice: 0, sys: 0, idle: 0, irq: 0 }} }});
 
+function envGet(name) {{
+  return globalThis.pi && globalThis.pi.env && typeof globalThis.pi.env.get === "function"
+    ? globalThis.pi.env.get(name)
+    : undefined;
+}}
+
 export function homedir() {{
-  const env_home =
-    globalThis.pi && globalThis.pi.env && typeof globalThis.pi.env.get === "function"
-      ? globalThis.pi.env.get("HOME")
-      : undefined;
+  const env_home = envGet("HOME") || envGet("USERPROFILE");
   return env_home || _homedir;
 }}
-export function tmpdir() {{ return _tmpdir; }}
+export function tmpdir() {{
+  return envGet("TMPDIR") || envGet("TMP") || envGet("TEMP") || _tmpdir;
+}}
 export function hostname() {{ return _hostname; }}
 export function platform() {{ return _platform; }}
 export function arch() {{ return _arch; }}
@@ -12401,7 +12680,7 @@ export function stripAnsi(value) {
   return String(value ?? "").replace(/\u001b\[[0-9;]*m/g, "");
 }
 export function recordInboundSession() { return undefined; }
-export class OpenClawPlugin {
+export class MaoclawPlugin {
   constructor(spec = {}) { this.spec = spec; }
   async activate(pi) {
     const plugin = this.spec || {};
@@ -12424,7 +12703,7 @@ export class OpenClawPlugin {
     }
   }
 }
-export async function registerOpenClaw(pi, plugin) {
+export async function registerMaoclaw(pi, plugin) {
   if (typeof plugin === "function") {
     return await plugin(pi);
   }
@@ -12453,19 +12732,19 @@ export default {
   jsonResult,
   stripAnsi,
   recordInboundSession,
-  registerOpenClaw,
-  OpenClawPlugin,
+  registerMaoclaw,
+  MaoclawPlugin,
 };
 "#
         .trim()
         .to_string();
 
         modules.insert(
-            "openclaw/plugin-sdk".to_string(),
+            "maoclaw/plugin-sdk".to_string(),
             openclaw_plugin_sdk.clone(),
         );
         modules.insert(
-            "openclaw/plugin-sdk/index.js".to_string(),
+            "maoclaw/plugin-sdk/index.js".to_string(),
             openclaw_plugin_sdk.clone(),
         );
         modules.insert(
@@ -14677,6 +14956,8 @@ impl<C: SchedulerClock + 'static> PiJsRuntime<C> {
 
                             #[cfg(not(target_os = "linux"))]
                             {
+                                use std::io::Read;
+
                                 let checked_path = crate::extensions::safe_canonicalize(&requested_abs);
 
                                 // Allow reads from workspace root or any registered
@@ -14696,7 +14977,6 @@ impl<C: SchedulerClock + 'static> PiJsRuntime<C> {
                                     ));
                                 }
 
-                                use std::io::Read;
                                 let file = match std::fs::File::open(&checked_path) {
                                     Ok(file) => file,
                                     Err(err) => {
@@ -14722,7 +15002,7 @@ impl<C: SchedulerClock + 'static> PiJsRuntime<C> {
                                 if buffer.len() as u64 > MAX_SYNC_READ_SIZE {
                                     return Err(rquickjs::Error::new_loading_message(
                                         &path,
-                                        format!("host read failed: file exceeds {} bytes", MAX_SYNC_READ_SIZE),
+                                        format!("host read failed: file exceeds {MAX_SYNC_READ_SIZE} bytes"),
                                     ));
                                 }
 
@@ -17959,7 +18239,7 @@ if (typeof globalThis.Bun === 'undefined') {
             globalThis.process && typeof globalThis.process.cwd === 'function'
                 ? globalThis.process.cwd()
                 : '/';
-        const raw = __pi_exec_sync_native('which', JSON.stringify([name]), cwd, 2000, undefined);
+        const raw = __pi_exec_sync_native('which', JSON.stringify([name]), cwd, 2000, 64 * 1024);
         try {
             const parsed = JSON.parse(raw || '{}');
             if (Number(parsed && parsed.code) !== 0) return null;
@@ -18569,6 +18849,86 @@ export const bundled = join(__dirname, "doom1.wad");
     }
 
     #[test]
+    fn source_declares_binding_ignores_nested_function_bindings() {
+        let source = r"
+function outer() {
+  function module() {}
+  const exports = {};
+  return { module, exports };
+}
+module.exports = outer;
+";
+
+        assert!(!source_declares_binding(source, "module"));
+        assert!(!source_declares_binding(source, "exports"));
+    }
+
+    #[test]
+    fn analyze_module_surface_detects_default_export_alias() {
+        let source = r"
+const activate = () => {};
+export { activate as default };
+";
+
+        let analysis = analyze_module_surface(source, "default-alias.js")
+            .expect("analysis should parse default alias export");
+        assert!(analysis.has_default_export);
+    }
+
+    #[test]
+    fn maybe_cjs_to_esm_preserves_export_alias_default() {
+        let source = r"
+var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
+var require_pkg = __commonJS((exports, module) => {
+  module.exports = { ok: true };
+});
+function activate(pi) {
+  return pi;
+}
+export { activate as default };
+";
+
+        let rewritten = maybe_cjs_to_esm(source);
+        assert!(
+            rewritten.contains("const module = { exports: {} };"),
+            "expected top-level module shim for nested CJS helper:\n{rewritten}"
+        );
+        assert!(
+            rewritten.contains("const exports = module.exports;"),
+            "expected top-level exports shim for nested CJS helper:\n{rewritten}"
+        );
+        assert!(
+            !rewritten.contains("export default module.exports;"),
+            "default export alias should suppress synthetic CJS default export:\n{rewritten}"
+        );
+    }
+
+    #[test]
+    fn maybe_cjs_to_esm_agentsbox_bundle_injects_module_and_keeps_default_alias() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/ext_conformance/artifacts/npm/agentsbox/dist/pi.js");
+        let source = std::fs::read_to_string(&path).expect("read agentsbox bundle");
+
+        let rewritten = maybe_cjs_to_esm(&source);
+        assert!(
+            rewritten.contains("const module = { exports: {} };"),
+            "agentsbox bundle should receive a top-level module shim"
+        );
+        assert!(
+            rewritten.contains("const exports = module.exports;"),
+            "agentsbox bundle should receive a top-level exports shim"
+        );
+        assert!(
+            rewritten.contains("agentsboxPiExtension as default"),
+            "agentsbox default export alias should be preserved"
+        );
+        assert!(
+            !rewritten.contains("export default module.exports;"),
+            "agentsbox bundle should not receive a duplicate synthetic default export"
+        );
+    }
+
+    #[test]
     fn maybe_cjs_to_esm_leaves_inline_doom_style_dirname_module_alone() {
         let source = r#"import { dirname, join } from "node:path"; import { fileURLToPath } from "node:url"; const __dirname = dirname(fileURLToPath(import.meta.url)); export const bundled = join(__dirname, "doom1.wad");"#;
 
@@ -18969,6 +19329,20 @@ import { isIPv4 as netIsIpv4 } from "node:net";
     }
 
     #[test]
+    fn module_cache_key_includes_transform_cache_version() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let module_path = temp_dir.path().join("module.js");
+        std::fs::write(&module_path, "export const x = 1;\n").expect("write module");
+        let name = module_path.to_string_lossy().to_string();
+
+        let key = module_cache_key(&HashMap::new(), &HashMap::new(), &name).expect("file key");
+        assert!(
+            key.contains(MODULE_TRANSFORM_CACHE_VERSION),
+            "file cache key should include transform cache version: {key}"
+        );
+    }
+
+    #[test]
     fn module_cache_key_changes_when_file_size_changes() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let module_path = temp_dir.path().join("module.js");
@@ -18982,6 +19356,27 @@ import { isIPv4 as netIsIpv4 } from "node:net";
         let key_after =
             module_cache_key(&HashMap::new(), &HashMap::new(), &name).expect("file key");
 
+        assert_ne!(key_before, key_after);
+    }
+
+    #[test]
+    fn module_cache_key_changes_when_file_contents_change_without_size_change() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        let module_path = temp_dir.path().join("module.js");
+        std::fs::write(&module_path, "export const a = 1;\n").expect("write module");
+        let name = module_path.to_string_lossy().to_string();
+
+        let key_before =
+            module_cache_key(&HashMap::new(), &HashMap::new(), &name).expect("file key");
+
+        std::fs::write(&module_path, "export const b = 2;\n").expect("rewrite module");
+        let key_after =
+            module_cache_key(&HashMap::new(), &HashMap::new(), &name).expect("file key");
+
+        assert_eq!(
+            std::fs::metadata(&module_path).expect("metadata").len(),
+            "export const a = 1;\n".len() as u64
+        );
         assert_ne!(key_before, key_after);
     }
 
@@ -21226,11 +21621,9 @@ export const bundled = globalThis.__doomWadFinderProbe.bundled;
                 2 => {
                     runtime.enqueue_event("evt", serde_json::json!({ "step": step }));
                 }
-                3 => {
-                    if !timers.is_empty() {
-                        let idx = rng.next_usize(timers.len());
-                        let _ = runtime.clear_timeout(timers[idx]);
-                    }
+                3 if !timers.is_empty() => {
+                    let idx = rng.next_usize(timers.len());
+                    let _ = runtime.clear_timeout(timers[idx]);
                 }
                 4 => {
                     let delta_ms = rng.next_range_u64(50);

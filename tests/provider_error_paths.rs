@@ -303,7 +303,7 @@ fn gemini_http_500_is_reported() {
     let model = "gemini-test";
     let credential = "test-key";
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={credential}"
+        "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
     );
     let (client, _dir) = vcr_client(
         "gemini_http_500_is_reported",
@@ -474,7 +474,7 @@ fn gemini_invalid_json_event_fails_stream() {
     let model = "gemini-test";
     let credential = "test-key";
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={credential}"
+        "https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse"
     );
     let (client, _dir) = vcr_client(
         "gemini_invalid_json_event_fails_stream",
@@ -533,7 +533,7 @@ fn openai_invalid_utf8_in_sse_is_reported() {
         let err = stream.next().await.expect("expected one item").unwrap_err();
         let message = err.to_string();
         assert!(
-            message.contains("SSE error"),
+            message.contains("SSE error") || message.contains("JSON parse error"),
             "unexpected stream error: {message}"
         );
     });

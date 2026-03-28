@@ -72,10 +72,9 @@ export default function activate(pi) {{
     )
 }
 
-fn eval_fs(js_expr: &str) -> String {
-    let harness = common::TestHarness::new("fs_escape");
+fn eval_fs_in_harness(harness: &common::TestHarness, js_expr: &str) -> String {
     let source = fs_ext_source(js_expr);
-    let mgr = load_ext(&harness, &source);
+    let mgr = load_ext(harness, &source);
 
     let response = common::run_async(async move {
         mgr.dispatch_event_with_response(ExtensionEventName::AgentStart, None, 10000)
@@ -88,24 +87,18 @@ fn eval_fs(js_expr: &str) -> String {
         .unwrap_or_else(|| "NO_RESPONSE".to_string())
 }
 
+fn eval_fs(js_expr: &str) -> String {
+    let harness = common::TestHarness::new("fs_escape");
+    eval_fs_in_harness(&harness, js_expr)
+}
+
 fn eval_fs_with_setup<F>(setup: F, js_expr: &str) -> String
 where
     F: FnOnce(&common::TestHarness),
 {
     let harness = common::TestHarness::new("fs_escape");
     setup(&harness);
-    let source = fs_ext_source(js_expr);
-    let mgr = load_ext(&harness, &source);
-
-    let response = common::run_async(async move {
-        mgr.dispatch_event_with_response(ExtensionEventName::AgentStart, None, 10000)
-            .await
-            .expect("dispatch agent_start")
-    });
-
-    response
-        .and_then(|v| v.get("result").and_then(|r| r.as_str()).map(String::from))
-        .unwrap_or_else(|| "NO_RESPONSE".to_string())
+    eval_fs_in_harness(&harness, js_expr)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -187,12 +180,14 @@ fn vfs_normalize_empty_segments_collapsed() {
 
 #[test]
 fn vfs_write_does_not_create_real_file() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
         // Write to VFS
-        fs.writeFileSync('/tmp/vfs_escape_test_canary.txt', 'escape attempt');
+        fs.writeFileSync('tmp/vfs_escape_test_canary.txt', 'escape attempt');
         // Verify it exists in VFS
-        const exists_vfs = fs.existsSync('/tmp/vfs_escape_test_canary.txt');
+        const exists_vfs = fs.existsSync('tmp/vfs_escape_test_canary.txt');
         return String(exists_vfs);
     })()",
     );
@@ -200,7 +195,10 @@ fn vfs_write_does_not_create_real_file() {
 
     // Verify no real file was created
     assert!(
-        !std::path::Path::new("/tmp/vfs_escape_test_canary.txt").exists(),
+        !harness
+            .temp_dir()
+            .join("tmp/vfs_escape_test_canary.txt")
+            .exists(),
         "VFS write should NOT create a real file on disk"
     );
 }
@@ -209,12 +207,19 @@ fn vfs_write_does_not_create_real_file() {
 fn vfs_write_with_traversal_stays_in_vfs() {
     let result = eval_fs(
         r"(() => {
-        // Attempt path traversal write
-        fs.writeFileSync('../../tmp/vfs_traversal_canary.txt', 'escape');
-        return 'wrote';
+        // Attempt path traversal write outside the workspace root.
+        try {
+            fs.writeFileSync('../../tmp/vfs_traversal_canary.txt', 'escape');
+            return 'wrote';
+        } catch (e) {
+            return 'ERROR:' + e.message;
+        }
     })()",
     );
-    assert_eq!(result, "wrote");
+    assert!(
+        result.contains("host write denied") && result.contains("outside extension root"),
+        "expected traversal write to be denied, got: {result}"
+    );
 
     // Verify no real file was created
     assert!(
@@ -225,16 +230,18 @@ fn vfs_write_with_traversal_stays_in_vfs() {
 
 #[test]
 fn vfs_mkdir_does_not_create_real_dir() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
-        fs.mkdirSync('/tmp/vfs_escape_test_dir', { recursive: true });
-        return String(fs.existsSync('/tmp/vfs_escape_test_dir'));
+        fs.mkdirSync('tmp/vfs_escape_test_dir', { recursive: true });
+        return String(fs.existsSync('tmp/vfs_escape_test_dir'));
     })()",
     );
     assert_eq!(result, "true");
 
     assert!(
-        !std::path::Path::new("/tmp/vfs_escape_test_dir").exists(),
+        !harness.temp_dir().join("tmp/vfs_escape_test_dir").exists(),
         "VFS mkdir should NOT create a real directory"
     );
 }
@@ -291,16 +298,22 @@ fn host_read_fallback_allows_workspace_file() {
 
 #[test]
 fn vfs_write_then_read_roundtrips_without_host_fs() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
-        const testPath = '/vfs_only/test_file.txt';
-        fs.mkdirSync('/vfs_only', { recursive: true });
+        const testPath = 'vfs_only/test_file.txt';
+        fs.mkdirSync('vfs_only', { recursive: true });
         fs.writeFileSync(testPath, 'VFS content only');
         const content = fs.readFileSync(testPath, 'utf8');
         return content;
     })()",
     );
     assert_eq!(result, "VFS content only");
+    assert!(
+        !harness.temp_dir().join("vfs_only/test_file.txt").exists(),
+        "VFS roundtrip should not materialize a real file"
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -372,11 +385,18 @@ fn write_file_absolute_path_stays_in_vfs() {
     let unique_name = format!("/tmp/vfs_escape_abs_{}", std::process::id());
     let result = eval_fs(&format!(
         r#"(() => {{
-        fs.writeFileSync("{unique_name}", "escape attempt");
-        return fs.readFileSync("{unique_name}", "utf8");
+        try {{
+            fs.writeFileSync("{unique_name}", "escape attempt");
+            return "wrote";
+        }} catch (e) {{
+            return "ERROR:" + e.message;
+        }}
     }})()"#,
     ));
-    assert_eq!(result, "escape attempt");
+    assert!(
+        result.contains("host write denied") && result.contains("outside extension root"),
+        "expected absolute write to be denied, got: {result}"
+    );
 
     // Critical: file must NOT exist on real FS
     assert!(
@@ -544,16 +564,22 @@ fn stat_sync_traversal_path() {
 
 #[test]
 fn stat_sync_vfs_only_file() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
-        fs.writeFileSync('/vfs_stat_test.txt', 'hello');
-        const stat = fs.statSync('/vfs_stat_test.txt');
+        fs.writeFileSync('vfs_stat_test.txt', 'hello');
+        const stat = fs.statSync('vfs_stat_test.txt');
         return 'isFile:' + stat.isFile() + ',size:' + stat.size;
     })()",
     );
     assert!(
         result.starts_with("isFile:true"),
         "expected file stat, got: {result}"
+    );
+    assert!(
+        !harness.temp_dir().join("vfs_stat_test.txt").exists(),
+        "VFS stat fixture should not create a real file"
     );
 }
 
@@ -563,16 +589,22 @@ fn stat_sync_vfs_only_file() {
 
 #[test]
 fn readdir_sync_vfs_only() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
-        fs.mkdirSync('/sandbox', { recursive: true });
-        fs.writeFileSync('/sandbox/a.txt', 'a');
-        fs.writeFileSync('/sandbox/b.txt', 'b');
-        const entries = fs.readdirSync('/sandbox');
+        fs.mkdirSync('sandbox', { recursive: true });
+        fs.writeFileSync('sandbox/a.txt', 'a');
+        fs.writeFileSync('sandbox/b.txt', 'b');
+        const entries = fs.readdirSync('sandbox');
         return entries.sort().join(',');
     })()",
     );
     assert_eq!(result, "a.txt,b.txt");
+    assert!(
+        !harness.temp_dir().join("sandbox").exists(),
+        "VFS directory listing should not create a real directory"
+    );
 }
 
 #[test]
@@ -603,12 +635,19 @@ fn copy_file_sync_stays_in_vfs() {
     let unique_dest = format!("/tmp/vfs_copy_escape_{}", std::process::id());
     let result = eval_fs(&format!(
         r#"(() => {{
-        fs.writeFileSync("/src.txt", "original");
-        fs.copyFileSync("/src.txt", "{unique_dest}");
-        return fs.readFileSync("{unique_dest}", "utf8");
+        fs.writeFileSync("src.txt", "original");
+        try {{
+            fs.copyFileSync("src.txt", "{unique_dest}");
+            return "copied";
+        }} catch (e) {{
+            return "ERROR:" + e.message;
+        }}
     }})()"#,
     ));
-    assert_eq!(result, "original");
+    assert!(
+        result.contains("host write denied") && result.contains("outside extension root"),
+        "expected copy to outside root to be denied, got: {result}"
+    );
 
     assert!(
         !std::path::Path::new(&unique_dest).exists(),
@@ -625,12 +664,19 @@ fn rename_sync_stays_in_vfs() {
     let unique_dest = format!("/tmp/vfs_rename_escape_{}", std::process::id());
     let result = eval_fs(&format!(
         r#"(() => {{
-        fs.writeFileSync("/rename_src.txt", "data");
-        fs.renameSync("/rename_src.txt", "{unique_dest}");
-        return fs.readFileSync("{unique_dest}", "utf8");
+        fs.writeFileSync("rename_src.txt", "data");
+        try {{
+            fs.renameSync("rename_src.txt", "{unique_dest}");
+            return "renamed";
+        }} catch (e) {{
+            return "ERROR:" + e.message;
+        }}
     }})()"#,
     ));
-    assert_eq!(result, "data");
+    assert!(
+        result.contains("host write denied") && result.contains("outside extension root"),
+        "expected rename to outside root to be denied, got: {result}"
+    );
 
     assert!(
         !std::path::Path::new(&unique_dest).exists(),
@@ -644,11 +690,13 @@ fn rename_sync_stays_in_vfs() {
 
 #[test]
 fn access_sync_vfs_file() {
-    let result = eval_fs(
+    let harness = common::TestHarness::new("fs_escape");
+    let result = eval_fs_in_harness(
+        &harness,
         r"(() => {
-        fs.writeFileSync('/access_test.txt', 'content');
+        fs.writeFileSync('access_test.txt', 'content');
         try {
-            fs.accessSync('/access_test.txt');
+            fs.accessSync('access_test.txt');
             return 'accessible';
         } catch (e) {
             return 'ERROR:' + e.message;
@@ -656,6 +704,10 @@ fn access_sync_vfs_file() {
     })()",
     );
     assert_eq!(result, "accessible");
+    assert!(
+        !harness.temp_dir().join("access_test.txt").exists(),
+        "VFS accessSync fixture should not create a real file"
+    );
 }
 
 #[test]

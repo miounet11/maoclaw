@@ -14,6 +14,7 @@ use thiserror::Error;
 use crate::auth::AuthStorage;
 use crate::cli;
 use crate::config::Config;
+use crate::goals::GoalSpec;
 use crate::model::{self, AssistantMessage, ContentBlock, ImageContent, TextContent};
 use crate::models::{
     ModelEntry, ModelRegistry, default_models_path, model_entry_is_ready,
@@ -97,8 +98,11 @@ pub fn normalize_cli(cli: &mut cli::Cli) {
 }
 
 pub fn validate_rpc_args(cli: &cli::Cli) -> Result<()> {
-    if cli.mode.as_deref() == Some("rpc") && !cli.file_args().is_empty() {
-        bail!("Error: @file arguments are not supported in RPC mode");
+    if matches!(cli.mode.as_deref(), Some("rpc" | "bridge")) && !cli.file_args().is_empty() {
+        bail!("Error: @file arguments are not supported in RPC mode or bridge mode");
+    }
+    if cli.mode.as_deref() == Some("bridge") && !cli.message_args().is_empty() {
+        bail!("Error: positional message arguments are not supported in bridge mode");
     }
     Ok(())
 }
@@ -145,6 +149,7 @@ pub fn build_system_prompt(
     cwd: &Path,
     enabled_tools: &[&str],
     skills_prompt: Option<&str>,
+    goal_contract: Option<&GoalSpec>,
     global_dir: &Path,
     package_dir: &Path,
     test_mode: bool,
@@ -175,6 +180,11 @@ pub fn build_system_prompt(
 
     if let Some(skills_prompt) = skills_prompt {
         prompt.push_str(skills_prompt);
+    }
+
+    if let Some(goal_contract) = goal_contract {
+        prompt.push_str("\n\n");
+        prompt.push_str(&goal_contract.render_prompt_block());
     }
 
     let date_time = if test_mode {
@@ -1297,7 +1307,17 @@ mod tests {
         let err = validate_rpc_args(&cli).expect_err("rpc mode should reject @file args");
         assert!(
             err.to_string()
-                .contains("@file arguments are not supported in RPC mode")
+                .contains("@file arguments are not supported in RPC mode or bridge mode")
+        );
+    }
+
+    #[test]
+    fn validate_rpc_args_rejects_bridge_message_arguments() {
+        let cli = cli::Cli::parse_from(["pi", "--mode", "bridge", "hello"]);
+        let err = validate_rpc_args(&cli).expect_err("bridge mode should reject message arguments");
+        assert!(
+            err.to_string()
+                .contains("positional message arguments are not supported in bridge mode")
         );
     }
 

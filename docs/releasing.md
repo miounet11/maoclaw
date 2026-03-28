@@ -9,6 +9,9 @@ This repo ships:
 - A compatibility CLI binary: `pi` (Cargo `[[bin]].name`)
 - A branded CLI binary: `maoclaw` (Cargo `[[bin]].name`)
 - A macOS desktop app/package: `maoclaw.app` / `maoclaw.pkg`
+- A Windows portable desktop archive: `maoclaw-windows-amd64-<version>-portable.zip`
+
+The branded desktop artifacts are the canonical release outputs. The macOS packaging scripts also refresh compatibility copies at `dist/Pi Desktop.app` and `dist/Pi Desktop.pkg` from the same build so stale legacy bundle names do not expose older versions.
 
 ## Versioning + tags (source of truth)
 **Source of truth:** `Cargo.toml` `[package].version`.
@@ -32,10 +35,12 @@ Note: dependencies that specify both `version` and `path` are expected to publis
 ### Publishing GitHub Releases binaries
 `.github/workflows/release.yml` is triggered on tag pushes matching `v*` and will:
 - build `pi` for Linux/macOS/Windows (release profile)
+- build the native desktop release artifacts for macOS Apple Silicon and Windows x86_64
 - attach binaries, per-target build manifests, and `SHA256SUMS` to a GitHub Release
 - mark the GitHub Release as a pre-release if the tag contains `-` (e.g. `-rc.1`)
 
 Release notes are extracted from `CHANGELOG.md` on a best-effort basis; ensure the changelog contains a `##` heading with the version string for the tag you are cutting.
+The macOS packaging scripts also refuse stale `pi` binaries whose reported version does not match `Cargo.toml`, and reject `pi_desktop` / `.app` artifacts that predate the current manifest version.
 
 ## Distribution compatibility strategy (DROPIN-146)
 Goal: keep packaging and invocation ergonomics compatible enough for frictionless migration from upstream Pi while shipping under the `maoclaw` repository and product identity.
@@ -104,6 +109,7 @@ Until then, `0.x` releases may still change behavior to improve correctness/pari
    - `cargo fmt --check`
    - `cargo clippy --all-targets -- -D warnings`
    - `cargo test --all-targets`
+   - `bash -n scripts/build_macos_app.sh scripts/build_macos_pkg.sh`
 4) **Update changelog**:
    - `br changelog --since-tag vX.Y.Z` (or use `--since YYYY-MM-DD` if no prior tags)
    - paste the output into `CHANGELOG.md` under a new version heading
@@ -155,3 +161,5 @@ For branches opened before this gate was introduced:
 - `SHA256SUMS` matches downloaded artifacts.
 - Crates.io publish succeeded (if configured) and the version matches the tag.
 - Smoke test install paths (download binary + run `pi --version`).
+- GitHub repository metadata is current: description, homepage, topics, pinned repository health files, and any required organization-level custom properties.
+- Activity surfaces look healthy on first contact: recent CI runs are green, release workflow evidence is visible, and stale transition-era messaging is not the dominant public signal.

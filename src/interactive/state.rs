@@ -377,6 +377,7 @@ impl SessionPickerOverlay {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SettingsUiEntry {
     Summary,
+    ProviderSetup,
     Theme,
     SteeringMode,
     FollowUpMode,
@@ -388,6 +389,168 @@ pub(super) enum SettingsUiEntry {
     DoubleEscapeAction,
     EditorPaddingX,
     AutocompleteMaxVisible,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ProviderSetupField {
+    Provider,
+    Model,
+    BaseUrl,
+    ApiKey,
+}
+
+impl ProviderSetupField {
+    pub(super) const ALL: [Self; 4] = [Self::Provider, Self::Model, Self::BaseUrl, Self::ApiKey];
+
+    pub(super) const fn label(self) -> &'static str {
+        match self {
+            Self::Provider => "Provider",
+            Self::Model => "Model",
+            Self::BaseUrl => "API URL",
+            Self::ApiKey => "API Key",
+        }
+    }
+
+    pub(super) const fn helper(self) -> &'static str {
+        match self {
+            Self::Provider => "Use openai for third-party OpenAI-compatible operators.",
+            Self::Model => "Enter the upstream model id exposed by your provider.",
+            Self::BaseUrl => "Leave blank to use the provider default route.",
+            Self::ApiKey => "Stored locally in auth.json and masked in the panel.",
+        }
+    }
+
+    const fn next(self) -> Self {
+        match self {
+            Self::Provider => Self::Model,
+            Self::Model => Self::BaseUrl,
+            Self::BaseUrl => Self::ApiKey,
+            Self::ApiKey => Self::Provider,
+        }
+    }
+
+    const fn prev(self) -> Self {
+        match self {
+            Self::Provider => Self::ApiKey,
+            Self::Model => Self::Provider,
+            Self::BaseUrl => Self::Model,
+            Self::ApiKey => Self::BaseUrl,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct ProviderSetupOverlay {
+    pub(super) provider: String,
+    pub(super) model: String,
+    pub(super) base_url: String,
+    pub(super) api_key: String,
+    pub(super) selected: ProviderSetupField,
+    pub(super) initial_provider: String,
+    pub(super) initial_api_key: String,
+    pub(super) initial_base_url: String,
+    pub(super) base_url_dirty: bool,
+}
+
+impl ProviderSetupOverlay {
+    pub(super) fn new(provider: String, model: String, base_url: String, api_key: String) -> Self {
+        Self {
+            provider: provider.clone(),
+            model,
+            base_url: base_url.clone(),
+            api_key: api_key.clone(),
+            selected: ProviderSetupField::Provider,
+            initial_provider: provider,
+            initial_api_key: api_key,
+            initial_base_url: base_url,
+            base_url_dirty: false,
+        }
+    }
+
+    pub(super) const fn select_next(&mut self) {
+        self.selected = self.selected.next();
+    }
+
+    pub(super) const fn select_prev(&mut self) {
+        self.selected = self.selected.prev();
+    }
+
+    pub(super) const fn selected_field(&self) -> ProviderSetupField {
+        self.selected
+    }
+
+    pub(super) fn active_value(&self) -> &str {
+        match self.selected {
+            ProviderSetupField::Provider => &self.provider,
+            ProviderSetupField::Model => &self.model,
+            ProviderSetupField::BaseUrl => &self.base_url,
+            ProviderSetupField::ApiKey => &self.api_key,
+        }
+    }
+
+    #[allow(clippy::missing_const_for_fn)]
+    fn active_value_mut(&mut self) -> &mut String {
+        match self.selected {
+            ProviderSetupField::Provider => &mut self.provider,
+            ProviderSetupField::Model => &mut self.model,
+            ProviderSetupField::BaseUrl => &mut self.base_url,
+            ProviderSetupField::ApiKey => &mut self.api_key,
+        }
+    }
+
+    pub(super) fn value_for(&self, field: ProviderSetupField) -> &str {
+        match field {
+            ProviderSetupField::Provider => &self.provider,
+            ProviderSetupField::Model => &self.model,
+            ProviderSetupField::BaseUrl => &self.base_url,
+            ProviderSetupField::ApiKey => &self.api_key,
+        }
+    }
+
+    pub(super) fn display_value(&self, field: ProviderSetupField) -> String {
+        let value = self.value_for(field);
+        if value.is_empty() {
+            return match field {
+                ProviderSetupField::BaseUrl => "(provider default)".to_string(),
+                ProviderSetupField::ApiKey => "(unchanged or empty)".to_string(),
+                _ => "(required)".to_string(),
+            };
+        }
+
+        if field == ProviderSetupField::ApiKey {
+            "*".repeat(value.chars().count().min(24))
+        } else {
+            value.to_string()
+        }
+    }
+
+    pub(super) fn push_chars<I: IntoIterator<Item = char>>(&mut self, chars: I) {
+        let is_base_url = self.selected == ProviderSetupField::BaseUrl;
+        let value = self.active_value_mut();
+        for ch in chars {
+            if !ch.is_control() {
+                value.push(ch);
+            }
+        }
+        if is_base_url {
+            self.base_url_dirty = true;
+        }
+    }
+
+    pub(super) fn pop_char(&mut self) {
+        let is_base_url = self.selected == ProviderSetupField::BaseUrl;
+        if self.active_value_mut().pop().is_some() && is_base_url {
+            self.base_url_dirty = true;
+        }
+    }
+
+    pub(super) fn clear_active_field(&mut self) {
+        let is_base_url = self.selected == ProviderSetupField::BaseUrl;
+        self.active_value_mut().clear();
+        if is_base_url {
+            self.base_url_dirty = true;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -458,6 +621,7 @@ impl SettingsUiState {
         Self {
             entries: vec![
                 SettingsUiEntry::Summary,
+                SettingsUiEntry::ProviderSetup,
                 SettingsUiEntry::Theme,
                 SettingsUiEntry::SteeringMode,
                 SettingsUiEntry::FollowUpMode,
@@ -1047,5 +1211,30 @@ mod tests {
     fn settings_ui_includes_default_permissive_toggle() {
         let state = SettingsUiState::new();
         assert!(state.entries.contains(&SettingsUiEntry::DefaultPermissive));
+    }
+
+    #[test]
+    fn settings_ui_includes_provider_setup_entry() {
+        let state = SettingsUiState::new();
+        assert!(state.entries.contains(&SettingsUiEntry::ProviderSetup));
+    }
+
+    #[test]
+    fn provider_setup_overlay_masks_api_key_display() {
+        let overlay = ProviderSetupOverlay::new(
+            "openai".to_string(),
+            "gpt-5".to_string(),
+            "https://example.invalid/v1".to_string(),
+            "secret-key".to_string(),
+        );
+
+        assert_eq!(
+            overlay.display_value(ProviderSetupField::Provider),
+            "openai"
+        );
+        assert_eq!(
+            overlay.display_value(ProviderSetupField::ApiKey),
+            "**********"
+        );
     }
 }

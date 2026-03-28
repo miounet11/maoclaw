@@ -15,6 +15,7 @@ use pi::extensions::{ExtensionManager, JsExtensionLoadSpec, JsExtensionRuntimeHa
 use pi::extensions_js::{ExtensionRepairEvent, PiJsRuntimeConfig, RepairMode};
 use pi::tools::ToolRegistry;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -304,6 +305,113 @@ fn summarize(results: &[ExtResult]) -> AutoRepairSummary {
     }
 }
 
+fn read_existing_conformance_summary() -> Option<Value> {
+    let path = reports_dir().join("conformance_summary.json");
+    let text = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+fn compact_timestamp(value: &str) -> String {
+    value.chars().filter(char::is_ascii_alphanumeric).collect()
+}
+
+fn sync_conformance_summary(summary: &AutoRepairSummary) -> PathBuf {
+    let existing = read_existing_conformance_summary();
+
+    let pass = summary.loaded;
+    let fail = summary.failed;
+    let na = summary.skipped;
+    let tested = pass + fail;
+
+    #[allow(clippy::cast_precision_loss)]
+    let pass_rate_pct = if tested > 0 {
+        (pass as f64 / tested as f64) * 100.0
+    } else {
+        0.0
+    };
+    #[allow(clippy::cast_precision_loss)]
+    let coverage_rate_pct = if summary.total > 0 {
+        (tested as f64 / summary.total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let fallback_suffix = compact_timestamp(&summary.generated_at);
+    let run_id = existing
+        .as_ref()
+        .and_then(|value| value.get("run_id"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map_or_else(
+            || format!("auto-repair-{fallback_suffix}"),
+            ToOwned::to_owned,
+        );
+    let correlation_id = existing
+        .as_ref()
+        .and_then(|value| value.get("correlation_id"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map_or_else(
+            || format!("conformance-summary-{run_id}"),
+            ToOwned::to_owned,
+        );
+
+    let per_tier = summary
+        .per_tier
+        .iter()
+        .map(|(tier, stats)| {
+            (
+                tier.clone(),
+                json!({
+                    "pass": stats.loaded,
+                    "fail": stats.failed,
+                    "na": stats.skipped,
+                    "total": stats.total,
+                }),
+            )
+        })
+        .collect::<serde_json::Map<String, Value>>();
+
+    let payload = json!({
+        "schema": "pi.ext.conformance_summary.v2",
+        "generated_at": summary.generated_at,
+        "run_id": run_id,
+        "correlation_id": correlation_id,
+        "counts": {
+            "total": summary.total,
+            "pass": pass,
+            "fail": fail,
+            "na": na,
+            "tested": tested,
+        },
+        "pass_rate_pct": pass_rate_pct,
+        "coverage_rate_pct": coverage_rate_pct,
+        "negative": existing
+            .as_ref()
+            .and_then(|value| value.get("negative"))
+            .cloned()
+            .unwrap_or_else(|| json!({ "pass": 0, "fail": 0 })),
+        "per_tier": per_tier,
+        "evidence": existing
+            .as_ref()
+            .and_then(|value| value.get("evidence"))
+            .cloned()
+            .unwrap_or_else(|| {
+                json!({
+                    "golden_fixtures": 0,
+                    "smoke_logs": 0,
+                    "parity_logs": 0,
+                    "load_time_benchmarks": 0,
+                })
+            }),
+    });
+
+    let path = reports_dir().join("conformance_summary.json");
+    let json_str = serde_json::to_string_pretty(&payload).expect("serialize conformance summary");
+    std::fs::write(&path, json_str).expect("write conformance summary");
+    path
+}
+
 // ─── Report generation ──────────────────────────────────────────────────────
 
 fn generate_markdown(summary: &AutoRepairSummary) -> String {
@@ -406,6 +514,12 @@ fn full_corpus_with_auto_repair() {
     eprintln!(
         "[auto-repair:e2e] JSON summary written to {}",
         json_path.display()
+    );
+
+    let conformance_summary_path = sync_conformance_summary(&summary);
+    eprintln!(
+        "[auto-repair:e2e] Canonical conformance summary synced to {}",
+        conformance_summary_path.display()
     );
 
     // Write markdown report

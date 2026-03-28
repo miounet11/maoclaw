@@ -21,6 +21,7 @@ use pi::extensions::{ExtensionManager, JsExtensionLoadSpec, JsExtensionRuntimeHa
 use pi::extensions_js::PiJsRuntimeConfig;
 use pi::tools::ToolRegistry;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -81,6 +82,53 @@ fn manifest_path() -> PathBuf {
         .join("tests")
         .join("ext_conformance")
         .join("VALIDATED_MANIFEST.json")
+}
+
+fn conformance_env(ext_id: &str, cwd: &Path) -> HashMap<String, String> {
+    let home_dir = cwd.join("home");
+    let tmp_dir = cwd.join("tmp");
+    let _ = std::fs::create_dir_all(&home_dir);
+    let _ = std::fs::create_dir_all(&tmp_dir);
+
+    let home = home_dir.display().to_string();
+    let tmp = tmp_dir.display().to_string();
+    let mut env = HashMap::from([
+        ("HOME".to_string(), home.clone()),
+        ("USERPROFILE".to_string(), home),
+        ("TMPDIR".to_string(), tmp.clone()),
+        ("TMP".to_string(), tmp.clone()),
+        ("TEMP".to_string(), tmp),
+    ]);
+
+    match ext_id {
+        "npm/aliou-pi-linkup" => {
+            env.insert(
+                "LINKUP_API_KEY".to_string(),
+                "conformance-dummy-key".to_string(),
+            );
+        }
+        "npm/aliou-pi-synthetic" => {
+            env.insert(
+                "SYNTHETIC_API_KEY".to_string(),
+                "conformance-dummy-key".to_string(),
+            );
+        }
+        _ => {}
+    }
+
+    env
+}
+
+fn conformance_env_with_overrides(
+    ext_id: &str,
+    cwd: &Path,
+    env_overrides: &[(&str, &str)],
+) -> HashMap<String, String> {
+    let mut env = conformance_env(ext_id, cwd);
+    for (key, value) in env_overrides {
+        env.insert((*key).to_string(), (*value).to_string());
+    }
+    env
 }
 
 fn load_manifest() -> &'static Manifest {
@@ -376,8 +424,6 @@ struct ExtensionConformanceResult {
 /// even when some extensions fail.
 #[allow(clippy::too_many_lines, clippy::cast_possible_truncation)]
 fn try_conformance(ext_id: &str) -> ExtensionConformanceResult {
-    use std::collections::HashMap;
-
     let manifest = load_manifest();
     let Some(entry) = manifest.find(ext_id) else {
         return ExtensionConformanceResult {
@@ -437,20 +483,7 @@ fn try_conformance(ext_id: &str) -> ExtensionConformanceResult {
 
     let manager = ExtensionManager::new();
     let tools = Arc::new(ToolRegistry::new(&[], &cwd, None));
-    // Some npm extensions gate registration behind API-key presence checks.
-    // Conformance validates registration shape, so inject deterministic dummy
-    // keys for those specific extensions.
-    let env: HashMap<String, String> = match ext_id {
-        "npm/aliou-pi-linkup" => HashMap::from([(
-            "LINKUP_API_KEY".to_string(),
-            "conformance-dummy-key".to_string(),
-        )]),
-        "npm/aliou-pi-synthetic" => HashMap::from([(
-            "SYNTHETIC_API_KEY".to_string(),
-            "conformance-dummy-key".to_string(),
-        )]),
-        _ => HashMap::new(),
-    };
+    let env = conformance_env(ext_id, &cwd);
 
     let js_config = PiJsRuntimeConfig {
         cwd: cwd.display().to_string(),
@@ -1592,8 +1625,11 @@ fn try_conformance_detailed(
 
     let manager = ExtensionManager::new();
     let tools = Arc::new(ToolRegistry::new(&[], &cwd, None));
+    let env = conformance_env(ext_id, &cwd);
     let js_config = PiJsRuntimeConfig {
         cwd: cwd.display().to_string(),
+        env,
+        deny_env: false,
         ..Default::default()
     };
 
@@ -2649,8 +2685,6 @@ fn try_conformance_with_env(
     ext_id: &str,
     env_overrides: &[(&str, &str)],
 ) -> ExtensionConformanceResult {
-    use std::collections::HashMap;
-
     let manifest = load_manifest();
     let Some(entry) = manifest.find(ext_id) else {
         return ExtensionConformanceResult {
@@ -2708,11 +2742,7 @@ fn try_conformance_with_env(
     let manager = ExtensionManager::new();
     let tools = Arc::new(ToolRegistry::new(&[], &cwd, None));
 
-    // Build env map with overrides.
-    let env: HashMap<String, String> = env_overrides
-        .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
-        .collect();
+    let env = conformance_env_with_overrides(ext_id, &cwd, env_overrides);
 
     let js_config = PiJsRuntimeConfig {
         cwd: cwd.display().to_string(),

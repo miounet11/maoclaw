@@ -190,6 +190,14 @@ async fn run_debug(mut cli: cli::Cli, _runtime_handle: RuntimeHandle) -> Result<
 
     step!("11. Building agent...");
     let mut session = session;
+    let active_goal = pi::goals::resolve_active_goal(&cli, &session, &cwd)?;
+    if let Some(goal) = active_goal.as_ref() {
+        let persisted = pi::goals::persist_goal_contract(&mut session, goal);
+        if persisted {
+            let _ = pi::goals::persist_goal_run_state(&mut session, goal);
+        }
+    }
+    let active_goal_run = pi::goals::latest_goal_run_state(&session);
     pi::app::update_session_for_selection(&mut session, &selection);
     let enabled_tools = cli.enabled_tools();
     let skills_prompt = if enabled_tools.contains(&"read") {
@@ -198,7 +206,7 @@ async fn run_debug(mut cli: cli::Cli, _runtime_handle: RuntimeHandle) -> Result<
         String::new()
     };
     let test_mode = std::env::var_os("PI_TEST_MODE").is_some();
-    let system_prompt = pi::app::build_system_prompt(
+    let base_system_prompt = pi::app::build_system_prompt(
         &cli,
         &cwd,
         &enabled_tools,
@@ -207,10 +215,31 @@ async fn run_debug(mut cli: cli::Cli, _runtime_handle: RuntimeHandle) -> Result<
         } else {
             Some(skills_prompt.as_str())
         },
+        None,
         &global_dir,
         &package_dir,
         test_mode,
         !cli.hide_cwd_in_prompt,
+    );
+    let system_prompt = active_goal.as_ref().map_or_else(
+        || base_system_prompt.clone(),
+        |goal| {
+            pi::app::build_system_prompt(
+                &cli,
+                &cwd,
+                &enabled_tools,
+                if skills_prompt.is_empty() {
+                    None
+                } else {
+                    Some(skills_prompt.as_str())
+                },
+                Some(goal),
+                &global_dir,
+                &package_dir,
+                test_mode,
+                !cli.hide_cwd_in_prompt,
+            )
+        },
     );
     let provider =
         providers::create_provider(&selection.model_entry, None).map_err(anyhow::Error::new)?;
@@ -234,6 +263,11 @@ async fn run_debug(mut cli: cli::Cli, _runtime_handle: RuntimeHandle) -> Result<
         session_arc,
         !cli.no_session,
         compaction_settings,
+    );
+    agent_session.configure_goal_contract_context(
+        Some(base_system_prompt),
+        active_goal.clone(),
+        active_goal_run,
     );
     step!("    Agent built");
 

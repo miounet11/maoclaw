@@ -2767,7 +2767,7 @@ impl CusumState {
                 self.baseline_sigma = 0.0;
             } else {
                 let delta2 = interval_ms - self.baseline_interval_ms;
-                self.baseline_sigma += delta * delta2;
+                self.baseline_sigma = delta.mul_add(delta2, self.baseline_sigma);
             }
             if self.baseline_n >= Self::MIN_BASELINE_OBS {
                 self.baseline_ready = true;
@@ -3148,7 +3148,7 @@ impl ConformalState {
         let delta = value - self.running_mean;
         self.running_mean += delta / n;
         let delta2 = value - self.running_mean;
-        self.running_m2 += delta * delta2;
+        self.running_m2 = delta.mul_add(delta2, self.running_m2);
 
         // Nonconformity score = absolute residual from running mean.
         let score = delta.abs();
@@ -3298,7 +3298,7 @@ impl PacBayesState {
 fn kl_divergence(p: f64, q: f64) -> f64 {
     let p = p.clamp(1e-10, 1.0 - 1e-10);
     let q = q.clamp(1e-10, 1.0 - 1e-10);
-    p * (p / q).ln() + (1.0 - p) * ((1.0 - p) / (1.0 - q)).ln()
+    (1.0 - p).mul_add(((1.0 - p) / (1.0 - q)).ln(), p * (p / q).ln())
 }
 
 /// Combined safety envelope state for one extension.
@@ -4413,6 +4413,7 @@ impl SecretBrokerPolicy {
 pub fn redact_command_for_logging(policy: &SecretBrokerPolicy, cmd: &str) -> String {
     static PASSWORD_RE: OnceLock<Regex> = OnceLock::new();
     static ENV_RE: OnceLock<Regex> = OnceLock::new();
+    const SHELL_TOKEN_PATTERN: &str = r#"(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[^\s'"]+)+"#;
 
     if !policy.enabled {
         return cmd.to_string();
@@ -4422,8 +4423,7 @@ pub fn redact_command_for_logging(policy: &SecretBrokerPolicy, cmd: &str) -> Str
     // Handles: -p password, -p 'pass word', --password  =password
     let mut redacted = cmd.to_string();
     let password_regex = PASSWORD_RE.get_or_init(|| {
-        Regex::new(r#"(?i)(--password|-p)(\s+|=)(?:'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[^\s]+)"#)
-            .expect("regex")
+        Regex::new(&format!(r"(?i)(--password|-p)(\s+|=){SHELL_TOKEN_PATTERN}")).expect("regex")
     });
     redacted = password_regex
         .replace_all(&redacted, |caps: &regex::Captures| {
@@ -4436,8 +4436,10 @@ pub fn redact_command_for_logging(policy: &SecretBrokerPolicy, cmd: &str) -> Str
     // 2. Redact KEY=VALUE patterns
     // Handles: KEY=value, KEY='value with spaces', KEY="value with spaces"
     let env_regex = ENV_RE.get_or_init(|| {
-        Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)=('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|[^\s]+)"#)
-            .expect("regex")
+        Regex::new(&format!(
+            r"([A-Za-z_][A-Za-z0-9_]*)=({SHELL_TOKEN_PATTERN})"
+        ))
+        .expect("regex")
     });
     redacted = env_regex
         .replace_all(&redacted, |caps: &regex::Captures| {
@@ -8252,7 +8254,7 @@ fn runtime_risk_calibration_candidate(
     let objective_score = match config.objective {
         RuntimeRiskCalibrationObjective::MinExpectedLoss => expected_loss,
         RuntimeRiskCalibrationObjective::MinFalsePositives => {
-            (false_positive_rate * fp_weight) + (false_negative_rate * fn_weight * 0.25)
+            (false_negative_rate * fn_weight).mul_add(0.25, false_positive_rate * fp_weight)
         }
         RuntimeRiskCalibrationObjective::BalancedAccuracy => {
             (false_positive_rate * fp_weight) + (false_negative_rate * fn_weight)
@@ -8445,7 +8447,7 @@ fn kl_divergence_discrete3(p: &[f64; 3], q: &[f64; 3]) -> f64 {
     for (i, &p_i) in p.iter().enumerate() {
         if p_i > 0.0 {
             let q_i = q[i].max(1e-12);
-            kl += p_i * (p_i / q_i).ln();
+            kl = p_i.mul_add((p_i / q_i).ln(), kl);
         }
     }
     kl.max(0.0)
@@ -19496,6 +19498,48 @@ fn discover_related_extension_entries(primary: &Path) -> Vec<PathBuf> {
     out
 }
 
+fn filter_discovered_entries_for_explicit_batch_specs(
+    primary: &Path,
+    discovered: Vec<PathBuf>,
+    specs: &[JsExtensionLoadSpec],
+) -> Vec<PathBuf> {
+    if specs.len() < 2 {
+        return discovered;
+    }
+
+    let canonical_primary = safe_canonicalize(primary);
+    let explicit_entries = specs
+        .iter()
+        .filter_map(|spec| {
+            if spec.entry_path == canonical_primary {
+                None
+            } else {
+                Some(spec.entry_path.clone())
+            }
+        })
+        .collect::<BTreeSet<_>>();
+
+    if explicit_entries.is_empty() {
+        return discovered;
+    }
+
+    discovered
+        .into_iter()
+        .filter(|path| path == &canonical_primary || !explicit_entries.contains(path))
+        .collect()
+}
+
+fn discover_batch_related_extension_entries(
+    primary: &Path,
+    specs: &[JsExtensionLoadSpec],
+) -> Vec<PathBuf> {
+    filter_discovered_entries_for_explicit_batch_specs(
+        primary,
+        discover_related_extension_entries(primary),
+        specs,
+    )
+}
+
 #[allow(clippy::future_not_send)]
 async fn load_all_extensions(
     runtime: &PiJsRuntime,
@@ -19503,7 +19547,7 @@ async fn load_all_extensions(
     specs: &[JsExtensionLoadSpec],
 ) -> Result<Vec<JsExtensionSnapshot>> {
     for spec in specs {
-        load_one_extension(runtime, host, spec).await?;
+        load_one_extension(runtime, host, spec, specs).await?;
     }
     snapshot_extensions(runtime).await
 }
@@ -19513,8 +19557,9 @@ async fn load_one_extension(
     runtime: &PiJsRuntime,
     host: &JsRuntimeHost,
     spec: &JsExtensionLoadSpec,
+    specs: &[JsExtensionLoadSpec],
 ) -> Result<()> {
-    let entry_paths = discover_related_extension_entries(&spec.entry_path);
+    let entry_paths = discover_batch_related_extension_entries(&spec.entry_path, specs);
     if entry_paths.len() > 1 {
         tracing::info!(
             event = "ext.load.multi_entry",
@@ -19555,10 +19600,14 @@ async fn load_one_extension(
         "version": spec.version,
         "apiVersion": spec.api_version,
     });
+    let reload_token = next_runtime_task_id("ext-reload");
 
     for (entry_index, entry_path) in entry_paths.into_iter().enumerate() {
         // QuickJS module resolver requires forward-slash paths.
-        let entry_specifier = entry_path.display().to_string().replace('\\', "/");
+        let entry_specifier = format!(
+            "{}?pi_reload={reload_token}",
+            entry_path.display().to_string().replace('\\', "/")
+        );
         let task_id = next_runtime_task_id("task-load");
         let meta_value = meta.clone();
 
@@ -20068,7 +20117,7 @@ async fn pump_js_runtime_once(runtime: &PiJsRuntime, host: &JsRuntimeHost) -> Re
         let batch_start = Instant::now();
         let mut completions = Vec::with_capacity(total);
 
-        for (group, decision) in plan.groups.into_iter().zip(plan.decisions.into_iter()) {
+        for (group, decision) in plan.groups.into_iter().zip(plan.decisions) {
             tracing::debug!(
                 event = "pijs.amac.group_dispatch",
                 group_key = ?group.key,
@@ -28801,7 +28850,7 @@ fn build_compat_registration_hints(
 ) -> HashMap<String, CompatRegistrationHints> {
     let mut out: HashMap<String, CompatRegistrationHints> = HashMap::new();
     for spec in specs {
-        let entry_paths = discover_related_extension_entries(&spec.entry_path);
+        let entry_paths = discover_batch_related_extension_entries(&spec.entry_path, specs);
         if entry_paths.is_empty() {
             continue;
         }
@@ -29071,6 +29120,28 @@ mod tests {
         assert_eq!(discovered.len(), 2);
         assert!(discovered.contains(&safe_canonicalize(&a)));
         assert!(discovered.contains(&safe_canonicalize(&b)));
+    }
+
+    #[test]
+    fn discover_batch_related_extension_entries_respects_explicit_multi_spec_boundaries() {
+        let temp = tempdir().expect("tempdir");
+        let root = temp.path().join("extensions");
+        std::fs::create_dir_all(&root).expect("mkdir extensions");
+
+        let a = root.join("ext_a.ts");
+        let b = root.join("ext_b.ts");
+        std::fs::write(&a, "export default function initA(_pi) {}\n").expect("write a");
+        std::fs::write(&b, "export default function initB(_pi) {}\n").expect("write b");
+
+        let spec_a = JsExtensionLoadSpec::from_entry_path(&a).expect("spec a");
+        let spec_b = JsExtensionLoadSpec::from_entry_path(&b).expect("spec b");
+        let specs = vec![spec_a, spec_b];
+
+        let discovered_a = discover_batch_related_extension_entries(&a, &specs);
+        assert_eq!(discovered_a, vec![safe_canonicalize(&a)]);
+
+        let discovered_b = discover_batch_related_extension_entries(&b, &specs);
+        assert_eq!(discovered_b, vec![safe_canonicalize(&b)]);
     }
 
     #[test]
@@ -47479,6 +47550,21 @@ mod tests {
         let result = redact_command_for_logging(&broker, cmd);
         assert!(result.contains("anthropic_api_key=[REDACTED]"));
         assert!(!result.contains("sk-ant-xxx"));
+    }
+
+    #[test]
+    fn redact_command_env_assignment_with_concatenated_shell_segments() {
+        let broker = SecretBrokerPolicy {
+            enabled: true,
+            secret_suffixes: vec!["_KEY".to_string()],
+            secret_prefixes: vec![],
+            secret_exact: vec![],
+            disclosure_allowlist: vec![],
+            redaction_placeholder: "[REDACTED]".to_string(),
+        };
+        let cmd = r#"export API_KEY="secret "key"""#;
+        let result = redact_command_for_logging(&broker, cmd);
+        assert_eq!(result, r"export API_KEY=[REDACTED]");
     }
 
     #[test]

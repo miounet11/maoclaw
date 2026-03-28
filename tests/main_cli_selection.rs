@@ -146,9 +146,9 @@ fn select_model_and_thinking_clamps_reasoning_disabled_models_to_off() {
     let cli = cli::Cli::parse_from([
         "pi",
         "--provider",
-        "anthropic",
+        "openai",
         "--model",
-        "claude-haiku-4-5",
+        "gpt-4o",
         "--thinking",
         "high",
     ]);
@@ -181,7 +181,7 @@ fn select_model_and_thinking_clamps_reasoning_disabled_models_to_off() {
         ctx.push(("thinking".into(), selection.thinking_level.to_string()));
     });
 
-    assert_eq!(selection.model_entry.model.id, "claude-haiku-4-5");
+    assert_eq!(selection.model_entry.model.id, "gpt-4o");
     assert_eq!(selection.thinking_level, ThinkingLevel::Off);
 }
 
@@ -193,9 +193,9 @@ fn select_model_and_thinking_clamps_xhigh_when_model_does_not_support_it() {
     let cli = cli::Cli::parse_from([
         "pi",
         "--provider",
-        "openai",
+        "anthropic",
         "--model",
-        "gpt-4o",
+        "claude-opus-4-5",
         "--thinking",
         "xhigh",
     ]);
@@ -219,7 +219,7 @@ fn select_model_and_thinking_clamps_xhigh_when_model_does_not_support_it() {
         ctx.push(("thinking".into(), selection.thinking_level.to_string()));
     });
 
-    assert_eq!(selection.model_entry.model.id, "gpt-4o");
+    assert_eq!(selection.model_entry.model.id, "claude-opus-4-5");
     assert_eq!(selection.thinking_level, ThinkingLevel::High);
 }
 
@@ -274,10 +274,10 @@ fn select_model_and_thinking_resolves_openrouter_provider_alias_and_model_alias(
 fn select_model_and_thinking_uses_scoped_thinking_level_when_cli_unset() {
     let harness =
         TestHarness::new("select_model_and_thinking_uses_scoped_thinking_level_when_cli_unset");
-    let registry = make_registry(&harness, &[]);
+    let registry = make_registry(&harness, &[("openai", "test-key")]);
     let cli = cli::Cli::parse_from(["pi"]);
 
-    let scoped_models = resolve_model_scope(&["openai/gpt-4o:low".to_string()], &registry, true);
+    let scoped_models = resolve_model_scope(&["openai/gpt-5.4:low".to_string()], &registry, true);
 
     harness.log().info_ctx("inputs", "Scoped models", |ctx| {
         ctx.push(("count".into(), scoped_models.len().to_string()));
@@ -306,7 +306,7 @@ fn select_model_and_thinking_uses_scoped_thinking_level_when_cli_unset() {
     .expect("select model");
 
     assert_eq!(selection.model_entry.model.provider, "openai");
-    assert_eq!(selection.model_entry.model.id, "gpt-4o");
+    assert_eq!(selection.model_entry.model.id, "gpt-5.4");
     assert_eq!(selection.thinking_level, ThinkingLevel::Low);
 }
 
@@ -428,6 +428,7 @@ fn build_system_prompt_includes_custom_append_context_and_skills() {
         &project_dir.join("sub"),
         &enabled_tools,
         Some(skills_prompt),
+        None,
         &global_dir,
         &package_dir,
         false,
@@ -651,7 +652,8 @@ fn resolve_api_key_precedence_and_error_paths() {
     let resolved = resolve_api_key(&auth_empty, &cli_no_override, &entry).expect("resolve api key");
     assert_eq!(resolved, Some("entry-key".to_string()));
 
-    let entry_missing = custom_model_entry("custom", None);
+    let mut entry_missing = custom_model_entry("custom", None);
+    entry_missing.auth_header = true;
     let err = resolve_api_key(&auth_empty, &cli_no_override, &entry_missing)
         .expect_err("missing key should error");
     assert!(

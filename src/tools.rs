@@ -1,6 +1,6 @@
 //! Built-in tool implementations.
 //!
-//! Pi provides 7 built-in tools: read, bash, edit, write, grep, find, ls.
+//! Pi provides 8 built-in tools: read, bash, edit, write, grep, find, ls, hashline_edit.
 //!
 //! Tools are exposed to the model via JSON Schema (see [`crate::provider::ToolDef`]) and executed
 //! locally by the agent loop. Each tool returns structured [`ContentBlock`] output suitable for
@@ -14,6 +14,8 @@ use crate::model::{ContentBlock, ImageContent, TextContent};
 use asupersync::io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf, SeekFrom};
 use asupersync::time::{sleep, wall_now};
 use async_trait::async_trait;
+use glob::Pattern;
+use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Write as _;
@@ -44,6 +46,14 @@ pub trait Tool: Send + Sync {
 
     /// Get the tool parameters as JSON Schema.
     fn parameters(&self) -> serde_json::Value;
+
+    /// Whether the tool originated from an extension-managed runtime.
+    ///
+    /// This allows the agent to replace extension-owned tools in place during
+    /// live reloads without disturbing built-in tools.
+    fn is_extension_tool(&self) -> bool {
+        false
+    }
 
     /// Execute the tool.
     ///
@@ -1265,6 +1275,15 @@ impl ToolRegistry {
     where
         I: IntoIterator<Item = Box<dyn Tool>>,
     {
+        self.tools.extend(tools);
+    }
+
+    /// Replace only extension-owned tools, preserving built-in tools.
+    pub fn replace_extension_tools<I>(&mut self, tools: I)
+    where
+        I: IntoIterator<Item = Box<dyn Tool>>,
+    {
+        self.tools.retain(|tool| !tool.is_extension_tool());
         self.tools.extend(tools);
     }
 
@@ -3710,6 +3729,71 @@ impl FindTool {
     }
 }
 
+fn find_pattern_matches(pattern: &Pattern, relative_path: &str, full_path: &Path) -> bool {
+    let normalized_relative = relative_path.replace('\\', "/");
+    let normalized_full_path = full_path.to_string_lossy().replace('\\', "/");
+    let file_name = full_path.file_name().and_then(|name| name.to_str());
+
+    pattern.matches(&normalized_relative)
+        || pattern.matches(&normalized_full_path)
+        || file_name.is_some_and(|name| pattern.matches(name))
+}
+
+fn run_internal_find_search(
+    search_path: &Path,
+    pattern: &str,
+    scan_limit: usize,
+) -> Result<Vec<String>> {
+    let compiled_pattern = Pattern::new(&pattern.replace('\\', "/"))
+        .map_err(|err| Error::tool("find", format!("Invalid glob pattern: {err}")))?;
+
+    let mut builder = WalkBuilder::new(search_path);
+    builder
+        .standard_filters(true)
+        .hidden(false)
+        .follow_links(false)
+        .require_git(false)
+        .add_custom_ignore_filename(".fdignore");
+
+    let mut matches = Vec::new();
+    for entry in builder.build().filter_map(std::result::Result::ok) {
+        let path = entry.path();
+        let Ok(relative) = path.strip_prefix(search_path) else {
+            continue;
+        };
+        if relative.as_os_str().is_empty() {
+            continue;
+        }
+
+        let mut relative_display = relative.to_string_lossy().replace('\\', "/");
+        let is_dir = entry
+            .file_type()
+            .is_some_and(|file_type| file_type.is_dir());
+        let match_candidate = if is_dir {
+            format!("{relative_display}/")
+        } else {
+            relative_display.clone()
+        };
+
+        if !find_pattern_matches(&compiled_pattern, &match_candidate, path) {
+            continue;
+        }
+
+        if is_dir && !relative_display.ends_with('/') {
+            relative_display.push('/');
+        }
+        matches.push(relative_display);
+
+        if matches.len() >= scan_limit {
+            break;
+        }
+    }
+
+    matches.sort();
+    matches.dedup();
+    Ok(matches)
+}
+
 #[async_trait]
 #[allow(clippy::unnecessary_literal_bound)]
 impl Tool for FindTool {
@@ -3777,165 +3861,159 @@ impl Tool for FindTool {
             ));
         }
 
-        let fd_cmd = find_fd_binary().ok_or_else(|| {
-            Error::tool(
-                "find",
-                "fd is not available (please install fd-find or fd)".to_string(),
-            )
-        })?;
-
-        // Build fd arguments
-        let mut args: Vec<String> = vec![
-            "--glob".to_string(),
-            "--color=never".to_string(),
-            "--hidden".to_string(),
-            "--max-results".to_string(),
-            scan_limit.to_string(),
-        ];
-
-        // NOTE: We rely on fd's native .gitignore discovery. We only explicitly pass
-        // the root .gitignore if it exists, to ensure it's respected even if the
-        // search path logic might otherwise miss it.
-        // We do NOT perform a blocking `glob("**/.gitignore")` here.
-        let workspace_gitignore = self.cwd.join(".gitignore");
-        if workspace_gitignore.exists() {
-            args.push("--ignore-file".to_string());
-            args.push(workspace_gitignore.display().to_string());
-        }
-        let root_gitignore = search_path.join(".gitignore");
-        if root_gitignore != workspace_gitignore && root_gitignore.exists() {
-            args.push("--ignore-file".to_string());
-            args.push(root_gitignore.display().to_string());
-        }
-
-        args.push("--".to_string());
-        args.push(input.pattern.clone());
-        args.push(search_path.display().to_string());
-
-        let mut child = Command::new(fd_cmd)
-            .args(args)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| Error::tool("find", format!("Failed to run fd: {e}")))?;
-
-        let stdout_pipe = child
-            .stdout
-            .take()
-            .ok_or_else(|| Error::tool("find", "Missing stdout"))?;
-        let stderr_pipe = child
-            .stderr
-            .take()
-            .ok_or_else(|| Error::tool("find", "Missing stderr"))?;
-
-        let mut guard = ProcessGuard::new(child, ProcessCleanupMode::ChildOnly);
-
-        let stdout_handle = std::thread::spawn(move || -> std::result::Result<Vec<u8>, String> {
-            let mut buf = Vec::new();
-            stdout_pipe
-                .take(READ_TOOL_MAX_BYTES)
-                .read_to_end(&mut buf)
-                .map_err(|err| err.to_string())?;
-            Ok(buf)
-        });
-
-        let stderr_handle = std::thread::spawn(move || -> std::result::Result<Vec<u8>, String> {
-            let mut buf = Vec::new();
-            stderr_pipe
-                .take(READ_TOOL_MAX_BYTES)
-                .read_to_end(&mut buf)
-                .map_err(|err| err.to_string())?;
-            Ok(buf)
-        });
-
-        let tick = Duration::from_millis(10);
-        let start_time = std::time::Instant::now();
-        let timeout_ms = 60_000; // 60 seconds
-
-        loop {
-            // Check if process is done
-            match guard.try_wait_child() {
-                Ok(Some(_)) => break,
-                Ok(None) => {
-                    if start_time.elapsed().as_millis() > timeout_ms {
-                        return Err(Error::tool("find", "Command timed out after 60 seconds"));
-                    }
-                    let now = AgentCx::for_current_or_request()
-                        .cx()
-                        .timer_driver()
-                        .map_or_else(wall_now, |timer| timer.now());
-                    sleep(now, tick).await;
-                }
-                Err(e) => return Err(Error::tool("find", e.to_string())),
-            }
-        }
-
-        let status = guard
-            .wait()
-            .map_err(|e| Error::tool("find", e.to_string()))?;
-
-        let stdout_bytes = stdout_handle
-            .join()
-            .map_err(|_| Error::tool("find", "fd stdout reader thread panicked"))?
-            .map_err(|err| Error::tool("find", format!("Failed to read fd stdout: {err}")))?;
-        let stderr_bytes = stderr_handle
-            .join()
-            .map_err(|_| Error::tool("find", "fd stderr reader thread panicked"))?
-            .map_err(|err| Error::tool("find", format!("Failed to read fd stderr: {err}")))?;
-
-        let stdout = String::from_utf8_lossy(&stdout_bytes).trim().to_string();
-        let stderr = String::from_utf8_lossy(&stderr_bytes).trim().to_string();
-
-        if !status.success() && stdout.is_empty() {
-            let code = status.code().unwrap_or(1);
-            let msg = if stderr.is_empty() {
-                format!("fd exited with code {code}")
-            } else {
-                stderr
-            };
-            return Err(Error::tool("find", msg));
-        }
-
-        if stdout.is_empty() {
-            return Ok(ToolOutput {
-                content: vec![ContentBlock::Text(TextContent::new(
-                    "No files found matching pattern",
-                ))],
-                details: None,
-                is_error: false,
-            });
-        }
-
         let mut relativized: Vec<String> = Vec::new();
-        for raw_line in stdout.lines() {
-            let line = raw_line.trim_end_matches('\r').trim();
-            if line.is_empty() {
-                continue;
+        let mut status_success = true;
+        let mut status_code: Option<i32> = None;
+
+        if let Some(fd_cmd) = find_fd_binary() {
+            // Build fd arguments
+            let mut args: Vec<String> = vec![
+                "--glob".to_string(),
+                "--color=never".to_string(),
+                "--hidden".to_string(),
+                "--max-results".to_string(),
+                scan_limit.to_string(),
+            ];
+
+            // NOTE: We rely on fd's native .gitignore discovery. We only explicitly pass
+            // the root .gitignore if it exists, to ensure it's respected even if the
+            // search path logic might otherwise miss it.
+            // We do NOT perform a blocking `glob("**/.gitignore")` here.
+            let workspace_gitignore = self.cwd.join(".gitignore");
+            if workspace_gitignore.exists() {
+                args.push("--ignore-file".to_string());
+                args.push(workspace_gitignore.display().to_string());
+            }
+            let root_gitignore = search_path.join(".gitignore");
+            if root_gitignore != workspace_gitignore && root_gitignore.exists() {
+                args.push("--ignore-file".to_string());
+                args.push(root_gitignore.display().to_string());
             }
 
-            // On Windows, fd may emit `//?/…` or `\\?\…` extended-length
-            // paths. Strip the prefix so relativization works correctly.
-            let clean = strip_unc_prefix(PathBuf::from(line));
-            let line_path = clean.as_path();
-            let mut rel = if line_path.is_absolute() {
-                line_path.strip_prefix(&search_path).map_or_else(
-                    |_| line_path.to_string_lossy().to_string(),
-                    |stripped| stripped.to_string_lossy().to_string(),
-                )
-            } else {
-                line_path.to_string_lossy().to_string()
-            };
+            args.push("--".to_string());
+            args.push(input.pattern.clone());
+            args.push(search_path.display().to_string());
 
-            let full_path = if line_path.is_absolute() {
-                line_path.to_path_buf()
-            } else {
-                search_path.join(line_path)
-            };
-            if full_path.is_dir() && !rel.ends_with('/') {
-                rel.push('/');
+            let mut child = Command::new(fd_cmd)
+                .args(args)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .map_err(|e| Error::tool("find", format!("Failed to run fd: {e}")))?;
+
+            let stdout_pipe = child
+                .stdout
+                .take()
+                .ok_or_else(|| Error::tool("find", "Missing stdout"))?;
+            let stderr_pipe = child
+                .stderr
+                .take()
+                .ok_or_else(|| Error::tool("find", "Missing stderr"))?;
+
+            let mut guard = ProcessGuard::new(child, ProcessCleanupMode::ChildOnly);
+
+            let stdout_handle =
+                std::thread::spawn(move || -> std::result::Result<Vec<u8>, String> {
+                    let mut buf = Vec::new();
+                    stdout_pipe
+                        .take(READ_TOOL_MAX_BYTES)
+                        .read_to_end(&mut buf)
+                        .map_err(|err| err.to_string())?;
+                    Ok(buf)
+                });
+
+            let stderr_handle =
+                std::thread::spawn(move || -> std::result::Result<Vec<u8>, String> {
+                    let mut buf = Vec::new();
+                    stderr_pipe
+                        .take(READ_TOOL_MAX_BYTES)
+                        .read_to_end(&mut buf)
+                        .map_err(|err| err.to_string())?;
+                    Ok(buf)
+                });
+
+            let tick = Duration::from_millis(10);
+            let start_time = std::time::Instant::now();
+            let timeout_ms = 60_000; // 60 seconds
+
+            loop {
+                match guard.try_wait_child() {
+                    Ok(Some(_)) => break,
+                    Ok(None) => {
+                        if start_time.elapsed().as_millis() > timeout_ms {
+                            return Err(Error::tool("find", "Command timed out after 60 seconds"));
+                        }
+                        let now = AgentCx::for_current_or_request()
+                            .cx()
+                            .timer_driver()
+                            .map_or_else(wall_now, |timer| timer.now());
+                        sleep(now, tick).await;
+                    }
+                    Err(e) => return Err(Error::tool("find", e.to_string())),
+                }
             }
 
-            relativized.push(rel);
+            let status = guard
+                .wait()
+                .map_err(|e| Error::tool("find", e.to_string()))?;
+
+            let stdout_bytes = stdout_handle
+                .join()
+                .map_err(|_| Error::tool("find", "fd stdout reader thread panicked"))?
+                .map_err(|err| Error::tool("find", format!("Failed to read fd stdout: {err}")))?;
+            let stderr_bytes = stderr_handle
+                .join()
+                .map_err(|_| Error::tool("find", "fd stderr reader thread panicked"))?
+                .map_err(|err| Error::tool("find", format!("Failed to read fd stderr: {err}")))?;
+
+            let stdout = String::from_utf8_lossy(&stdout_bytes).trim().to_string();
+            let stderr = String::from_utf8_lossy(&stderr_bytes).trim().to_string();
+
+            if !status.success() && stdout.is_empty() {
+                let code = status.code().unwrap_or(1);
+                let msg = if stderr.is_empty() {
+                    format!("fd exited with code {code}")
+                } else {
+                    stderr
+                };
+                return Err(Error::tool("find", msg));
+            }
+
+            status_success = status.success();
+            status_code = status.code();
+
+            for raw_line in stdout.lines() {
+                let line = raw_line.trim_end_matches('\r').trim();
+                if line.is_empty() {
+                    continue;
+                }
+
+                // On Windows, fd may emit `//?/…` or `\\?\…` extended-length
+                // paths. Strip the prefix so relativization works correctly.
+                let clean = strip_unc_prefix(PathBuf::from(line));
+                let line_path = clean.as_path();
+                let mut rel = if line_path.is_absolute() {
+                    line_path.strip_prefix(&search_path).map_or_else(
+                        |_| line_path.to_string_lossy().to_string(),
+                        |stripped| stripped.to_string_lossy().to_string(),
+                    )
+                } else {
+                    line_path.to_string_lossy().to_string()
+                };
+
+                let full_path = if line_path.is_absolute() {
+                    line_path.to_path_buf()
+                } else {
+                    search_path.join(line_path)
+                };
+                if full_path.is_dir() && !rel.ends_with('/') {
+                    rel.push('/');
+                }
+
+                relativized.push(rel);
+            }
+        } else {
+            relativized = run_internal_find_search(&search_path, &input.pattern, scan_limit)?;
         }
 
         if relativized.is_empty() {
@@ -3959,8 +4037,8 @@ impl Tool for FindTool {
         let mut notices: Vec<String> = Vec::new();
         let mut details_map = serde_json::Map::new();
 
-        if !status.success() {
-            let code = status.code().unwrap_or(1);
+        if !status_success {
+            let code = status_code.unwrap_or(1);
             notices.push(format!("fd exited with code {code}"));
         }
 
@@ -6879,9 +6957,6 @@ mod tests {
     #[test]
     fn test_find_glob_pattern() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::write(tmp.path().join("file1.rs"), "").unwrap();
             std::fs::write(tmp.path().join("file2.rs"), "").unwrap();
@@ -6909,9 +6984,6 @@ mod tests {
     #[test]
     fn test_find_limit() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             for i in 0..20 {
                 std::fs::write(tmp.path().join(format!("f{i}.txt")), "").unwrap();
@@ -6949,9 +7021,6 @@ mod tests {
     #[test]
     fn test_find_exact_limit_does_not_report_limit_reached() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             for i in 0..5 {
                 std::fs::write(tmp.path().join(format!("f{i}.txt")), "").unwrap();
@@ -6990,9 +7059,6 @@ mod tests {
     #[test]
     fn test_find_zero_limit_is_rejected() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::write(tmp.path().join("file.txt"), "").unwrap();
 
@@ -7020,9 +7086,6 @@ mod tests {
     #[test]
     fn test_find_no_matches() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::write(tmp.path().join("only.txt"), "").unwrap();
 
@@ -7051,9 +7114,6 @@ mod tests {
     #[test]
     fn test_find_nonexistent_path() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             let tool = FindTool::new(tmp.path());
             let err = tool
@@ -7073,9 +7133,6 @@ mod tests {
     #[test]
     fn test_find_nested_directories() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::create_dir_all(tmp.path().join("a/b/c")).unwrap();
             std::fs::write(tmp.path().join("top.rs"), "").unwrap();
@@ -7104,9 +7161,6 @@ mod tests {
     #[test]
     fn test_find_results_are_sorted() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::write(tmp.path().join("zeta.txt"), "").unwrap();
             std::fs::write(tmp.path().join("alpha.txt"), "").unwrap();
@@ -7139,9 +7193,6 @@ mod tests {
     #[test]
     fn test_find_respects_gitignore() {
         asupersync::test_utils::run_test(|| async {
-            if find_fd_binary().is_none() {
-                return;
-            }
             let tmp = tempfile::tempdir().unwrap();
             std::fs::write(tmp.path().join(".gitignore"), "ignored.txt\n").unwrap();
             std::fs::write(tmp.path().join("ignored.txt"), "").unwrap();
@@ -7164,6 +7215,29 @@ mod tests {
                 "expected .gitignore'd files to be excluded, got: {text}"
             );
         });
+    }
+
+    #[test]
+    fn test_internal_find_search_matches_nested_files_and_gitignore() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("src/nested")).unwrap();
+        std::fs::create_dir_all(tmp.path().join(".hidden")).unwrap();
+        std::fs::write(tmp.path().join(".gitignore"), "ignored.rs\n").unwrap();
+        std::fs::write(tmp.path().join("src/main.rs"), "").unwrap();
+        std::fs::write(tmp.path().join("src/nested/lib.rs"), "").unwrap();
+        std::fs::write(tmp.path().join(".hidden/secret.rs"), "").unwrap();
+        std::fs::write(tmp.path().join("ignored.rs"), "").unwrap();
+
+        let matches = run_internal_find_search(tmp.path(), "*.rs", DEFAULT_FIND_LIMIT)
+            .expect("internal find search should succeed");
+
+        assert!(matches.iter().any(|path| path == "src/main.rs"));
+        assert!(matches.iter().any(|path| path == "src/nested/lib.rs"));
+        assert!(matches.iter().any(|path| path == ".hidden/secret.rs"));
+        assert!(
+            !matches.iter().any(|path| path == "ignored.rs"),
+            "internal find search should respect .gitignore: {matches:?}"
+        );
     }
 
     // ========================================================================

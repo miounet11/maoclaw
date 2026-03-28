@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use serde_json::json;
 
-use super::{AgentState, Cmd, EXTENSION_EVENT_TIMEOUT_MS, PiApp, PiMsg, conversation_from_session};
+use super::{
+    AgentState, Cmd, EXTENSION_EVENT_TIMEOUT_MS, PiApp, PiMsg,
+    refresh_interactive_agent_from_session, send_pi_msg_with_backpressure,
+};
 
 /// Safely convert `Duration::as_micros()` (u128) to u64 with saturation.
 #[inline]
@@ -437,8 +440,11 @@ impl PiApp {
                     Ok(guard) => guard,
                     Err(err) => {
                         is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -466,9 +472,11 @@ impl PiApp {
                     .unwrap_or(false);
                 if cancelled {
                     is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                    let _ = event_tx.try_send(PiMsg::System(
-                        "Compaction cancelled by extension".to_string(),
-                    ));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::System("Compaction cancelled by extension".to_string()),
+                    )
+                    .await;
                     return;
                 }
             }
@@ -481,9 +489,13 @@ impl PiApp {
             };
             let Some(prep) = crate::compaction::prepare_compaction(&path_entries, settings) else {
                 is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                let _ = event_tx.try_send(PiMsg::System(
-                    "Nothing to compact (already compacted or too little history)".to_string(),
-                ));
+                let _ = send_pi_msg_with_backpressure(
+                    &event_tx,
+                    PiMsg::System(
+                        "Nothing to compact (already compacted or too little history)".to_string(),
+                    ),
+                )
+                .await;
                 return;
             };
 
@@ -498,21 +510,27 @@ impl PiApp {
                 Ok(result) => result,
                 Err(err) => {
                     is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                    let _ =
-                        event_tx.try_send(PiMsg::AgentError(format!("Compaction failed: {err}")));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::AgentError(format!("Compaction failed: {err}")),
+                    )
+                    .await;
                     return;
                 }
             };
 
             let details = crate::compaction::compaction_details_to_value(&result.details).ok();
 
-            let messages_for_agent = {
+            {
                 let mut guard = match session.lock(&cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
                         is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -525,41 +543,29 @@ impl PiApp {
                     None,
                 );
                 let _ = guard.save().await;
-                guard.to_messages_for_current_path()
-            };
-
-            {
-                let mut agent_guard = match agent.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
-                        return;
-                    }
-                };
-                agent_guard.replace_messages(messages_for_agent);
             }
 
-            let (messages, usage) = {
-                let guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                conversation_from_session(&guard)
+            let (messages, usage) = match refresh_interactive_agent_from_session(&session, &agent)
+                .await
+            {
+                Ok(snapshot) => snapshot,
+                Err(err) => {
+                    is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
+                    let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                    return;
+                }
             };
 
             is_compacting.store(false, std::sync::atomic::Ordering::SeqCst);
-            let _ = event_tx.try_send(PiMsg::ConversationReset {
-                messages,
-                usage,
-                status: Some("Compaction complete".to_string()),
-            });
+            let _ = send_pi_msg_with_backpressure(
+                &event_tx,
+                PiMsg::ConversationReset {
+                    messages,
+                    usage,
+                    status: Some("Compaction complete".to_string()),
+                },
+            )
+            .await;
 
             if let Some(manager) = extensions {
                 let _ = manager

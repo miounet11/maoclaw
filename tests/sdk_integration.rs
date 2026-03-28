@@ -19,14 +19,15 @@ use pi::compaction::ResolvedCompactionSettings;
 use pi::error::{Error, Result};
 use pi::extensions::SecurityAlertCategory;
 use pi::model::{
-    AssistantMessage, ContentBlock, Message, StopReason, StreamEvent, TextContent, ToolCall, Usage,
-    UserContent, UserMessage,
+    AssistantMessage, ContentBlock, Message, StopReason, StreamEvent, TextContent, ThinkingLevel,
+    ToolCall, Usage, UserContent, UserMessage,
 };
 use pi::provider::{Context, Provider, StreamOptions};
 use pi::sdk::{
-    AgentSessionHandle, AgentSessionState, SessionOptions, SubscriptionId, create_agent_session,
+    AgentSessionHandle, AgentSessionState, EventListeners, SessionOptions, SubscriptionId,
+    create_agent_session,
 };
-use pi::session::Session;
+use pi::session::{Session, SessionEntry, SessionMessage};
 use pi::tools::ToolRegistry;
 use serde_json::json;
 use std::pin::Pin;
@@ -167,6 +168,25 @@ fn write_sdk_extension(harness: &TestHarness, filename: &str, source: &str) -> s
     harness.create_file(format!("extensions/{filename}"), source.as_bytes())
 }
 
+fn persist_named_session(
+    session_dir: std::path::PathBuf,
+    provider: &str,
+    model_id: &str,
+    thinking: ThinkingLevel,
+    name: &str,
+) -> std::path::PathBuf {
+    let provider = provider.to_string();
+    let model_id = model_id.to_string();
+    let name = name.to_string();
+    run_async(async move {
+        let mut session = Session::create_with_dir(Some(session_dir));
+        session.set_model_header(Some(provider), Some(model_id), Some(thinking.to_string()));
+        session.set_name(&name);
+        session.save().await.expect("save session");
+        session.path.expect("session path")
+    })
+}
+
 fn run_scripted(
     harness: &TestHarness,
     script: Script,
@@ -206,6 +226,48 @@ fn run_scripted(
     })
 }
 
+fn run_scripted_with_content(
+    harness: &TestHarness,
+    script: Script,
+    content: Vec<ContentBlock>,
+) -> (AssistantMessage, Vec<AgentEvent>) {
+    let cwd = harness.temp_dir().to_path_buf();
+    run_async(async move {
+        let provider: Arc<dyn Provider> = Arc::new(ScriptedProvider::new(script));
+        let tools = ToolRegistry::new(&["read"], &cwd, None);
+        let config = AgentConfig {
+            system_prompt: None,
+            max_tool_iterations: 10,
+            stream_options: StreamOptions {
+                api_key: Some("test-key".to_string()),
+                ..StreamOptions::default()
+            },
+            block_images: false,
+        };
+        let agent = pi::agent::Agent::new(provider, tools, config);
+        let session = Arc::new(asupersync::sync::Mutex::new(Session::create_with_dir(
+            Some(cwd),
+        )));
+        let agent_session =
+            AgentSession::new(agent, session, true, ResolvedCompactionSettings::default());
+        let mut handle = AgentSessionHandle::from_session_with_listeners(
+            agent_session,
+            pi::sdk::EventListeners::default(),
+        );
+
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let events_ref = Arc::clone(&events);
+        let message = handle
+            .prompt_with_content(content, move |event| {
+                events_ref.lock().expect("lock").push(event);
+            })
+            .await
+            .expect("prompt_with_content");
+        let captured = events.lock().expect("lock").clone();
+        (message, captured)
+    })
+}
+
 // ============================================================================
 // 1. Basic session creation
 // ============================================================================
@@ -220,8 +282,8 @@ fn sdk_basic_session_creation() {
     let provider = handle.session().agent.provider();
     assert_eq!(
         provider.name(),
-        "anthropic",
-        "default provider should be anthropic"
+        "openai-codex",
+        "default provider should match the deterministic SDK default"
     );
     // Model can vary; just verify it's non-empty.
     assert!(
@@ -319,6 +381,181 @@ fn sdk_event_streaming() {
         ctx.push(("event_count".to_string(), events.len().to_string()));
         ctx.push(("response_len".to_string(), text.len().to_string()));
     });
+}
+
+#[test]
+fn sdk_prompt_with_content_accepts_text_blocks() {
+    let harness = TestHarness::new("sdk_prompt_with_content_accepts_text_blocks");
+    let (message, events) = run_scripted_with_content(
+        &harness,
+        Script::SingleText("hello from content".to_string()),
+        vec![ContentBlock::Text(TextContent::new(
+            "Say hello from content",
+        ))],
+    );
+
+    let text = message
+        .content
+        .iter()
+        .filter_map(|b| match b {
+            ContentBlock::Text(t) => Some(t.text.as_str()),
+            _ => None,
+        })
+        .collect::<String>();
+    assert!(
+        text.contains("hello from content"),
+        "response text mismatch: {text}"
+    );
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, AgentEvent::AgentEnd { .. })),
+        "expected prompt_with_content to emit AgentEnd"
+    );
+}
+
+#[test]
+fn sdk_switch_session_restores_state_and_preserves_session_dir() {
+    let harness = TestHarness::new("sdk_switch_session_restores_state_and_preserves_session_dir");
+    let session_dir = harness.temp_dir().join("sdk-sessions");
+    std::fs::create_dir_all(&session_dir).expect("create session dir");
+    let saved_session = persist_named_session(
+        session_dir.clone(),
+        "openai",
+        "gpt-4o",
+        ThinkingLevel::Low,
+        "loaded session",
+    );
+
+    let options = SessionOptions {
+        working_directory: Some(harness.temp_dir().to_path_buf()),
+        no_session: false,
+        session_dir: Some(session_dir.clone()),
+        ..SessionOptions::default()
+    };
+
+    let mut handle = run_async(create_agent_session(options)).expect("create session");
+    let expected_saved_session = saved_session.clone();
+    let (switch_result, switched_state, new_result, fresh_state) = run_async(async move {
+        let _seq = handle.queue_follow_up("stale follow-up");
+        let switch_result = handle.switch_session(&saved_session).await?;
+        let switched_state = handle.state().await?;
+        let new_result = handle.new_session(None).await?;
+        handle.set_session_name("fresh session").await?;
+        let fresh_state = handle.state().await?;
+        Ok::<_, pi::error::Error>((switch_result, switched_state, new_result, fresh_state))
+    })
+    .expect("switch session flow");
+
+    assert!(!switch_result.cancelled);
+    assert_eq!(switched_state.provider, "openai");
+    assert_eq!(switched_state.model_id, "gpt-4o");
+    assert_eq!(switched_state.thinking_level, Some(ThinkingLevel::Low));
+    assert_eq!(
+        switched_state.session_name.as_deref(),
+        Some("loaded session")
+    );
+    assert_eq!(switched_state.pending_message_count, 0);
+    assert_eq!(
+        switched_state.session_file.as_deref(),
+        Some(expected_saved_session.to_string_lossy().as_ref())
+    );
+
+    assert!(!new_result.cancelled);
+    let fresh_file = fresh_state
+        .session_file
+        .as_deref()
+        .expect("fresh session should persist after naming");
+    assert!(
+        fresh_file.starts_with(session_dir.to_string_lossy().as_ref()),
+        "expected new persisted session under {}, got {}",
+        session_dir.display(),
+        fresh_file
+    );
+    assert_eq!(fresh_state.provider, "openai");
+    assert_eq!(fresh_state.model_id, "gpt-4o");
+}
+
+#[test]
+fn sdk_fork_returns_selected_text_and_clears_pending_queue() {
+    let harness = TestHarness::new("sdk_fork_returns_selected_text_and_clears_pending_queue");
+    let cwd = harness.temp_dir().to_path_buf();
+    let session_dir = cwd.join("sessions");
+    std::fs::create_dir_all(&session_dir).expect("create session dir");
+
+    let (fork_result, before_state, after_state, parent_session) = run_async(async move {
+        let provider: Arc<dyn Provider> = Arc::new(ScriptedProvider::new(Script::SingleText(
+            "fork reply".to_string(),
+        )));
+        let tools = ToolRegistry::new(&["read"], &cwd, None);
+        let config = AgentConfig {
+            system_prompt: None,
+            max_tool_iterations: 10,
+            stream_options: StreamOptions {
+                api_key: Some("test-key".to_string()),
+                ..StreamOptions::default()
+            },
+            block_images: false,
+        };
+        let agent = pi::agent::Agent::new(provider, tools, config);
+        let session = Arc::new(asupersync::sync::Mutex::new(Session::create_with_dir(
+            Some(session_dir),
+        )));
+        let agent_session =
+            AgentSession::new(agent, session, true, ResolvedCompactionSettings::default());
+        let mut handle = AgentSessionHandle::from_session_with_listeners(
+            agent_session,
+            EventListeners::default(),
+        );
+
+        let _ = handle.prompt("fork me", |_| {}).await?;
+        let before_state = handle.state().await?;
+
+        let cx = pi::agent_cx::AgentCx::for_request();
+        let entry_id = {
+            let session = handle
+                .session()
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|err| Error::session(err.to_string()))?;
+            session
+                .entries_for_current_path()
+                .iter()
+                .find_map(|entry| match entry {
+                    SessionEntry::Message(message)
+                        if matches!(message.message, SessionMessage::User { .. }) =>
+                    {
+                        message.base.id.clone()
+                    }
+                    _ => None,
+                })
+                .ok_or_else(|| Error::session("missing user entry for fork"))?
+        };
+
+        let _seq = handle.queue_follow_up("stale follow-up");
+        let fork_result = handle.fork(entry_id).await?;
+        let after_state = handle.state().await?;
+        let parent_session = {
+            let session = handle
+                .session()
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|err| Error::session(err.to_string()))?;
+            session.header.parent_session.clone()
+        };
+
+        Ok::<_, pi::error::Error>((fork_result, before_state, after_state, parent_session))
+    })
+    .expect("fork flow");
+
+    assert_eq!(fork_result.text, "fork me");
+    assert!(!fork_result.cancelled);
+    assert_ne!(before_state.session_id, after_state.session_id);
+    assert_eq!(after_state.pending_message_count, 0);
+    assert_eq!(after_state.message_count, 0);
+    assert_eq!(parent_session, before_state.session_file);
 }
 
 // ============================================================================
@@ -576,7 +813,7 @@ fn sdk_state_snapshot() {
         run_async(async move { handle.state().await }).expect("get state");
 
     assert!(state.session_id.is_some(), "session_id should be set");
-    assert_eq!(state.provider, "anthropic");
+    assert_eq!(state.provider, "openai-codex");
     assert!(!state.model_id.is_empty(), "model_id should be non-empty");
     assert!(
         !state.save_enabled,

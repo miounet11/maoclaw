@@ -1,145 +1,117 @@
 # maoclaw Open Source Overview
 
-`maoclaw` is a local-first AI agent framework for teams that want terminal speed, explicit control, and deployable automation surfaces without dragging a heavy desktop runtime into the core path.
+`maoclaw` is a fully open-source, local-first AI agent runtime and customization platform built in Rust.
+It is designed for teams that want to build serious agent systems, not just run a single chat interface.
 
-It is presented as an independently developed original project from China, with its own product identity, framework direction, and release path.
+The project combines:
 
-Official naming and language policy:
+- agent orchestration
+- tool execution
+- sessions and memory
+- skills, prompts, and extensions
+- CLI, RPC, SDK, and desktop surfaces
+- release, packaging, and operator governance
 
-- Chinese name: `猫爪`
-- Global / English name: `maoclaw`
-- Japanese-facing name: `猫爪 / maoclaw`
-- Official website: `https://xinxiang.xin`
-- Public-facing language coverage: Chinese, English, and Japanese
+## Brand System
 
-It ships a focused and honest open-source surface today:
+- Official global name: `maoclaw`
+- Official Chinese name: `猫爪`
+- Community nickname in Chinese: `机器猫`
+- Public repository and installer identity: `maoclaw`
+- Compatibility command retained for workflow continuity: `pi`
 
-- terminal-first interaction
-- structured tool execution
-- persistent sessions
-- provider routing
-- extension and skills loading
-- headless RPC integration
-- macOS desktop packaging on top of the same runtime
+Use `maoclaw / 猫爪` as the official public brand.
+Use `机器猫` only as the community nickname, not as the primary repository or packaging identity.
 
-## What maoclaw Is
+## Product Positioning
 
-At its core, `maoclaw` is a Rust agent runtime, framework layer, and product shell with three practical goals:
+The most accurate public description is:
 
-1. Keep the core coding-agent loop fast and stable.
-2. Expose enough integration surface for real workflows, not just demos.
-3. Stay explicit about safety, evidence, and operator control.
+> maoclaw is an open-source agent runtime and customization platform for building local-first, domain-specific AI systems.
 
-This means the project is not positioned as “just another chat UI”.
-It is a general agent control surface that can run as:
+That matters because the project is intended to support:
 
-- an interactive CLI
-- a single-shot analysis tool
-- a JSON/text automation endpoint
-- an RPC backend for IDE or desktop clients
-- a packaged macOS desktop app
+- direct developer use from the terminal
+- local automation and operator workflows
+- embedded RPC / SDK integrations
+- native product shells on top of the same runtime
+- vertical agent customization across industries
 
-It should also be understood as an original China-developed product, not as a cosmetic rebrand of somebody else’s repository.
+This is the right narrative for software engineering, research, operations, service, knowledge workflows, and industry-specific assistants with custom tools, memory, and policy.
 
-## What Ships Today
+## What Makes The Project Credible
 
-Current open-source `maoclaw` release posture:
+The repo should feel like a serious international OSS project on first contact.
+That means the public surface should consistently show:
 
-- Public repository and package identity: `maoclaw`
-- Public Chinese product name: `猫爪`
-- Public product positioning: independently developed original project from China
-- Compatibility command retained: `pi`
-- Branded binary also available: `maoclaw`
-- macOS desktop surface available via `pi_desktop` and `maoclaw.app`
-- Primary launch posture: focused public trial
+- a clear README
+- clear docs entrypoints
+- visible CI and release automation
+- clear contribution and security policies
+- a coherent install and upgrade path
+- honest scope boundaries
 
-Current proven surfaces:
+The public story should lead with engineering quality and runtime discipline:
 
-- interactive terminal mode
-- print mode
-- text/json output modes
-- basic RPC mode over stdin/stdout
-- sessions: save, continue, resume, fork, compact
-- built-in tools: `read`, `write`, `edit`, `bash`, `grep`, `find`, `ls`
-- provider support across the documented provider catalog
-- skills, prompt templates, themes, and extension runtime
+- Rust 2024
+- `#![forbid(unsafe_code)]`
+- single runtime across multiple surfaces
+- explicit operator control
+- explicit governance and release boundaries
 
-## What It Is Not Claiming Yet
+## What The Project Is For
 
-For open-source release messaging, keep these boundaries explicit:
+`maoclaw` should be understood as infrastructure for building and operating customized agent systems.
 
-- not yet a broad all-surface certification release
-- not yet full JSON/RPC stability certified across every client shape
-- not yet full SDK stability certified across every embedding shape
-- not yet full third-party extension compatibility certified
+That includes:
 
-Those boundaries are a strength, not a weakness. They keep the project credible.
+- coding agents
+- research agents
+- knowledge agents
+- workflow and operations agents
+- internal assistants
+- vertical agents for domain-specific business processes
 
-## Product Shape
+The value is not only in the default CLI.
+The value is in the runtime, control model, extensibility, and productization surface.
 
-The easiest way to understand `maoclaw` is as a layered system:
+## OSS Scope
 
-- Runtime core: providers, sessions, tools, resources, extension sandboxing
-- Framework core: agent loop, skills, prompts, themes, orchestration, lifecycle
-- Operator surface: CLI commands, slash commands, config, auth, session lifecycle
-- Integration surface: JSON mode, RPC mode, SDK docs, package/install scripts
-- Product surface: branded repo, release artifacts, macOS desktop packaging
-
-## Language and Runtime Advantages
-
-`maoclaw` uses a Rust-centered technical stack to make agent systems easier to operate as real software:
-
-- single-binary delivery instead of a heavy layered runtime stack
-- explicit state and lifecycle control across sessions, tools, and providers
-- lower memory overhead and faster startup on the validated paths in this repository
-- one shared runtime substrate across CLI, automation, RPC, and desktop surfaces
-
-This is the right open-source shape because it allows:
-
-- local use by individual developers
-- team rollout through release artifacts and install scripts
-- embedding or external UI integration through RPC
-- gradual product expansion without forking the runtime semantics every time
-
-## Open Source Scope
-
-The public repo is the right place for:
+The public repository is the right home for:
 
 - runtime code
-- CLI and desktop code
-- install/uninstall scripts
-- packaging scripts
+- packaging and install scripts
+- CLI and desktop surfaces
 - canonical docs
-- security model docs
-- provider docs
-- extension/skills system docs
-- release notes and migration guides
+- security and release docs
+- extension and skills documentation
+- changelogs and migration guidance
 
-The public repo should not become the dumping ground for every internal strategy memo or commercial operating document.
-If a file is useful mainly for internal planning, customer-specific operations, or private commercial rollout, it belongs outside the public product narrative.
+The public repository should not read like an internal planning dump.
+Canonical docs should stay curated, and planning or audit artifacts should stay clearly separated from the public product narrative.
 
-## Recommended Public Positioning
+## Recommended Public Messaging
 
-Use language like this when introducing the project:
+Use language like this:
 
-> maoclaw is an open-source, local-first AI coding agent built in Rust. It combines a fast terminal runtime, tool execution, persistent sessions, provider flexibility, and RPC integration into a deployable developer control surface.
->
-> It can be used as a general AI agent framework and lifecycle solution for local agent development, domain-specific workflows, and product integration.
+> maoclaw is an open-source Rust runtime for building customizable AI agent systems.
+> It gives teams one foundation for orchestration, tools, memory, sessions, skills, and product surfaces across CLI, RPC, SDK, and desktop delivery.
 
-For China-facing and global product messaging, it is also appropriate to say:
+And when emphasizing customization:
 
-> maoclaw is an independently developed original AI coding agent project from China, built as a serious developer product rather than a superficial wrapper around somebody else’s release identity.
+> maoclaw is designed to support vertical AI agent customization across industries by exposing the runtime layers that teams actually need to control: tools, prompts, memory, policy, routing, and packaging.
 
-Avoid language like this for now:
+Avoid weaker language like this:
 
-- “full replacement for every existing coding-agent stack”
-- “fully compatible drop-in”
-- “production-certified on every integration surface”
+- “just another AI chat product”
+- “a thin wrapper around an upstream tool”
+- “fully certified for every enterprise surface”
+- “drop-in replacement for everything”
 
-## Where To Start
+## Start Here
 
 - [../README.md](../README.md) for the main project page
 - [../STATUS.md](../STATUS.md) for the current public truth snapshot
-- [deployment-guide.md](deployment-guide.md) for installation and deployment paths
-- [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md) for the shortest successful user path
-- [releasing.md](releasing.md) for cutting and publishing releases
+- [README.md](README.md) for the canonical docs map
+- [deployment-guide.md](deployment-guide.md) for installation and deployment
+- [releasing.md](releasing.md) for release process and artifacts

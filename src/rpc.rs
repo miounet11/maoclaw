@@ -1,7 +1,8 @@
 //! RPC mode: headless JSON protocol over stdin/stdout.
 //!
-//! This implements a compatibility subset of pi-mono's RPC protocol
-//! (see legacy `docs/rpc.md` in `legacy_pi_mono_code`).
+//! This implements the Rust Pi JSON/RPC surface used by editors, desktop
+//! shells, and SDK subprocess transports, with remaining drop-in parity gaps
+//! tracked in the certification docs.
 
 #![allow(clippy::significant_drop_tightening)]
 #![allow(clippy::too_many_arguments)]
@@ -24,6 +25,7 @@ use crate::extensions::{
     EXTENSION_EVENT_TIMEOUT_MS, ExtensionEventName, ExtensionManager, ExtensionUiRequest,
     ExtensionUiResponse,
 };
+use crate::goals::{GoalLifecycleAction, GoalRunState, GoalSpec, GoalWatchdog, SuccessCriterion};
 use crate::model::{
     ContentBlock, ImageContent, Message, StopReason, TextContent, UserContent, UserMessage,
 };
@@ -38,10 +40,11 @@ use asupersync::runtime::RuntimeHandle;
 use asupersync::sync::{Mutex, OwnedMutexGuard};
 use asupersync::time::{sleep, wall_now};
 use memchr::memchr_iter;
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -117,6 +120,11 @@ fn normalize_command_type(command_type: &str) -> &str {
     match command_type {
         "follow-up" | "followUp" | "queue-follow-up" | "queueFollowUp" => "follow_up",
         "get-state" | "getState" => "get_state",
+        "get-goal-contract" | "getGoalContract" => "get_goal_contract",
+        "set-goal-contract" | "setGoalContract" => "set_goal_contract",
+        "clear-goal-contract" | "clearGoalContract" => "clear_goal_contract",
+        "update-goal-run" | "updateGoalRun" => "update_goal_run",
+        "update-goal-criterion" | "updateGoalCriterion" => "update_goal_criterion",
         "set-model" | "setModel" => "set_model",
         "set-steering-mode" | "setSteeringMode" => "set_steering_mode",
         "set-follow-up-mode" | "setFollowUpMode" => "set_follow_up_mode",
@@ -124,6 +132,58 @@ fn normalize_command_type(command_type: &str) -> &str {
         "set-auto-retry" | "setAutoRetry" => "set_auto_retry",
         _ => command_type,
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcGoalContractInput {
+    id: Option<String>,
+    title: Option<String>,
+    goal: String,
+    criteria: Vec<RpcGoalCriterionInput>,
+    system_id: Option<String>,
+    artifact_type: Option<String>,
+    watchdog: Option<RpcGoalWatchdogInput>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RpcGoalCriterionInput {
+    Text(String),
+    Structured(RpcGoalCriterionStructuredInput),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcGoalCriterionStructuredInput {
+    id: Option<String>,
+    description: String,
+    verification_hint: Option<String>,
+    required: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcGoalWatchdogInput {
+    heartbeat_seconds: Option<u64>,
+    inactivity_timeout_seconds: Option<u64>,
+    max_restarts: Option<u32>,
+    restart_on_inactive: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcGoalRunUpdateInput {
+    action: String,
+    evidence: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RpcGoalCriterionUpdateInput {
+    criterion_id: String,
+    satisfied: bool,
+    evidence: Option<String>,
 }
 
 fn build_user_message(text: &str, images: &[ImageContent]) -> Message {
@@ -187,6 +247,160 @@ fn resolve_extension_command(
         .then_some((command_name, args))
 }
 
+fn parse_goal_contract_payload(parsed: &Value) -> Result<GoalSpec> {
+    let raw = parsed.get("goalContract").unwrap_or(parsed);
+    let input: RpcGoalContractInput = serde_json::from_value(raw.clone())
+        .map_err(|err| Error::validation(format!("Invalid goal contract payload: {err}")))?;
+
+    let goal_text = input.goal.trim();
+    if goal_text.is_empty() {
+        return Err(Error::validation("goal must not be empty"));
+    }
+    if input.criteria.is_empty() {
+        return Err(Error::validation(
+            "goal contract requires at least one criterion",
+        ));
+    }
+
+    let criteria = input
+        .criteria
+        .into_iter()
+        .enumerate()
+        .map(|(index, criterion)| match criterion {
+            RpcGoalCriterionInput::Text(description) => {
+                let description = description.trim().to_string();
+                if description.is_empty() {
+                    return Err(Error::validation(format!(
+                        "criterion {} must not be empty",
+                        index + 1
+                    )));
+                }
+                Ok(SuccessCriterion {
+                    id: format!("criterion_{}", index + 1),
+                    description,
+                    verification_hint: None,
+                    required: true,
+                })
+            }
+            RpcGoalCriterionInput::Structured(structured) => {
+                let description = structured.description.trim().to_string();
+                if description.is_empty() {
+                    return Err(Error::validation(format!(
+                        "criterion {} description must not be empty",
+                        index + 1
+                    )));
+                }
+                Ok(SuccessCriterion {
+                    id: structured
+                        .id
+                        .filter(|value| !value.trim().is_empty())
+                        .unwrap_or_else(|| format!("criterion_{}", index + 1)),
+                    description,
+                    verification_hint: structured
+                        .verification_hint
+                        .map(|value| value.trim().to_string())
+                        .filter(|value| !value.is_empty()),
+                    required: structured.required.unwrap_or(true),
+                })
+            }
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let mut goal = GoalSpec {
+        goal: goal_text.to_string(),
+        criteria,
+        ..GoalSpec::default()
+    };
+    if let Some(id) = input.id.filter(|value| !value.trim().is_empty()) {
+        goal.id = id;
+    }
+    goal.title = input
+        .title
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| summarize_goal_title(goal_text));
+    goal.system_id = input
+        .system_id
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    goal.artifact_type = input
+        .artifact_type
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    if let Some(watchdog) = input.watchdog {
+        goal.watchdog = GoalWatchdog {
+            heartbeat_seconds: watchdog
+                .heartbeat_seconds
+                .unwrap_or(goal.watchdog.heartbeat_seconds),
+            inactivity_timeout_seconds: watchdog
+                .inactivity_timeout_seconds
+                .unwrap_or(goal.watchdog.inactivity_timeout_seconds),
+            max_restarts: watchdog.max_restarts.unwrap_or(goal.watchdog.max_restarts),
+            restart_on_inactive: watchdog
+                .restart_on_inactive
+                .unwrap_or(goal.watchdog.restart_on_inactive),
+        };
+    }
+    Ok(goal)
+}
+
+fn parse_goal_run_update_payload(parsed: &Value) -> Result<(GoalLifecycleAction, Option<String>)> {
+    let raw = parsed.get("goalRun").unwrap_or(parsed);
+    let input: RpcGoalRunUpdateInput = serde_json::from_value(raw.clone())
+        .map_err(|err| Error::validation(format!("Invalid goal run payload: {err}")))?;
+
+    let action = match input.action.trim().to_ascii_lowercase().as_str() {
+        "pause" | "paused" => GoalLifecycleAction::Pause,
+        "resume" | "active" => GoalLifecycleAction::Resume,
+        "complete" | "completed" | "criteria_met" => GoalLifecycleAction::Complete,
+        "block" | "blocked" => GoalLifecycleAction::Block,
+        "fail" | "failed" => GoalLifecycleAction::Fail,
+        other => return Err(Error::validation(format!("invalid goal action: {other}"))),
+    };
+
+    Ok((
+        action,
+        input
+            .evidence
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
+    ))
+}
+
+fn parse_goal_criterion_update_payload(parsed: &Value) -> Result<(String, bool, Option<String>)> {
+    let raw = parsed.get("goalCriterion").unwrap_or(parsed);
+    let input: RpcGoalCriterionUpdateInput = serde_json::from_value(raw.clone())
+        .map_err(|err| Error::validation(format!("Invalid goal criterion payload: {err}")))?;
+
+    let criterion_id = input.criterion_id.trim();
+    if criterion_id.is_empty() {
+        return Err(Error::validation("criterionId must not be empty"));
+    }
+
+    Ok((
+        criterion_id.to_string(),
+        input.satisfied,
+        input
+            .evidence
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty()),
+    ))
+}
+
+fn summarize_goal_title(goal: &str) -> String {
+    let trimmed = goal.trim();
+    let mut title = trimmed.lines().next().unwrap_or(trimmed).trim().to_string();
+    if title.chars().count() > 72 {
+        title = title.chars().take(72).collect::<String>();
+        title.push_str("...");
+    }
+    if title.is_empty() {
+        "Outcome Contract".to_string()
+    } else {
+        title
+    }
+}
+
 fn rpc_agent_event_handler(
     out_tx: std::sync::mpsc::Sender<String>,
     runtime_handle: RuntimeHandle,
@@ -196,11 +410,14 @@ fn rpc_agent_event_handler(
 
     move |event: AgentEvent| {
         let serialized = if let AgentEvent::AgentEnd {
-            messages, error, ..
+            session_id,
+            messages,
+            error,
         } = &event
         {
             json!({
                 "type": "agent_end",
+                "sessionId": session_id,
                 "messages": messages,
                 "error": error,
             })
@@ -632,10 +849,28 @@ pub async fn run(
                     continue;
                 }
 
-                // Ack immediately.
-                let _ = out_tx.send(response_ok(id, "prompt", None));
-
                 is_streaming.store(true, Ordering::SeqCst);
+
+                let prompt_data = match prompt_response_data(
+                    &session_handle,
+                    &shared_state,
+                    &options,
+                    true,
+                    is_compacting.load(Ordering::SeqCst),
+                    &cx,
+                )
+                .await
+                {
+                    Ok(data) => data,
+                    Err(err) => {
+                        is_streaming.store(false, Ordering::SeqCst);
+                        let resp = response_error_with_hints(id, "prompt", &err);
+                        let _ = out_tx.send(resp);
+                        continue;
+                    }
+                };
+
+                let _ = out_tx.send(response_ok(id, "prompt", Some(prompt_data)));
 
                 let out_tx = out_tx.clone();
                 let session = Arc::clone(&session);
@@ -851,7 +1086,13 @@ pub async fn run(
                     RpcStateSnapshot::from(&*state)
                 };
                 let data = {
-                    let inner_session = session_handle.lock(&cx).await.map_err(|err| {
+                    let mut agent_session = session.lock(&cx).await.map_err(|err| {
+                        Error::session(format!("agent session lock failed: {err}"))
+                    })?;
+                    if !is_streaming.load(Ordering::SeqCst) {
+                        let _ = agent_session.block_goal_watchdog_if_idle().await?;
+                    }
+                    let inner_session = agent_session.session.lock(&cx).await.map_err(|err| {
                         Error::session(format!("inner session lock failed: {err}"))
                     })?;
                     session_state(
@@ -865,6 +1106,185 @@ pub async fn run(
                 let _ = out_tx.send(response_ok(id, "get_state", Some(data)));
             }
 
+            "get_goal_contract" => {
+                let data = {
+                    let mut agent_session = session.lock(&cx).await.map_err(|err| {
+                        Error::session(format!("agent session lock failed: {err}"))
+                    })?;
+                    if !is_streaming.load(Ordering::SeqCst) {
+                        let _ = agent_session.block_goal_watchdog_if_idle().await?;
+                    }
+                    let inner_session = agent_session.session.lock(&cx).await.map_err(|err| {
+                        Error::session(format!("inner session lock failed: {err}"))
+                    })?;
+                    goal_state_payload(&inner_session)
+                };
+                let _ = out_tx.send(response_ok(id, "get_goal_contract", Some(data)));
+            }
+
+            "set_goal_contract" => {
+                let goal_contract = match parse_goal_contract_payload(&parsed) {
+                    Ok(goal_contract) => goal_contract,
+                    Err(err) => {
+                        let _ =
+                            out_tx.send(response_error_with_hints(id, "set_goal_contract", &err));
+                        continue;
+                    }
+                };
+
+                let result = {
+                    let mut guard = match session.lock(&cx).await {
+                        Ok(guard) => guard,
+                        Err(err) => {
+                            let err = Error::session(format!("agent session lock failed: {err}"));
+                            let _ = out_tx.send(response_error_with_hints(
+                                id,
+                                "set_goal_contract",
+                                &err,
+                            ));
+                            continue;
+                        }
+                    };
+                    guard.set_goal_contract(goal_contract.clone()).await
+                };
+
+                match result {
+                    Ok(goal_run) => {
+                        let data = json!({
+                            "goalContract": rpc_goal_contract_value(&goal_contract),
+                            "goalRun": rpc_goal_run_value(&goal_run),
+                        });
+                        let _ = out_tx.send(response_ok(id, "set_goal_contract", Some(data)));
+                    }
+                    Err(err) => {
+                        let _ =
+                            out_tx.send(response_error_with_hints(id, "set_goal_contract", &err));
+                    }
+                }
+            }
+
+            "clear_goal_contract" => {
+                let result = {
+                    let mut guard = match session.lock(&cx).await {
+                        Ok(guard) => guard,
+                        Err(err) => {
+                            let err = Error::session(format!("agent session lock failed: {err}"));
+                            let _ = out_tx.send(response_error_with_hints(
+                                id,
+                                "clear_goal_contract",
+                                &err,
+                            ));
+                            continue;
+                        }
+                    };
+                    guard.clear_goal_contract().await
+                };
+
+                match result {
+                    Ok(()) => {
+                        let data = json!({
+                            "goalContract": Value::Null,
+                            "goalRun": Value::Null,
+                        });
+                        let _ = out_tx.send(response_ok(id, "clear_goal_contract", Some(data)));
+                    }
+                    Err(err) => {
+                        let _ =
+                            out_tx.send(response_error_with_hints(id, "clear_goal_contract", &err));
+                    }
+                }
+            }
+
+            "update_goal_run" => {
+                let (action, evidence) = match parse_goal_run_update_payload(&parsed) {
+                    Ok(value) => value,
+                    Err(err) => {
+                        let _ = out_tx.send(response_error_with_hints(id, "update_goal_run", &err));
+                        continue;
+                    }
+                };
+
+                let result = {
+                    let mut guard = match session.lock(&cx).await {
+                        Ok(guard) => guard,
+                        Err(err) => {
+                            let err = Error::session(format!("agent session lock failed: {err}"));
+                            let _ =
+                                out_tx.send(response_error_with_hints(id, "update_goal_run", &err));
+                            continue;
+                        }
+                    };
+                    guard.update_goal_run(action, evidence).await
+                };
+
+                match result {
+                    Ok(_) => {
+                        let data = {
+                            let inner_session = session_handle.lock(&cx).await.map_err(|err| {
+                                Error::session(format!("inner session lock failed: {err}"))
+                            })?;
+                            goal_state_payload(&inner_session)
+                        };
+                        let _ = out_tx.send(response_ok(id, "update_goal_run", Some(data)));
+                    }
+                    Err(err) => {
+                        let _ = out_tx.send(response_error_with_hints(id, "update_goal_run", &err));
+                    }
+                }
+            }
+
+            "update_goal_criterion" => {
+                let (criterion_id, satisfied, evidence) =
+                    match parse_goal_criterion_update_payload(&parsed) {
+                        Ok(value) => value,
+                        Err(err) => {
+                            let _ = out_tx.send(response_error_with_hints(
+                                id,
+                                "update_goal_criterion",
+                                &err,
+                            ));
+                            continue;
+                        }
+                    };
+
+                let result = {
+                    let mut guard = match session.lock(&cx).await {
+                        Ok(guard) => guard,
+                        Err(err) => {
+                            let err = Error::session(format!("agent session lock failed: {err}"));
+                            let _ = out_tx.send(response_error_with_hints(
+                                id,
+                                "update_goal_criterion",
+                                &err,
+                            ));
+                            continue;
+                        }
+                    };
+                    guard
+                        .update_goal_criterion(&criterion_id, satisfied, evidence)
+                        .await
+                };
+
+                match result {
+                    Ok(_) => {
+                        let data = {
+                            let inner_session = session_handle.lock(&cx).await.map_err(|err| {
+                                Error::session(format!("inner session lock failed: {err}"))
+                            })?;
+                            goal_state_payload(&inner_session)
+                        };
+                        let _ = out_tx.send(response_ok(id, "update_goal_criterion", Some(data)));
+                    }
+                    Err(err) => {
+                        let _ = out_tx.send(response_error_with_hints(
+                            id,
+                            "update_goal_criterion",
+                            &err,
+                        ));
+                    }
+                }
+            }
+
             "get_session_stats" => {
                 let data = {
                     let inner_session = session_handle.lock(&cx).await.map_err(|err| {
@@ -876,11 +1296,11 @@ pub async fn run(
             }
 
             "get_messages" => {
-                let messages = {
+                let (session_file, session_id, messages) = {
                     let inner_session = session_handle.lock(&cx).await.map_err(|err| {
                         Error::session(format!("inner session lock failed: {err}"))
                     })?;
-                    inner_session
+                    let messages = inner_session
                         .entries_for_current_path()
                         .iter()
                         .filter_map(|entry| match entry {
@@ -894,7 +1314,13 @@ pub async fn run(
                             },
                             _ => None,
                         })
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<_>>();
+                    let session_file = inner_session
+                        .path
+                        .as_ref()
+                        .map(|path| path.display().to_string());
+                    let session_id = inner_session.header.id.clone();
+                    (session_file, session_id, messages)
                 };
                 let messages = messages
                     .into_iter()
@@ -903,7 +1329,11 @@ pub async fn run(
                 let _ = out_tx.send(response_ok(
                     id,
                     "get_messages",
-                    Some(json!({ "messages": messages })),
+                    Some(json!({
+                        "sessionFile": session_file,
+                        "sessionId": session_id,
+                        "messages": messages
+                    })),
                 ));
             }
 
@@ -1246,14 +1676,7 @@ pub async fn run(
                         .lock(&cx)
                         .await
                         .map_err(|err| Error::session(format!("session lock failed: {err}")))?;
-                    {
-                        let mut inner_session = guard.session.lock(&cx).await.map_err(|err| {
-                            Error::session(format!("inner session lock failed: {err}"))
-                        })?;
-                        inner_session.append_session_info(Some(name.to_string()));
-                    }
-                    guard.persist_session().await?;
-                    Ok(())
+                    guard.set_session_name(name).await
                 }
                 .await;
 
@@ -1510,71 +1933,41 @@ pub async fn run(
                     .get("parentSession")
                     .and_then(Value::as_str)
                     .map(str::to_string);
-                let (session_id, previous_session_file) = {
+                let outcome = {
                     let mut guard = session
                         .lock(&cx)
                         .await
                         .map_err(|err| Error::session(format!("session lock failed: {err}")))?;
-                    let (session_dir, provider, model_id, thinking_level, previous_session_file) = {
-                        let inner_session = guard.session.lock(&cx).await.map_err(|err| {
-                            Error::session(format!("inner session lock failed: {err}"))
-                        })?;
-                        (
-                            inner_session.session_dir.clone(),
-                            inner_session.header.provider.clone(),
-                            inner_session.header.model_id.clone(),
-                            inner_session.header.thinking_level.clone(),
-                            inner_session.path.as_ref().map(|p| p.display().to_string()),
-                        )
-                    };
-                    let mut new_session = if guard.save_enabled() {
-                        crate::session::Session::create_with_dir(session_dir)
-                    } else {
-                        crate::session::Session::in_memory()
-                    };
-                    new_session.header.parent_session = parent;
-                    // Keep model fields in header for clients.
-                    new_session.header.provider.clone_from(&provider);
-                    new_session.header.model_id.clone_from(&model_id);
-                    new_session
-                        .header
-                        .thinking_level
-                        .clone_from(&thinking_level);
-
-                    let session_id = new_session.header.id.clone();
-                    {
-                        let mut inner_session = guard.session.lock(&cx).await.map_err(|err| {
-                            Error::session(format!("inner session lock failed: {err}"))
-                        })?;
-                        *inner_session = new_session;
-                    }
-                    guard.agent.clear_messages();
-                    guard.agent.stream_options_mut().session_id = Some(session_id.clone());
-
-                    (session_id, previous_session_file)
+                    guard.new_session(parent).await
                 };
-                {
-                    let mut state = shared_state
-                        .lock(&cx)
-                        .await
-                        .map_err(|err| Error::session(format!("state lock failed: {err}")))?;
-                    state.steering.clear();
-                    state.follow_up.clear();
+                match outcome {
+                    Ok(outcome) => {
+                        {
+                            let mut state = shared_state.lock(&cx).await.map_err(|err| {
+                                Error::session(format!("state lock failed: {err}"))
+                            })?;
+                            state.steering.clear();
+                            state.follow_up.clear();
+                        }
+                        rpc_dispatch_session_switch_event(
+                            rpc_extension_manager.clone(),
+                            json!({
+                                "reason": "new",
+                                "previousSessionFile": outcome.previous_session_file,
+                                "sessionId": outcome.session_id,
+                            }),
+                        )
+                        .await;
+                        let _ = out_tx.send(response_ok(
+                            id,
+                            "new_session",
+                            Some(json!({ "cancelled": false })),
+                        ));
+                    }
+                    Err(err) => {
+                        let _ = out_tx.send(response_error_with_hints(id, "new_session", &err));
+                    }
                 }
-                rpc_dispatch_session_switch_event(
-                    rpc_extension_manager.clone(),
-                    json!({
-                        "reason": "new",
-                        "previousSessionFile": previous_session_file,
-                        "sessionId": session_id,
-                    }),
-                )
-                .await;
-                let _ = out_tx.send(response_ok(
-                    id,
-                    "new_session",
-                    Some(json!({ "cancelled": false })),
-                ));
             }
 
             "switch_session" => {
@@ -1602,31 +1995,18 @@ pub async fn run(
                     continue;
                 }
 
-                let loaded = crate::session::Session::open(session_path).await;
-                match loaded {
-                    Ok(new_session) => {
-                        let target_session_file = new_session
-                            .path
-                            .as_ref()
-                            .map_or_else(|| session_path.to_string(), |p| p.display().to_string());
-                        let messages = new_session.to_messages_for_current_path();
-                        let session_id = new_session.header.id.clone();
-                        let previous_session_file;
-                        let mut guard = session
-                            .lock(&cx)
-                            .await
-                            .map_err(|err| Error::session(format!("session lock failed: {err}")))?;
-                        {
-                            let mut inner_session =
-                                guard.session.lock(&cx).await.map_err(|err| {
-                                    Error::session(format!("inner session lock failed: {err}"))
-                                })?;
-                            previous_session_file =
-                                inner_session.path.as_ref().map(|p| p.display().to_string());
-                            *inner_session = new_session;
-                        }
-                        guard.agent.replace_messages(messages);
-                        guard.agent.stream_options_mut().session_id = Some(session_id.clone());
+                let outcome = {
+                    let mut guard = session
+                        .lock(&cx)
+                        .await
+                        .map_err(|err| Error::session(format!("session lock failed: {err}")))?;
+                    guard.switch_session(Path::new(session_path)).await
+                };
+                match outcome {
+                    Ok(outcome) => {
+                        let target_session_file = outcome
+                            .target_session_file
+                            .unwrap_or_else(|| session_path.to_string());
                         let mut state = shared_state
                             .lock(&cx)
                             .await
@@ -1634,15 +2014,14 @@ pub async fn run(
                         state.steering.clear();
                         state.follow_up.clear();
                         drop(state);
-                        drop(guard);
 
                         rpc_dispatch_session_switch_event(
                             rpc_extension_manager.clone(),
                             json!({
                                 "reason": "resume",
-                                "previousSessionFile": previous_session_file,
+                                "previousSessionFile": outcome.previous_session_file,
                                 "targetSessionFile": target_session_file,
-                                "sessionId": session_id,
+                                "sessionId": outcome.session_id,
                             }),
                         )
                         .await;
@@ -1667,61 +2046,12 @@ pub async fn run(
 
                 let result: Result<String> =
                     async {
-                        // Phase 1: Snapshot — brief lock to compute ForkPlan + extract metadata.
-                        let (fork_plan, parent_path, session_dir, save_enabled, header_snapshot) = {
-                            let guard = session.lock(&cx).await.map_err(|err| {
-                                Error::session(format!("session lock failed: {err}"))
-                            })?;
-                            let inner = guard.session.lock(&cx).await.map_err(|err| {
-                                Error::session(format!("inner session lock failed: {err}"))
-                            })?;
-                            let plan = inner.plan_fork_from_user_message(entry_id)?;
-                            let parent_path = inner.path.as_ref().map(|p| p.display().to_string());
-                            let session_dir = inner.session_dir.clone();
-                            let header = inner.header.clone();
-                            (plan, parent_path, session_dir, guard.save_enabled(), header)
-                            // Both locks released here.
-                        };
-
-                        // Phase 2: Build new session without holding any lock.
-                        let selected_text = fork_plan.selected_text.clone();
-
-                        let mut new_session = if save_enabled {
-                            crate::session::Session::create_with_dir(session_dir)
-                        } else {
-                            crate::session::Session::in_memory()
-                        };
-                        new_session.header.parent_session = parent_path;
-                        new_session
-                            .header
-                            .provider
-                            .clone_from(&header_snapshot.provider);
-                        new_session
-                            .header
-                            .model_id
-                            .clone_from(&header_snapshot.model_id);
-                        new_session
-                            .header
-                            .thinking_level
-                            .clone_from(&header_snapshot.thinking_level);
-                        new_session.init_from_fork_plan(fork_plan);
-
-                        let messages = new_session.to_messages_for_current_path();
-                        let session_id = new_session.header.id.clone();
-
-                        // Phase 3: Swap — brief lock to install the new session.
-                        {
+                        let selected_text = {
                             let mut guard = session.lock(&cx).await.map_err(|err| {
                                 Error::session(format!("session lock failed: {err}"))
                             })?;
-                            let mut inner = guard.session.lock(&cx).await.map_err(|err| {
-                                Error::session(format!("inner session lock failed: {err}"))
-                            })?;
-                            *inner = new_session;
-                            drop(inner);
-                            guard.agent.replace_messages(messages);
-                            guard.agent.stream_options_mut().session_id = Some(session_id);
-                        }
+                            guard.fork_session(entry_id).await?.selected_text
+                        };
 
                         {
                             let mut state = shared_state.lock(&cx).await.map_err(|err| {
@@ -2062,17 +2392,35 @@ async fn run_prompt_with_retry(
     is_streaming.store(false, Ordering::SeqCst);
 
     if !success {
-        if let Some(err) = final_error {
+        let session_id = current_agent_session_id(&session, &cx).await;
+        if let Some(err) = final_error.clone() {
             let mut payload = json!({
                 "type": "agent_end",
                 "messages": [],
                 "error": err
             });
-            if let Some(hints) = final_error_hints {
+            if let Some(session_id) = session_id.clone() {
+                payload["sessionId"] = Value::String(session_id);
+            }
+            if let Some(hints) = final_error_hints.clone() {
                 payload["errorHints"] = hints;
             }
             let _ = out_tx.send(event(&payload));
         }
+        let mut completion = json!({
+            "type": "prompt_complete",
+            "success": false,
+        });
+        if let Some(session_id) = session_id {
+            completion["sessionId"] = Value::String(session_id);
+        }
+        if let Some(err) = final_error {
+            completion["error"] = Value::String(err);
+        }
+        if let Some(hints) = final_error_hints {
+            completion["errorHints"] = hints;
+        }
+        let _ = out_tx.send(event(&completion));
         return;
     }
 
@@ -2080,8 +2428,17 @@ async fn run_prompt_with_retry(
         .await
         .is_ok_and(|state| state.auto_compaction_enabled);
     if auto_compaction_enabled {
-        maybe_auto_compact(session, options, is_compacting, out_tx).await;
+        maybe_auto_compact(session.clone(), options, is_compacting, out_tx.clone()).await;
     }
+
+    let mut completion = json!({
+        "type": "prompt_complete",
+        "success": true,
+    });
+    if let Some(session_id) = current_agent_session_id(&session, &cx).await {
+        completion["sessionId"] = Value::String(session_id);
+    }
+    let _ = out_tx.send(event(&completion));
 }
 
 async fn run_extension_command(
@@ -2114,6 +2471,9 @@ async fn run_extension_command(
                     "messages": [],
                     "error": err.to_string(),
                 });
+                if let Some(session_id) = current_agent_session_id(&session, &cx).await {
+                    payload["sessionId"] = Value::String(session_id);
+                }
                 payload["errorHints"] = error_hints_value(&err);
                 let _ = out_tx.send(event(&payload));
                 is_streaming.store(false, Ordering::SeqCst);
@@ -2147,6 +2507,9 @@ async fn run_extension_command(
             "messages": [],
             "error": err.to_string(),
         });
+        if let Some(session_id) = current_agent_session_id(&session, &cx).await {
+            payload["sessionId"] = Value::String(session_id);
+        }
         payload["errorHints"] = error_hints_value(&err);
         let _ = out_tx.send(event(&payload));
     }
@@ -2200,6 +2563,47 @@ fn response_error_with_hints(id: Option<String>, command: &str, error: &Error) -
 
 fn event(value: &Value) -> String {
     value.to_string()
+}
+
+async fn prompt_response_data(
+    session_handle: &Arc<Mutex<crate::session::Session>>,
+    shared_state: &Arc<Mutex<RpcSharedState>>,
+    options: &RpcOptions,
+    is_streaming: bool,
+    is_compacting: bool,
+    cx: &AgentCx,
+) -> Result<Value> {
+    let snapshot = {
+        let state = shared_state
+            .lock(cx.cx())
+            .await
+            .map_err(|err| Error::session(format!("state lock failed: {err}")))?;
+        RpcStateSnapshot::from(&*state)
+    };
+    let inner_session = session_handle
+        .lock(cx.cx())
+        .await
+        .map_err(|err| Error::session(format!("inner session lock failed: {err}")))?;
+    let mut data = session_state(
+        &inner_session,
+        options,
+        &snapshot,
+        is_streaming,
+        is_compacting,
+    );
+    if let Some(object) = data.as_object_mut() {
+        object.insert("phase".to_string(), Value::String("accepted".to_string()));
+    }
+    Ok(data)
+}
+
+async fn current_agent_session_id(
+    session: &Arc<Mutex<AgentSession>>,
+    cx: &AgentCx,
+) -> Option<String> {
+    let guard = session.lock(cx.cx()).await.ok()?;
+    let inner = guard.session.lock(cx.cx()).await.ok()?;
+    Some(inner.header.id.clone())
 }
 
 fn rpc_emit_extension_ui_request(
@@ -2912,10 +3316,10 @@ mod retry_tests {
                     "auto_retry_start" => {
                         saw_retry_start = true;
                     }
-                    "auto_retry_end" => {
-                        if value.get("success").and_then(Value::as_bool) == Some(true) {
-                            saw_retry_end_success = true;
-                        }
+                    "auto_retry_end"
+                        if value.get("success").and_then(Value::as_bool) == Some(true) =>
+                    {
+                        saw_retry_end_success = true;
                     }
                     _ => {}
                 }
@@ -3216,6 +3620,67 @@ fn rpc_model_from_entry(entry: &ModelEntry) -> Value {
     })
 }
 
+fn rpc_goal_contract_value(goal: &GoalSpec) -> Value {
+    json!({
+        "id": goal.id,
+        "title": goal.title,
+        "goal": goal.goal,
+        "criteria": goal.criteria.iter().map(|criterion| {
+            json!({
+                "id": criterion.id,
+                "description": criterion.description,
+                "verificationHint": criterion.verification_hint,
+                "required": criterion.required,
+            })
+        }).collect::<Vec<_>>(),
+        "systemId": goal.system_id,
+        "artifactType": goal.artifact_type,
+        "watchdog": {
+            "heartbeatSeconds": goal.watchdog.heartbeat_seconds,
+            "inactivityTimeoutSeconds": goal.watchdog.inactivity_timeout_seconds,
+            "maxRestarts": goal.watchdog.max_restarts,
+            "restartOnInactive": goal.watchdog.restart_on_inactive,
+        },
+        "createdAt": goal.created_at,
+        "updatedAt": goal.updated_at,
+    })
+}
+
+fn rpc_goal_run_value(goal_run: &GoalRunState) -> Value {
+    json!({
+        "goalId": goal_run.goal_id,
+        "sessionId": goal_run.session_id,
+        "status": match goal_run.status {
+            crate::goals::GoalRunStatus::Active => "active",
+            crate::goals::GoalRunStatus::CriteriaMet => "criteria_met",
+            crate::goals::GoalRunStatus::Blocked => "blocked",
+            crate::goals::GoalRunStatus::Failed => "failed",
+            crate::goals::GoalRunStatus::Paused => "paused",
+        },
+        "restartCount": goal_run.restart_count,
+        "lastProgressAt": goal_run.last_progress_at,
+        "criteria": goal_run.criteria.iter().map(|criterion| {
+            json!({
+                "criterionId": criterion.criterion_id,
+                "satisfied": criterion.satisfied,
+                "evidence": criterion.evidence,
+            })
+        }).collect::<Vec<_>>(),
+    })
+}
+
+fn goal_state_payload(session: &crate::session::Session) -> Value {
+    let goal_contract = crate::goals::latest_goal_contract(session)
+        .map_or(Value::Null, |goal| rpc_goal_contract_value(&goal));
+    let goal_run = crate::goals::latest_goal_run_state(session)
+        .map_or(Value::Null, |goal_run| rpc_goal_run_value(&goal_run));
+
+    json!({
+        "goalContract": goal_contract,
+        "goalRun": goal_run,
+    })
+}
+
 fn session_state(
     session: &crate::session::Session,
     options: &RpcOptions,
@@ -3306,6 +3771,9 @@ fn session_state(
         "durabilityMode".to_string(),
         Value::String(session.autosave_durability_mode().as_str().to_string()),
     );
+    if let Value::Object(goal_state) = goal_state_payload(session) {
+        state.extend(goal_state);
+    }
     Value::Object(state)
 }
 
@@ -4381,6 +4849,30 @@ mod tests {
         }
     }
 
+    async fn recv_event_type(
+        out_rx: &Arc<Mutex<Receiver<String>>>,
+        expected_type: &str,
+        label: &str,
+    ) -> Value {
+        let start = Instant::now();
+
+        loop {
+            let line = recv_line(out_rx, label)
+                .await
+                .unwrap_or_else(|err| panic!("{err}"));
+            let value = parse_response(&line);
+
+            if value.get("type").and_then(Value::as_str) == Some(expected_type) {
+                return value;
+            }
+
+            assert!(
+                start.elapsed() <= Duration::from_secs(10),
+                "{label}: timed out waiting for {expected_type}"
+            );
+        }
+    }
+
     async fn send_recv(
         in_tx: &asupersync::channel::mpsc::Sender<String>,
         out_rx: &Arc<Mutex<Receiver<String>>>,
@@ -4640,6 +5132,40 @@ export default function init(pi) {
     fn normalize_command_type_kebab_and_camel_aliases() {
         assert_eq!(normalize_command_type("get-state"), "get_state");
         assert_eq!(normalize_command_type("getState"), "get_state");
+        assert_eq!(
+            normalize_command_type("get-goal-contract"),
+            "get_goal_contract"
+        );
+        assert_eq!(
+            normalize_command_type("getGoalContract"),
+            "get_goal_contract"
+        );
+        assert_eq!(
+            normalize_command_type("set-goal-contract"),
+            "set_goal_contract"
+        );
+        assert_eq!(
+            normalize_command_type("setGoalContract"),
+            "set_goal_contract"
+        );
+        assert_eq!(
+            normalize_command_type("clear-goal-contract"),
+            "clear_goal_contract"
+        );
+        assert_eq!(
+            normalize_command_type("clearGoalContract"),
+            "clear_goal_contract"
+        );
+        assert_eq!(normalize_command_type("update-goal-run"), "update_goal_run");
+        assert_eq!(normalize_command_type("updateGoalRun"), "update_goal_run");
+        assert_eq!(
+            normalize_command_type("update-goal-criterion"),
+            "update_goal_criterion"
+        );
+        assert_eq!(
+            normalize_command_type("updateGoalCriterion"),
+            "update_goal_criterion"
+        );
         assert_eq!(normalize_command_type("set-model"), "set_model");
         assert_eq!(normalize_command_type("setModel"), "set_model");
         assert_eq!(
@@ -4754,6 +5280,86 @@ export default function init(pi) {
     }
 
     #[test]
+    fn rpc_prompt_reports_acceptance_before_messages_snapshot() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let handle = runtime.handle();
+
+        runtime.block_on(async move {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let cwd = temp.path().to_path_buf();
+
+            let mut session = Session::in_memory();
+            session.header.provider = Some("test-provider".to_string());
+            session.header.model_id = Some("test-model".to_string());
+            let agent_session = build_test_agent_session(session);
+
+            let options = build_test_rpc_options(&handle, cwd.join("auth.json"));
+            let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
+            let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+            let out_rx = Arc::new(Mutex::new(out_rx));
+
+            let server =
+                handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
+
+            let prompt = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"1","type":"prompt","message":"hello from desktop"}"#,
+                "prompt(acceptance)",
+            )
+            .await;
+            assert_ok(&prompt, "prompt");
+            assert_eq!(prompt["data"]["phase"], "accepted");
+            assert_eq!(prompt["data"]["isStreaming"], true);
+            let session_id = prompt["data"]["sessionId"]
+                .as_str()
+                .expect("prompt acceptance should include session id")
+                .to_string();
+            assert!(
+                !session_id.is_empty(),
+                "prompt acceptance session id should not be empty"
+            );
+
+            let prompt_complete =
+                recv_event_type(&out_rx, "prompt_complete", "prompt(prompt_complete)").await;
+            assert_eq!(prompt_complete["sessionId"], session_id);
+            assert_eq!(prompt_complete["success"], true);
+            assert!(
+                prompt_complete["error"].is_null() || prompt_complete["error"] == "",
+                "unexpected prompt_complete error: {prompt_complete}"
+            );
+
+            let messages = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"2","type":"get_messages"}"#,
+                "get_messages(after_prompt)",
+            )
+            .await;
+            assert_ok(&messages, "get_messages");
+            assert_eq!(messages["data"]["sessionId"], session_id);
+
+            let entries = messages["data"]["messages"]
+                .as_array()
+                .expect("get_messages should return a messages array");
+            assert!(
+                entries.iter().any(|entry| entry["role"] == "user"),
+                "expected persisted user message after accepted prompt: {entries:?}"
+            );
+            assert!(
+                entries.iter().any(|entry| entry["role"] == "assistant"),
+                "expected persisted assistant message after accepted prompt: {entries:?}"
+            );
+
+            drop(in_tx);
+            let result = server.await;
+            assert!(result.is_ok(), "rpc server error: {result:?}");
+        });
+    }
+
+    #[test]
     fn rpc_busy_extension_command_rejects_follow_on_extension_prompt_without_blocking() {
         let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
             .build()
@@ -4819,6 +5425,286 @@ export default function init(pi) {
             .to_string();
             let ui_resp = send_recv(&in_tx, &out_rx, &response, "wait-confirm response").await;
             assert_ok(&ui_resp, "extension_ui_response");
+
+            drop(in_tx);
+            let result = server.await;
+            assert!(result.is_ok(), "rpc server error: {result:?}");
+        });
+    }
+
+    #[test]
+    fn rpc_set_goal_contract_round_trips_through_state() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let handle = runtime.handle();
+
+        runtime.block_on(async move {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let cwd = temp.path().to_path_buf();
+
+            let agent_session = build_test_agent_session(Session::in_memory());
+            let options = build_test_rpc_options(&handle, cwd.join("auth.json"));
+            let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
+            let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+            let out_rx = Arc::new(Mutex::new(out_rx));
+
+            let server =
+                handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
+
+            let set_goal = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"1","type":"set_goal_contract","goalContract":{"title":"Ship release","goal":"Ship a verified release package","criteria":["All checks pass","Release notes exist"],"watchdog":{"heartbeatSeconds":120,"inactivityTimeoutSeconds":900,"maxRestarts":3,"restartOnInactive":true}}}"#,
+                "set_goal_contract",
+            )
+            .await;
+            assert_ok(&set_goal, "set_goal_contract");
+            assert_eq!(set_goal["data"]["goalContract"]["title"], "Ship release");
+            assert_eq!(set_goal["data"]["goalRun"]["status"], "active");
+
+            let state = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"2","type":"get_state"}"#,
+                "get_state(after_goal)",
+            )
+            .await;
+            assert_ok(&state, "get_state");
+            assert_eq!(
+                state["data"]["goalContract"]["goal"],
+                "Ship a verified release package"
+            );
+            assert_eq!(
+                state["data"]["goalRun"]["criteria"][1]["criterionId"],
+                "criterion_2"
+            );
+
+            let goal_state = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"3","type":"get_goal_contract"}"#,
+                "get_goal_contract",
+            )
+            .await;
+            assert_ok(&goal_state, "get_goal_contract");
+            assert_eq!(goal_state["data"]["goalContract"]["watchdog"]["maxRestarts"], 3);
+
+            drop(in_tx);
+            let result = server.await;
+            assert!(result.is_ok(), "rpc server error: {result:?}");
+        });
+    }
+
+    #[test]
+    fn rpc_goal_lifecycle_updates_and_clears_state() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let handle = runtime.handle();
+
+        runtime.block_on(async move {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let cwd = temp.path().to_path_buf();
+
+            let agent_session = build_test_agent_session(Session::in_memory());
+            let options = build_test_rpc_options(&handle, cwd.join("auth.json"));
+            let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
+            let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+            let out_rx = Arc::new(Mutex::new(out_rx));
+
+            let server =
+                handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
+
+            let set_goal = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"1","type":"set_goal_contract","goalContract":{"goal":"Ship a verified release package","criteria":["All checks pass","Release notes exist"]}}"#,
+                "set_goal_contract",
+            )
+            .await;
+            assert_ok(&set_goal, "set_goal_contract");
+
+            let pause = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"2","type":"update_goal_run","goalRun":{"action":"pause"}}"#,
+                "update_goal_run(pause)",
+            )
+            .await;
+            assert_ok(&pause, "update_goal_run");
+            assert_eq!(pause["data"]["goalRun"]["status"], "paused");
+
+            let resume = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"3","type":"update_goal_run","goalRun":{"action":"resume"}}"#,
+                "update_goal_run(resume)",
+            )
+            .await;
+            assert_ok(&resume, "update_goal_run");
+            assert_eq!(resume["data"]["goalRun"]["status"], "active");
+
+            let complete = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"4","type":"update_goal_run","goalRun":{"action":"complete","evidence":"Verified by desktop operator"}}"#,
+                "update_goal_run(complete)",
+            )
+            .await;
+            assert_ok(&complete, "update_goal_run");
+            assert_eq!(complete["data"]["goalRun"]["status"], "criteria_met");
+            assert_eq!(complete["data"]["goalRun"]["criteria"][0]["satisfied"], true);
+            assert_eq!(
+                complete["data"]["goalRun"]["criteria"][0]["evidence"],
+                "Verified by desktop operator"
+            );
+
+            let cleared = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"5","type":"clear_goal_contract"}"#,
+                "clear_goal_contract",
+            )
+            .await;
+            assert_ok(&cleared, "clear_goal_contract");
+            assert!(cleared["data"]["goalContract"].is_null());
+            assert!(cleared["data"]["goalRun"].is_null());
+
+            let state = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"6","type":"get_state"}"#,
+                "get_state(after_clear)",
+            )
+            .await;
+            assert_ok(&state, "get_state");
+            assert!(state["data"]["goalContract"].is_null());
+            assert!(state["data"]["goalRun"].is_null());
+
+            drop(in_tx);
+            let result = server.await;
+            assert!(result.is_ok(), "rpc server error: {result:?}");
+        });
+    }
+
+    #[test]
+    fn rpc_goal_criterion_update_marks_individual_progress() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let handle = runtime.handle();
+
+        runtime.block_on(async move {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let cwd = temp.path().to_path_buf();
+
+            let agent_session = build_test_agent_session(Session::in_memory());
+            let options = build_test_rpc_options(&handle, cwd.join("auth.json"));
+            let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
+            let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+            let out_rx = Arc::new(Mutex::new(out_rx));
+
+            let server =
+                handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
+
+            let set_goal = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"1","type":"set_goal_contract","goalContract":{"goal":"Ship a verified release package","criteria":["All checks pass","Release notes exist"]}}"#,
+                "set_goal_contract",
+            )
+            .await;
+            assert_ok(&set_goal, "set_goal_contract");
+
+            let criterion = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"2","type":"update_goal_criterion","goalCriterion":{"criterionId":"criterion_1","satisfied":true,"evidence":"CI is green"}}"#,
+                "update_goal_criterion",
+            )
+            .await;
+            assert_ok(&criterion, "update_goal_criterion");
+            assert_eq!(criterion["data"]["goalRun"]["status"], "active");
+            assert_eq!(criterion["data"]["goalRun"]["criteria"][0]["satisfied"], true);
+            assert_eq!(criterion["data"]["goalRun"]["criteria"][0]["evidence"], "CI is green");
+            assert_eq!(criterion["data"]["goalRun"]["criteria"][1]["satisfied"], false);
+
+            drop(in_tx);
+            let result = server.await;
+            assert!(result.is_ok(), "rpc server error: {result:?}");
+        });
+    }
+
+    #[test]
+    fn rpc_get_state_blocks_overdue_goal_when_restart_is_disabled() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let handle = runtime.handle();
+
+        runtime.block_on(async move {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let cwd = temp.path().to_path_buf();
+
+            let goal = GoalSpec {
+                goal: "Ship a verified release package".to_string(),
+                criteria: vec![SuccessCriterion {
+                    id: "criterion_1".to_string(),
+                    description: "All checks pass".to_string(),
+                    verification_hint: None,
+                    required: true,
+                }],
+                watchdog: GoalWatchdog {
+                    inactivity_timeout_seconds: 1,
+                    restart_on_inactive: false,
+                    ..GoalWatchdog::default()
+                },
+                ..GoalSpec::default()
+            };
+            let mut seeded_session = Session::in_memory();
+            let old_goal_run = GoalRunState {
+                last_progress_at: (chrono::Utc::now() - chrono::Duration::seconds(120))
+                    .to_rfc3339(),
+                ..GoalRunState::new(&goal, Some(seeded_session.header.id.clone()))
+            };
+            assert!(crate::goals::persist_goal_contract(
+                &mut seeded_session,
+                &goal
+            ));
+            assert!(crate::goals::persist_goal_run_snapshot(
+                &mut seeded_session,
+                &old_goal_run
+            ));
+
+            let agent_session = build_test_agent_session(seeded_session);
+            let options = build_test_rpc_options(&handle, cwd.join("auth.json"));
+            let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
+            let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+            let out_rx = Arc::new(Mutex::new(out_rx));
+
+            let server =
+                handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
+
+            let state = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"1","type":"get_state"}"#,
+                "get_state(overdue_goal)",
+            )
+            .await;
+            assert_ok(&state, "get_state");
+            assert_eq!(state["data"]["goalRun"]["status"], "blocked");
+
+            let goal_state = send_recv(
+                &in_tx,
+                &out_rx,
+                r#"{"id":"2","type":"get_goal_contract"}"#,
+                "get_goal_contract(overdue_goal)",
+            )
+            .await;
+            assert_ok(&goal_state, "get_goal_contract");
+            assert_eq!(goal_state["data"]["goalRun"]["status"], "blocked");
 
             drop(in_tx);
             let result = server.await;
@@ -5606,6 +6492,60 @@ export default function init(pi) {
         let state = session_state(&session, &options, &snapshot, false, false);
         assert_eq!(state["model"]["provider"], "openrouter");
         assert_eq!(state["model"]["id"], "gpt-4o-mini");
+    }
+
+    #[test]
+    fn session_state_includes_goal_contract_payload_when_present() {
+        let options = rpc_options_with_models(Vec::new());
+        let mut session = Session::in_memory();
+        let goal = GoalSpec {
+            title: "Ship release".to_string(),
+            goal: "Ship a verified release package".to_string(),
+            criteria: vec![SuccessCriterion {
+                id: "criterion_1".to_string(),
+                description: "All checks pass".to_string(),
+                verification_hint: Some("Run the release pipeline".to_string()),
+                required: true,
+            }],
+            ..GoalSpec::default()
+        };
+        crate::goals::persist_goal_contract(&mut session, &goal);
+        crate::goals::persist_goal_run_state(&mut session, &goal);
+
+        let snapshot = RpcStateSnapshot {
+            steering_count: 0,
+            follow_up_count: 0,
+            steering_mode: QueueMode::OneAtATime,
+            follow_up_mode: QueueMode::OneAtATime,
+            auto_compaction_enabled: false,
+            auto_retry_enabled: false,
+        };
+
+        let state = session_state(&session, &options, &snapshot, false, false);
+        assert_eq!(state["goalContract"]["title"], "Ship release");
+        assert_eq!(
+            state["goalRun"]["criteria"][0]["criterionId"],
+            "criterion_1"
+        );
+    }
+
+    #[test]
+    fn rpc_agent_end_handler_keeps_session_id() {
+        let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build test runtime");
+        let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
+        let handler = rpc_agent_event_handler(out_tx, runtime.handle(), None);
+        handler(AgentEvent::AgentEnd {
+            session_id: Arc::<str>::from("sess-123"),
+            messages: Vec::new(),
+            error: None,
+        });
+
+        let value: Value =
+            serde_json::from_str(&out_rx.recv().expect("handler output")).expect("json");
+        assert_eq!(value["type"], "agent_end");
+        assert_eq!(value["sessionId"], "sess-123");
     }
 
     // -----------------------------------------------------------------------

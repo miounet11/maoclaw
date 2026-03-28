@@ -499,10 +499,8 @@ fn build_meta_from_jsonl(path: &Path) -> Result<SessionMeta> {
         if let Ok(entry) = serde_json::from_str::<PartialEntry>(&line) {
             match entry.r#type.as_str() {
                 "message" => message_count += 1,
-                "session_info" => {
-                    if entry.name.is_some() {
-                        name = entry.name;
-                    }
+                "session_info" if entry.name.is_some() => {
+                    name = entry.name;
                 }
                 _ => {}
             }
@@ -559,10 +557,8 @@ where
     for entry in entries {
         match entry.borrow() {
             SessionEntry::Message(_) => message_count += 1,
-            SessionEntry::SessionInfo(info) => {
-                if info.name.is_some() {
-                    name.clone_from(&info.name);
-                }
+            SessionEntry::SessionInfo(info) if info.name.is_some() => {
+                name.clone_from(&info.name);
             }
             _ => {}
         }

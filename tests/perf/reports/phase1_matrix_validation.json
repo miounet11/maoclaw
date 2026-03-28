@@ -1,0 +1,172 @@
+{
+  "schema": "pi.perf.phase1_matrix_validation.v1",
+  "run_id": "20260216T041030Z",
+  "correlation_id": "bd-3ar8v.3.8-20260216T041030Z",
+  "matrix_requirements": {
+    "required_partition_tags": [
+      "matched-state",
+      "realistic"
+    ],
+    "required_session_message_sizes": [
+      100000
+    ],
+    "required_cell_count": 2
+  },
+  "matrix_cells": [
+    {
+      "workload_partition": "matched-state",
+      "session_messages": 100000,
+      "scenario_id": "matched-state/session_100000",
+      "status": "pass",
+      "missing_reasons": [],
+      "stage_attribution": {
+        "open_ms": 48.0,
+        "append_ms": 36.0,
+        "save_ms": 22.0,
+        "index_ms": 11.0,
+        "total_stage_ms": 117.0
+      },
+      "primary_e2e": {
+        "wall_clock_ms": 1200.0,
+        "rust_vs_node_ratio": 2.2,
+        "rust_vs_bun_ratio": 2.2
+      },
+      "microbench_context": {
+        "cold_load_ms": 18.0,
+        "per_call_us": 33.0
+      },
+      "lineage": {
+        "source_record_index": 2,
+        "source_artifacts": [
+          "target/perf/scenario_runner.jsonl"
+        ]
+      }
+    },
+    {
+      "workload_partition": "realistic",
+      "session_messages": 100000,
+      "scenario_id": "realistic/session_100000",
+      "status": "pass",
+      "missing_reasons": [],
+      "stage_attribution": {
+        "open_ms": 44.0,
+        "append_ms": 32.0,
+        "save_ms": 19.0,
+        "index_ms": 10.0,
+        "total_stage_ms": 105.0
+      },
+      "primary_e2e": {
+        "wall_clock_ms": 1200.0,
+        "rust_vs_node_ratio": 2.2,
+        "rust_vs_bun_ratio": 2.2
+      },
+      "microbench_context": {
+        "cold_load_ms": 18.0,
+        "per_call_us": 33.0
+      },
+      "lineage": {
+        "source_record_index": 7,
+        "source_artifacts": [
+          "target/perf/scenario_runner.jsonl"
+        ]
+      }
+    }
+  ],
+  "stage_summary": {
+    "required_stage_keys": [
+      "open_ms",
+      "append_ms",
+      "save_ms",
+      "index_ms"
+    ],
+    "operation_stage_coverage": {
+      "open_ms": 2,
+      "append_ms": 2,
+      "save_ms": 2,
+      "index_ms": 2
+    },
+    "cells_with_complete_stage_breakdown": 2,
+    "cells_missing_stage_breakdown": 0,
+    "covered_cells": 2,
+    "missing_cells": []
+  },
+  "weighted_bottleneck_attribution": {
+    "schema": "pi.perf.phase1_weighted_bottleneck_attribution.v1",
+    "status": "missing",
+    "weighting_policy": "session_messages",
+    "confidence_method": "weighted_normal_approx_95",
+    "per_scale": [],
+    "global_ranking": [],
+    "lineage": {
+      "source_stream": "phase1_matrix_validation.matrix_cells",
+      "source_cell_count": 2,
+      "valid_cell_count": 0
+    }
+  },
+  "primary_outcomes": {
+    "status": "pass",
+    "wall_clock_ms": 1200.0,
+    "rust_vs_node_ratio": 2.2,
+    "rust_vs_bun_ratio": 2.2,
+    "ordering_policy": "primary_e2e_before_microbench"
+  },
+  "regression_guards": {
+    "memory": "pass",
+    "correctness": "pass",
+    "security": "pass",
+    "failure_or_gap_reasons": [
+      "phase1_matrix_not_ready_for_phase5"
+    ]
+  },
+  "evidence_links": {
+    "phase1_unit_and_fault_injection": {
+      "suite_logs": {},
+      "fault_injection_script": "scripts/e2e/run_persistence_fault_injection.sh",
+      "fault_injection_summary_path": null
+    },
+    "required_artifacts": {
+      "scenario_runner": "target/perf/scenario_runner.jsonl",
+      "stratification": "target/perf/extension_benchmark_stratification.json",
+      "baseline_variance_confidence": "target/perf/baseline_variance_confidence.json"
+    },
+    "source_identity": {
+      "run_id": "20260216T041030Z",
+      "correlation_id": "bd-3ar8v.3.8-20260216T041030Z"
+    }
+  },
+  "consumption_contract": {
+    "downstream_beads": [
+      "bd-3ar8v.2.12",
+      "bd-3ar8v.6.1",
+      "bd-3ar8v.6.2"
+    ],
+    "downstream_consumers": {
+      "opportunity_matrix": {
+        "bead_id": "bd-3ar8v.6.1",
+        "selector": "weighted_bottleneck_attribution.global_ranking",
+        "source_artifact": "phase1_matrix_validation"
+      },
+      "parameter_sweeps": {
+        "bead_id": "bd-3ar8v.6.2",
+        "selector": "weighted_bottleneck_attribution.per_scale",
+        "source_artifact": "phase1_matrix_validation"
+      }
+    },
+    "artifact_ready_for_phase5": false,
+    "fail_closed_conditions": [
+      "missing_stage_metrics",
+      "phase1_matrix_not_ready_for_phase5"
+    ]
+  },
+  "lineage": {
+    "run_id_lineage": [
+      "20260216T041030Z",
+      "bd-3ar8v.3.8-20260216T041030Z"
+    ],
+    "source_manifest_path": "target/perf/runs/20260216T041030Z/manifest.json",
+    "source_scenario_runner_path": "target/perf/scenario_runner.jsonl",
+    "source_stratification_path": "target/perf/extension_benchmark_stratification.json",
+    "source_baseline_confidence_path": "target/perf/baseline_variance_confidence.json",
+    "source_perf_sli_contract_path": "docs/perf_sli_matrix.json"
+  }
+}

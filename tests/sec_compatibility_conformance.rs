@@ -711,8 +711,8 @@ fn waiver_gate_ids_must_be_well_formed() {
     let example_waiver = toml::toml! {
         [waiver.sec_conformance]
         owner = "security-team"
-        created = "2026-02-14"
-        expires = "2026-03-14"
+        created = "2026-03-01"
+        expires = "2027-03-01"
         bead = "bd-1a2cu"
         reason = "Known incompatibility with legacy extension X during migration"
         scope = "full"

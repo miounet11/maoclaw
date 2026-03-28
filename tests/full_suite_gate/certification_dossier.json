@@ -1,6 +1,6 @@
 {
   "schema": "pi.qa.certification_dossier.v1",
-  "generated_at": "2026-03-03T22:07:40.218Z",
+  "generated_at": "2026-03-17T01:22:51.595Z",
   "bead": "bd-1f42.8.10",
   "verdict": "pass_with_residuals",
   "closure_questions": {
@@ -34,7 +34,7 @@
       ],
       "quantified_residuals": [
         "1 waived workflow (live provider parity, requires credentials)",
-        "2 CI gate failure (cross_platform), 0 skipped (missing conformance artifacts)",
+        "3 CI gate failure (cross_platform), 1 skipped (missing conformance artifacts)",
         "Evidence bundle only generated during full E2E runs"
       ]
     }
@@ -44,7 +44,7 @@
     "vcr_files": 125,
     "e2e_files": 34,
     "total_classified": 252,
-    "total_test_files": 264,
+    "total_test_files": 263,
     "quarantined": 0,
     "active_waivers": 0
   },
@@ -64,11 +64,11 @@
   },
   "ci_gate_status": {
     "total_gates": 20,
-    "passed": 18,
-    "failed": 2,
-    "skipped": 0,
-    "blocking_pass": 13,
-    "blocking_total": 14
+    "passed": 16,
+    "failed": 3,
+    "skipped": 1,
+    "blocking_pass": 11,
+    "blocking_total": 13
   },
   "opportunity_matrix_contract": {
     "schema_expected": "pi.perf.opportunity_matrix.v1",

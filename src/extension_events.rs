@@ -511,6 +511,24 @@ mod tests {
                     value.get("sessionId").is_some(),
                     "AgentStart event should have 'sessionId' field"
                 );
+            } else if expected == "session_before_switch" {
+                assert!(
+                    value.get("currentSession").is_some(),
+                    "SessionBeforeSwitch event should have 'currentSession' field"
+                );
+                assert!(
+                    value.get("targetSession").is_some(),
+                    "SessionBeforeSwitch event should have 'targetSession' field"
+                );
+            } else if expected == "session_before_fork" {
+                assert!(
+                    value.get("currentSession").is_some(),
+                    "SessionBeforeFork event should have 'currentSession' field"
+                );
+                assert!(
+                    value.get("forkEntryId").is_some(),
+                    "SessionBeforeFork event should have 'forkEntryId' field"
+                );
             } else if expected == "turn_end" {
                 assert!(
                     value.get("toolResults").is_some(),

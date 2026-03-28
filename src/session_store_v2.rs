@@ -1424,7 +1424,6 @@ fn is_recoverable_index_error(error: &Error) -> bool {
                 || lower.contains("payload integrity mismatch")
                 || lower.contains("entry sequence is not strictly increasing")
                 || lower.contains("index byte range overflow")
-                || lower.contains("failed to stat active segment")
         }
         _ => false,
     }
@@ -1839,7 +1838,7 @@ mod proptests {
     }
 
     #[test]
-    fn create_recovers_from_index_row_that_references_missing_segment() {
+    fn create_fails_if_index_row_references_missing_active_segment() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = tmp.path().join("store");
         let mut store = SessionStoreV2::create(&root, 4096).expect("create store");
@@ -1853,13 +1852,13 @@ mod proptests {
         write_jsonl_lines(&store.index_file_path(), &rows).expect("write corrupted index");
         drop(store);
 
-        let reopened = SessionStoreV2::create(&root, 4096).expect("reopen store");
-        assert_eq!(reopened.entry_count(), 1);
-
-        let rebuilt_rows = reopened.read_index().expect("read rebuilt index");
-        assert_eq!(rebuilt_rows.len(), 1);
-        assert_eq!(rebuilt_rows[0].segment_seq, 1);
-        assert!(reopened.lookup_entry(1).expect("lookup entry").is_some());
+        let err =
+            SessionStoreV2::create(&root, 4096).expect_err("missing active segment must fail");
+        let message = err.to_string();
+        assert!(
+            message.contains("failed to stat active segment"),
+            "expected missing active segment error, got: {message}"
+        );
     }
 
     #[test]

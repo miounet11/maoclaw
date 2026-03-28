@@ -101,9 +101,21 @@ Some terminals reserve key combos (especially on Windows):
 If a shortcut doesn’t trigger, try a different terminal or remap the key.
 Interactive editor parity (autocomplete/bang/paste) is tracked by **bd-1iwi**.
 
+## macOS launch behavior
+
+**Symptom:** double-clicking `~/.local/bin/pi` appears to do nothing.
+
+**Cause:** that file is the terminal binary, not a macOS `.app` bundle.
+
+**Fixes:**
+- Run `pi` from Terminal.
+- Or double-click `~/Applications/Pi.command`, which the installer creates on macOS.
+- If the launcher is missing, rerun `install.sh` and it will recreate it.
+
 ## Missing system dependencies
 
-The `find` tool requires `fd`:
+Pi falls back to a built-in walker when `fd` is unavailable, but `fd`/`fdfind`
+is still recommended for faster `find` tool and autocomplete scans:
 ```bash
 # Ubuntu/Debian
 apt install fd-find

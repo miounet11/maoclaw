@@ -452,7 +452,9 @@ impl PiApp {
             return;
         }
 
-        if let Err(message) = self.switch_active_model(&next, provider_impl, resolved_key_opt) {
+        if let Err(message) =
+            self.switch_active_model(&next, provider_impl, resolved_key_opt.as_deref())
+        {
             self.status_message = Some(message);
             return;
         }
@@ -1198,6 +1200,33 @@ mod tests {
             Some("off"),
             "session thinking level should clamp alongside the active model"
         );
+    }
+
+    #[test]
+    fn slash_thinking_clamps_for_non_reasoning_active_model() {
+        let mut current = model_entry("ollama", "llama3.2", None, HashMap::new());
+        current.auth_header = false;
+        current.model.reasoning = false;
+        let mut app = build_test_app(current.clone(), vec![current]);
+
+        let _ = app.handle_slash_thinking("high");
+
+        let mut agent_guard = app.agent.try_lock().expect("agent lock");
+        assert_eq!(
+            agent_guard.stream_options_mut().thinking_level,
+            Some(crate::model::ThinkingLevel::Off)
+        );
+        drop(agent_guard);
+
+        let session_guard = app.session.try_lock().expect("session lock");
+        assert_eq!(
+            session_guard.header.thinking_level.as_deref(),
+            Some("off"),
+            "slash /thinking should clamp impossible levels for the active model"
+        );
+        drop(session_guard);
+
+        assert_eq!(app.status_message.as_deref(), Some("Thinking level: off"));
     }
 
     #[test]

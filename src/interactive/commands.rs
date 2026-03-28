@@ -10,6 +10,7 @@ use arboard::Clipboard as ArboardClipboard;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlashCommand {
     Help,
+    Setup,
     Login,
     Logout,
     Clear,
@@ -33,6 +34,25 @@ pub enum SlashCommand {
     Compact,
     Reload,
     Share,
+    // ── V2 ────────────────────────────────────────────────────────────────
+    /// List and switch work systems.
+    Systems,
+    /// System Vault: save/restore/clone/compare snapshots.
+    Vault,
+    /// Show current system's team agents.
+    Agents,
+    /// Show and open result artifacts.
+    Artifacts,
+    /// Start a structured task intake for the active system.
+    Task,
+    /// Manage conversation-entry bindings (Telegram, QQ, Feishu).
+    Bindings,
+    /// Review and control V2 memory partitions.
+    Memory,
+    /// List and manage automations for the active system.
+    Automations,
+    /// Local bridge settings (link to web control plane).
+    Bridge,
 }
 
 impl SlashCommand {
@@ -47,6 +67,7 @@ impl SlashCommand {
 
         let command = match cmd.to_lowercase().as_str() {
             "/help" | "/h" | "/?" => Self::Help,
+            "/setup" | "/provider" => Self::Setup,
             "/login" => Self::Login,
             "/logout" => Self::Logout,
             "/clear" | "/cls" => Self::Clear,
@@ -70,6 +91,16 @@ impl SlashCommand {
             "/compact" => Self::Compact,
             "/reload" => Self::Reload,
             "/share" => Self::Share,
+            // V2 commands
+            "/systems" | "/sys" => Self::Systems,
+            "/vault" | "/v" => Self::Vault,
+            "/agents" => Self::Agents,
+            "/artifacts" | "/art" | "/results" => Self::Artifacts,
+            "/task" => Self::Task,
+            "/bindings" | "/bind" => Self::Bindings,
+            "/memory" | "/mem" => Self::Memory,
+            "/automations" | "/auto" => Self::Automations,
+            "/bridge" => Self::Bridge,
             _ => return None,
         };
 
@@ -80,6 +111,7 @@ impl SlashCommand {
     pub const fn help_text() -> &'static str {
         r"Available commands:
   /help, /h, /?      - Show this help message
+  /setup [provider]  - Open provider setup panel for provider/model/API URL/API key
   /login [provider]  - Login/setup credentials; without provider shows status table
   /logout [provider] - Remove stored credentials
   /clear, /cls       - Clear conversation history
@@ -100,9 +132,20 @@ impl SlashCommand {
   /tree              - Show session branch tree summary
   /fork [id|index]   - Fork from a user message (default: last on current path)
   /compact [notes]   - Compact older context with optional instructions
-  /reload            - Reload skills/prompts from disk
+  /reload            - Reload skills/prompts/themes, refresh model catalog, and hot-reload JS/native extensions
   /share             - Upload session HTML to a secret GitHub gist and show URL
   /exit, /quit, /q   - Exit Pi
+
+  Work systems (V2):
+  /systems, /sys     - List work systems; /sys <id> to switch active
+  /vault, /v [save|list|restore|clone|compare]  - Vault snapshot operations
+  /artifacts, /art [<id> [export]]  - Browse result artifacts; detail/export by id
+  /task [goal]       - Start a structured task intake
+  /memory, /mem      - Show V2 memory partitions for active system
+  /automations, /auto - List automations for active system
+  /agents            - List team agents for active system
+  /bindings, /bind   - Show channel binding status (Telegram, QQ, Feishu)
+  /bridge            - Bridge and web control plane settings
 
   Tips:
     • Use ↑/↓ arrows to navigate input history
@@ -281,8 +324,12 @@ fn format_provider_status(auth: &crate::auth::AuthStorage, provider: &str) -> St
     format_credential_status(&status)
 }
 
-fn collect_extension_oauth_providers(available_models: &[ModelEntry]) -> Vec<String> {
-    let mut providers: Vec<String> = available_models
+fn extension_login_model_entries(extensions: Option<&ExtensionManager>) -> Vec<ModelEntry> {
+    extensions.map_or_else(Vec::new, ExtensionManager::extension_model_entries)
+}
+
+fn collect_extension_oauth_providers(extension_models: &[ModelEntry]) -> Vec<String> {
+    let mut providers: Vec<String> = extension_models
         .iter()
         .filter(|entry| entry.oauth_config.is_some())
         .map(|entry| {
@@ -304,10 +351,10 @@ fn collect_extension_oauth_providers(available_models: &[ModelEntry]) -> Vec<Str
 }
 
 fn extension_oauth_config_for_provider(
-    available_models: &[ModelEntry],
+    extension_models: &[ModelEntry],
     provider: &str,
 ) -> Option<crate::models::OAuthConfig> {
-    available_models.iter().find_map(|entry| {
+    extension_models.iter().find_map(|entry| {
         let model_provider = entry.model.provider.as_str();
         let canonical = crate::provider_metadata::canonical_provider_id(model_provider)
             .unwrap_or(model_provider);
@@ -349,7 +396,7 @@ fn append_provider_rows(output: &mut String, heading: &str, rows: &[(String, Str
 
 pub(super) fn format_login_provider_listing(
     auth: &crate::auth::AuthStorage,
-    available_models: &[ModelEntry],
+    extension_models: &[ModelEntry],
 ) -> String {
     let mut output = String::from("Available login providers:\n\n");
 
@@ -365,7 +412,7 @@ pub(super) fn format_login_provider_listing(
         .collect();
     append_provider_rows(&mut output, "Built-in", &built_in_rows);
 
-    let extension_providers = collect_extension_oauth_providers(available_models);
+    let extension_providers = collect_extension_oauth_providers(extension_models);
     if !extension_providers.is_empty() {
         let extension_rows: Vec<(String, String, String)> = extension_providers
             .iter()
@@ -399,6 +446,10 @@ pub(super) fn format_startup_oauth_hint(auth: &crate::auth::AuthStorage) -> Stri
 }
 
 pub(super) fn should_show_startup_oauth_hint(auth: &crate::auth::AuthStorage) -> bool {
+    if !auth.provider_names().is_empty() {
+        return false;
+    }
+
     let has_any_credential = crate::provider_metadata::PROVIDER_METADATA
         .iter()
         .map(|meta| meta.canonical_id)
@@ -573,6 +624,7 @@ pub(super) fn format_resource_diagnostics(
 fn build_reload_diagnostics(
     models_error: Option<String>,
     resources: &ResourceLoader,
+    extension_error: Option<String>,
 ) -> (Option<String>, usize) {
     let mut sections = Vec::new();
     let mut count = 0usize;
@@ -611,6 +663,11 @@ fn build_reload_diagnostics(
         ));
     }
 
+    if let Some(err) = extension_error {
+        count = count.saturating_add(1);
+        sections.push(format!("Extensions:\n{err}"));
+    }
+
     if sections.is_empty() {
         (None, 0)
     } else {
@@ -621,22 +678,209 @@ fn build_reload_diagnostics(
     }
 }
 
-impl PiApp {
-    pub(super) fn sync_active_provider_credentials(&mut self, changed_provider: &str) {
-        let changed_canonical = normalize_auth_provider_input(changed_provider);
-        let auth = match crate::auth::AuthStorage::load(crate::config::Config::auth_path()) {
-            Ok(auth) => auth,
-            Err(err) => {
-                tracing::warn!(
-                    event = "pi.auth.sync_credentials.load_failed",
-                    provider = %changed_canonical,
-                    error = %err,
-                    "Skipping in-memory credential sync because auth storage could not be loaded"
-                );
-                return;
-            }
-        };
+struct LiveExtensionReloadSpecs {
+    js: Vec<crate::extensions::JsExtensionLoadSpec>,
+    native: Vec<crate::extensions::NativeRustExtensionLoadSpec>,
+}
 
+impl LiveExtensionReloadSpecs {
+    fn target_runtime(&self) -> Option<&'static str> {
+        if !self.js.is_empty() {
+            Some("quickjs")
+        } else if !self.native.is_empty() {
+            Some("native-rust")
+        } else {
+            None
+        }
+    }
+}
+
+fn collect_live_extension_reload_specs(
+    resources: &ResourceLoader,
+) -> Result<LiveExtensionReloadSpecs, String> {
+    let mut js = Vec::new();
+    let mut native = Vec::new();
+    #[cfg(feature = "wasm-host")]
+    let mut saw_wasm_specs = false;
+
+    for entry in resources.extensions() {
+        match crate::extensions::resolve_extension_load_spec(entry) {
+            Ok(crate::extensions::ExtensionLoadSpec::Js(spec)) => js.push(spec),
+            Ok(crate::extensions::ExtensionLoadSpec::NativeRust(spec)) => native.push(spec),
+            #[cfg(feature = "wasm-host")]
+            Ok(crate::extensions::ExtensionLoadSpec::Wasm(_)) => {
+                saw_wasm_specs = true;
+            }
+            Err(err) => {
+                return Err(format!(
+                    "Failed to resolve extension entry {}: {err}",
+                    entry.display()
+                ));
+            }
+        }
+    }
+
+    if !js.is_empty() && !native.is_empty() {
+        return Err(
+            "Mixed extension runtimes are not supported in one live reload. Restart or start a new session after choosing either JS/TS or native-rust extensions."
+                .to_string(),
+        );
+    }
+
+    #[cfg(feature = "wasm-host")]
+    if saw_wasm_specs {
+        return Err(
+            "Interactive /reload does not hot-reload WASM extensions yet; restart or start a new session to apply WASM extension code changes."
+                .to_string(),
+        );
+    }
+
+    Ok(LiveExtensionReloadSpecs { js, native })
+}
+
+fn validate_live_extension_runtime(
+    current_runtime: &str,
+    specs: &LiveExtensionReloadSpecs,
+) -> Result<(), String> {
+    if let Some(target_runtime) = specs.target_runtime()
+        && current_runtime != target_runtime
+    {
+        return Err(format!(
+            "Interactive /reload cannot switch the live extension runtime from {current_runtime} to {target_runtime}; restart or start a new session to apply runtime-kind changes."
+        ));
+    }
+
+    Ok(())
+}
+
+async fn load_live_extension_registrations(
+    manager: &ExtensionManager,
+    current_runtime: &str,
+    specs: LiveExtensionReloadSpecs,
+) -> Result<(), String> {
+    let load_result = if !specs.js.is_empty() {
+        manager.load_js_extensions(specs.js).await
+    } else if !specs.native.is_empty() {
+        manager.load_native_extensions(specs.native).await
+    } else {
+        match current_runtime {
+            "quickjs" => manager.load_js_extensions(Vec::new()).await,
+            "native-rust" => manager.load_native_extensions(Vec::new()).await,
+            other => {
+                return Err(format!(
+                    "Interactive /reload does not support the live extension runtime '{other}'."
+                ));
+            }
+        }
+    };
+
+    load_result.map_err(|err| format!("Extension reload failed: {err}"))
+}
+
+async fn current_session_file(session: &Arc<Mutex<Session>>) -> Result<Option<String>, String> {
+    let cx = Cx::for_request();
+    session
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("reading the current session failed: {err}"))
+        .map(|guard| guard.path.as_ref().map(|path| path.display().to_string()))
+}
+
+async fn replace_live_extension_tools(
+    manager: &ExtensionManager,
+    agent: &Arc<Mutex<Agent>>,
+    cwd: &Path,
+) -> Result<(), String> {
+    let wrappers = crate::extension_tools::collect_extension_tool_wrappers(
+        manager,
+        json!({ "cwd": cwd.display().to_string() }),
+    )
+    .await
+    .map_err(|err| format!("rebuilding live tools failed: {err}"))?;
+
+    let cx = Cx::for_request();
+    agent
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("updating the live agent toolset failed: {err}"))?
+        .replace_extension_tools(wrappers);
+    Ok(())
+}
+
+async fn reload_live_extensions(
+    manager: &ExtensionManager,
+    agent: &Arc<Mutex<Agent>>,
+    session: &Arc<Mutex<Session>>,
+    cwd: &Path,
+    resources: &ResourceLoader,
+) -> (Option<String>, Option<String>) {
+    let Some(runtime) = manager.runtime() else {
+        return (
+            None,
+            Some("Live extension manager is present but no runtime is configured".to_string()),
+        );
+    };
+
+    let specs = match collect_live_extension_reload_specs(resources) {
+        Ok(specs) => specs,
+        Err(err) => return (None, Some(err)),
+    };
+    let current_runtime = runtime.runtime_name();
+    if let Err(err) = validate_live_extension_runtime(current_runtime, &specs) {
+        return (None, Some(err));
+    }
+    if let Err(err) = load_live_extension_registrations(manager, current_runtime, specs).await {
+        return (None, Some(err));
+    }
+
+    let session_path = match current_session_file(session).await {
+        Ok(path) => path,
+        Err(err) => {
+            return (None, Some(format!("Extension reload succeeded, but {err}")));
+        }
+    };
+
+    let startup_hook_error = manager
+        .dispatch_event(
+            ExtensionEventName::Startup,
+            Some(json!({
+                "version": env!("CARGO_PKG_VERSION"),
+                "sessionFile": session_path,
+            })),
+        )
+        .await
+        .err()
+        .map(|err| {
+            tracing::warn!("startup extension hook failed after reload (fail-open): {err}");
+            format!("Extension startup hook failed after reload: {err}")
+        });
+
+    if let Err(err) = replace_live_extension_tools(manager, agent, cwd).await {
+        return (
+            None,
+            Some(format!("Extension registrations reloaded, but {err}")),
+        );
+    }
+
+    let reloaded_count = resources.extensions().len();
+    let extension_status = if reloaded_count == 0 {
+        "cleared live extension registrations".to_string()
+    } else if reloaded_count == 1 {
+        "reloaded 1 live extension".to_string()
+    } else {
+        format!("reloaded {reloaded_count} live extensions")
+    };
+
+    (Some(extension_status), startup_hook_error)
+}
+
+impl PiApp {
+    pub(super) fn sync_active_provider_credentials_from_auth(
+        &mut self,
+        auth: &crate::auth::AuthStorage,
+        changed_provider: &str,
+    ) {
+        let changed_canonical = normalize_auth_provider_input(changed_provider);
         let provider_matches_changed =
             |provider: &str| normalize_auth_provider_input(provider) == changed_canonical;
 
@@ -671,11 +915,47 @@ impl PiApp {
         }
     }
 
+    pub(super) fn refresh_provider_auth_state_from_auth(
+        &mut self,
+        auth: &crate::auth::AuthStorage,
+        changed_provider: &str,
+    ) -> Option<String> {
+        // Update the live runtime first so any ad-hoc current model that gets
+        // reinserted into the catalog reflects the latest credential state.
+        self.sync_active_provider_credentials_from_auth(auth, changed_provider);
+        self.refresh_available_models_from_auth(auth)
+    }
+
+    pub(super) fn refresh_provider_auth_state(
+        &mut self,
+        changed_provider: &str,
+    ) -> Result<Option<String>, String> {
+        let auth = crate::auth::AuthStorage::load(crate::config::Config::auth_path())
+            .map_err(|err| err.to_string())?;
+        Ok(self.refresh_provider_auth_state_from_auth(&auth, changed_provider))
+    }
+
+    pub(super) fn sync_active_provider_credentials(&mut self, changed_provider: &str) {
+        let auth = match crate::auth::AuthStorage::load(crate::config::Config::auth_path()) {
+            Ok(auth) => auth,
+            Err(err) => {
+                tracing::warn!(
+                    event = "pi.auth.sync_credentials.load_failed",
+                    provider = %normalize_auth_provider_input(changed_provider),
+                    error = %err,
+                    "Skipping in-memory credential sync because auth storage could not be loaded"
+                );
+                return;
+            }
+        };
+        self.sync_active_provider_credentials_from_auth(&auth, changed_provider);
+    }
+
     pub(super) fn switch_active_model(
         &mut self,
         next: &ModelEntry,
         provider_impl: std::sync::Arc<dyn crate::provider::Provider>,
-        resolved_key_opt: Option<String>,
+        resolved_key_opt: Option<&str>,
     ) -> Result<(), String> {
         let Ok(mut agent_guard) = self.agent.try_lock() else {
             return Err("Agent busy; try again".to_string());
@@ -690,24 +970,32 @@ impl PiApp {
             .unwrap_or_default();
         let next_thinking = next.clamp_thinking_level(current_thinking);
         let previous_thinking = session_thinking_level(&session_guard);
+        let model_changed = session_guard.header.provider.as_deref()
+            != Some(next.model.provider.as_str())
+            || session_guard.header.model_id.as_deref() != Some(next.model.id.as_str());
+        let thinking_changed = previous_thinking != Some(next_thinking);
 
         agent_guard.set_provider(provider_impl);
         let stream_options = agent_guard.stream_options_mut();
-        stream_options.api_key.clone_from(&resolved_key_opt);
+        stream_options.api_key = resolved_key_opt.map(str::to_string);
         stream_options.headers.clone_from(&next.headers);
         stream_options.thinking_level = Some(next_thinking);
 
         session_guard.header.provider = Some(next.model.provider.clone());
         session_guard.header.model_id = Some(next.model.id.clone());
-        session_guard.append_model_change(next.model.provider.clone(), next.model.id.clone());
+        if model_changed {
+            session_guard.append_model_change(next.model.provider.clone(), next.model.id.clone());
+        }
         session_guard.header.thinking_level = Some(next_thinking.to_string());
-        if previous_thinking != Some(next_thinking) {
+        if thinking_changed {
             session_guard.append_thinking_level_change(next_thinking.to_string());
         }
 
         drop(session_guard);
         drop(agent_guard);
-        self.spawn_save_session();
+        if model_changed || thinking_changed {
+            self.spawn_save_session();
+        }
 
         self.model_entry = next.clone();
         if let Ok(mut guard) = self.model_entry_shared.lock() {
@@ -747,7 +1035,11 @@ impl PiApp {
             let mut auth = match crate::auth::AuthStorage::load_async(auth_path).await {
                 Ok(a) => a,
                 Err(e) => {
-                    let _ = event_tx.try_send(PiMsg::AgentError(e.to_string()));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::AgentError(e.to_string()),
+                    )
+                    .await;
                     return;
                 }
             };
@@ -872,19 +1164,31 @@ impl PiApp {
             let credential = match credential {
                 Ok(c) => c,
                 Err(e) => {
-                    let _ = event_tx.try_send(PiMsg::AgentError(e.to_string()));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::AgentError(e.to_string()),
+                    )
+                    .await;
                     return;
                 }
             };
 
             save_provider_credential(&mut auth, &provider, credential);
             if let Err(e) = auth.save_async().await {
-                let _ = event_tx.try_send(PiMsg::AgentError(e.to_string()));
+                let _ = send_pi_msg_with_backpressure(
+                    &event_tx,
+                    PiMsg::AgentError(e.to_string()),
+                )
+                .await;
                 return;
             }
-            let _ = event_tx.try_send(PiMsg::CredentialUpdated {
-                provider: provider.clone(),
-            });
+            let _ = send_pi_msg_with_backpressure(
+                &event_tx,
+                PiMsg::CredentialUpdated {
+                    provider: provider.clone(),
+                },
+            )
+            .await;
 
             let status = match kind {
                 PendingLoginKind::ApiKey => {
@@ -896,7 +1200,7 @@ impl PiApp {
                     )
                 }
             };
-            let _ = event_tx.try_send(PiMsg::System(status));
+            let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::System(status)).await;
         });
 
         None
@@ -967,28 +1271,41 @@ impl PiApp {
                             if save_enabled {
                                 let _ = session_guard.save().await;
                             }
+                            drop(session_guard);
                         }
 
                         let mut display = display;
                         display.push_str("\n\n[Output excluded from model context]");
-                        let _ = event_tx.try_send(PiMsg::BashResult {
-                            display,
-                            content_for_agent: None,
-                        });
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::BashResult {
+                                display,
+                                content_for_agent: None,
+                            },
+                        )
+                        .await;
                     } else {
                         let content_for_agent =
                             vec![ContentBlock::Text(TextContent::new(display.clone()))];
-                        let _ = event_tx.try_send(PiMsg::BashResult {
-                            display,
-                            content_for_agent: Some(content_for_agent),
-                        });
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::BashResult {
+                                display,
+                                content_for_agent: Some(content_for_agent),
+                            },
+                        )
+                        .await;
                     }
                 }
                 Err(err) => {
-                    let _ = event_tx.try_send(PiMsg::BashResult {
-                        display: format!("Bash command failed: {err}"),
-                        content_for_agent: None,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::BashResult {
+                            display: format!("Bash command failed: {err}"),
+                            content_for_agent: None,
+                        },
+                    )
+                    .await;
                 }
             }
         });
@@ -1146,6 +1463,7 @@ impl PiApp {
                 self.scroll_to_last_match("Available commands:");
                 None
             }
+            SlashCommand::Setup => self.handle_slash_setup(args),
             SlashCommand::Login => self.handle_slash_login(args),
             SlashCommand::Logout => self.handle_slash_logout(args),
             SlashCommand::Clear => {
@@ -1325,133 +1643,128 @@ impl PiApp {
                     return None;
                 }
 
-                let Some(extensions) = self.extensions.clone() else {
-                    let Ok(mut session_guard) = self.session.try_lock() else {
-                        self.status_message = Some("Session busy; try again".to_string());
-                        return None;
-                    };
-                    let session_dir = session_guard.session_dir.clone();
-                    *session_guard = Session::create_with_dir(session_dir);
-                    session_guard.header.provider = Some(self.model_entry.model.provider.clone());
-                    session_guard.header.model_id = Some(self.model_entry.model.id.clone());
-                    session_guard.header.thinking_level = Some(ThinkingLevel::Off.to_string());
-                    drop(session_guard);
-
-                    if let Ok(mut agent_guard) = self.agent.try_lock() {
-                        agent_guard.replace_messages(Vec::new());
-                        agent_guard.stream_options_mut().thinking_level = Some(ThinkingLevel::Off);
-                    }
-
-                    self.messages.clear();
-                    self.message_render_cache.clear();
-                    self.total_usage = Usage::default();
-                    self.current_response.clear();
-                    self.current_thinking.clear();
-                    self.current_tool = None;
-                    self.pending_tool_output = None;
-                    self.abort_handle = None;
-                    self.pending_oauth = None;
-                    self.session_picker = None;
-                    self.tree_ui = None;
-                    self.autocomplete.close();
-                    self.message_render_cache.clear();
-
-                    self.status_message = Some(format!(
-                        "Started new session\nModel set to {}\nThinking level: off",
-                        self.model
-                    ));
-                    self.scroll_to_bottom();
-                    self.input.focus();
-                    return None;
-                };
-
-                let model_provider = self.model_entry.model.provider.clone();
-                let model_id = self.model_entry.model.id.clone();
+                let active_model_entry = self.model_entry.clone();
                 let model_label = self.model.clone();
+                let available_models_shared = self.available_models_shared.clone();
+                let model_entry_shared = self.model_entry_shared.clone();
                 let event_tx = self.event_tx.clone();
                 let session = Arc::clone(&self.session);
                 let agent = Arc::clone(&self.agent);
+                let extensions = self.extensions.clone();
                 let runtime_handle = self.runtime_handle.clone();
-
-                let previous_session_file = self
-                    .session
-                    .try_lock()
-                    .ok()
-                    .and_then(|guard| guard.path.as_ref().map(|p| p.display().to_string()));
+                let save_enabled = self.save_enabled;
 
                 self.agent_state = AgentState::Processing;
                 self.status_message = Some("Starting new session...".to_string());
+                self.pending_tool_output = None;
+                self.pending_oauth = None;
+                self.session_picker = None;
+                self.tree_ui = None;
+                self.autocomplete.close();
 
                 runtime_handle.spawn(async move {
                     let cx = Cx::for_request();
 
-                    let cancelled = extensions
-                        .dispatch_cancellable_event(
-                            ExtensionEventName::SessionBeforeSwitch,
-                            Some(json!({ "reason": "new" })),
-                            EXTENSION_EVENT_TIMEOUT_MS,
-                        )
-                        .await
-                        .unwrap_or(false);
-                    if cancelled {
-                        let _ = event_tx.try_send(PiMsg::System(
-                            "Session switch cancelled by extension".to_string(),
-                        ));
-                        return;
+                    if let Some(manager) = extensions.clone() {
+                        let cancelled = manager
+                            .dispatch_cancellable_event(
+                                ExtensionEventName::SessionBeforeSwitch,
+                                Some(json!({ "reason": "new" })),
+                                EXTENSION_EVENT_TIMEOUT_MS,
+                            )
+                            .await
+                            .unwrap_or(false);
+                        if cancelled {
+                            let _ = send_pi_msg_with_backpressure(
+                                &event_tx,
+                                PiMsg::System("Session switch cancelled by extension".to_string()),
+                            )
+                            .await;
+                            return;
+                        }
                     }
 
-                    let new_session_id = {
-                        let mut guard = match session.lock(&cx).await {
-                            Ok(guard) => guard,
+                    let outcome = {
+                        let (session_dir, store_kind) = match session.lock(&cx).await {
+                            Ok(guard) => (guard.session_dir.clone(), guard.store_kind()),
                             Err(err) => {
-                                let _ = event_tx.try_send(PiMsg::AgentError(format!(
-                                    "Failed to lock session: {err}"
-                                )));
+                                let _ = send_pi_msg_with_backpressure(
+                                    &event_tx,
+                                    PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                                )
+                                .await;
                                 return;
                             }
                         };
-                        let session_dir = guard.session_dir.clone();
-                        let mut new_session = Session::create_with_dir(session_dir);
-                        new_session.header.provider = Some(model_provider);
-                        new_session.header.model_id = Some(model_id);
+                        let mut new_session = if save_enabled {
+                            Session::create_with_dir_and_store(session_dir, store_kind)
+                        } else {
+                            Session::in_memory()
+                        };
+                        new_session.header.provider = Some(active_model_entry.model.provider.clone());
+                        new_session.header.model_id = Some(active_model_entry.model.id.clone());
                         new_session.header.thinking_level = Some(ThinkingLevel::Off.to_string());
-                        let new_id = new_session.header.id.clone();
-                        *guard = new_session;
-                        new_id
+                        let available_models = available_models_shared
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .clone();
+                        match install_interactive_session(
+                            InteractiveSessionInstallContext {
+                                session: &session,
+                                agent: &agent,
+                                available_models: &available_models,
+                                preferred_model_entry: Some(active_model_entry.clone()),
+                                reuse_active_runtime: true,
+                                model_entry_shared: &model_entry_shared,
+                                extensions: extensions.as_ref(),
+                            },
+                            new_session,
+                        )
+                        .await {
+                            Ok(outcome) => outcome,
+                            Err(err) => {
+                                let _ =
+                                    send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err))
+                                        .await;
+                                return;
+                            }
+                        }
                     };
 
-                    {
-                        let mut agent_guard = match agent.lock(&cx).await {
-                            Ok(guard) => guard,
-                            Err(err) => {
-                                let _ = event_tx.try_send(PiMsg::AgentError(format!(
-                                    "Failed to lock agent: {err}"
-                                )));
-                                return;
-                            }
-                        };
-                        agent_guard.replace_messages(Vec::new());
-                        agent_guard.stream_options_mut().thinking_level = Some(ThinkingLevel::Off);
+                    let (messages, usage) = match snapshot_conversation_state(&session).await {
+                        Ok(snapshot) => snapshot,
+                        Err(err) => {
+                            let _ =
+                                send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err))
+                                    .await;
+                            return;
+                        }
+                    };
+
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ConversationReset {
+                            messages,
+                            usage,
+                            status: Some(format!(
+                                "Started new session\nModel set to {model_label}\nThinking level: off"
+                            )),
+                        },
+                    )
+                    .await;
+
+                    if let Some(manager) = extensions {
+                        let _ = manager
+                            .dispatch_event(
+                                ExtensionEventName::SessionSwitch,
+                                Some(json!({
+                                    "reason": "new",
+                                    "previousSessionFile": outcome.session_swap.previous_session_file,
+                                    "sessionId": outcome.session_swap.session_id,
+                                })),
+                            )
+                            .await;
                     }
-
-                    let _ = event_tx.try_send(PiMsg::ConversationReset {
-                        messages: Vec::new(),
-                        usage: Usage::default(),
-                        status: Some(format!(
-                            "Started new session\nModel set to {model_label}\nThinking level: off"
-                        )),
-                    });
-
-                    let _ = extensions
-                        .dispatch_event(
-                            ExtensionEventName::SessionSwitch,
-                            Some(json!({
-                                "reason": "new",
-                                "previousSessionFile": previous_session_file,
-                                "sessionId": new_session_id,
-                            })),
-                        )
-                        .await;
                 });
 
                 None
@@ -1608,7 +1921,32 @@ impl PiApp {
             SlashCommand::Compact => self.handle_slash_compact(args),
             SlashCommand::Reload => self.handle_slash_reload(),
             SlashCommand::Share => self.handle_slash_share(args),
+            // V2
+            SlashCommand::Systems => self.handle_slash_systems(args),
+            SlashCommand::Vault => self.handle_slash_vault(args),
+            SlashCommand::Agents => self.handle_slash_agents(args),
+            SlashCommand::Artifacts => self.handle_slash_artifacts(args),
+            SlashCommand::Task => self.handle_slash_task(args),
+            SlashCommand::Bindings => self.handle_slash_bindings(args),
+            SlashCommand::Memory => self.handle_slash_memory(args),
+            SlashCommand::Automations => self.handle_slash_automations(args),
+            SlashCommand::Bridge => self.handle_slash_bridge(args),
         }
+    }
+
+    pub(super) fn handle_slash_setup(&mut self, args: &str) -> Option<Cmd> {
+        if self.agent_state != AgentState::Idle {
+            self.status_message = Some("Cannot open setup while processing".to_string());
+            return None;
+        }
+
+        let provider = args
+            .split_whitespace()
+            .next()
+            .map(str::trim)
+            .filter(|value| !value.is_empty());
+        self.open_provider_setup_overlay(provider);
+        None
     }
 
     #[allow(clippy::too_many_lines)]
@@ -1623,7 +1961,8 @@ impl PiApp {
             let auth_path = crate::config::Config::auth_path();
             match crate::auth::AuthStorage::load(auth_path) {
                 Ok(auth) => {
-                    let listing = format_login_provider_listing(&auth, &self.available_models);
+                    let extension_models = extension_login_model_entries(self.extensions.as_ref());
+                    let listing = format_login_provider_listing(&auth, &extension_models);
                     self.messages.push(ConversationMessage {
                         role: MessageRole::System,
                         content: listing,
@@ -1733,7 +2072,8 @@ After approving access in the browser, press Enter in Pi to complete login.",
             crate::auth::start_gitlab_oauth(&gitlab_config).map(|info| (info, None))
         } else {
             // Check extension providers for OAuth config.
-            let ext_oauth = extension_oauth_config_for_provider(&self.available_models, &provider);
+            let extension_models = extension_login_model_entries(self.extensions.as_ref());
+            let ext_oauth = extension_oauth_config_for_provider(&extension_models, &provider);
             if let Some(config) = ext_oauth {
                 crate::auth::start_extension_oauth(&provider, &config)
                     .map(|info| (info, Some(config)))
@@ -1792,7 +2132,10 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                         // Block until the callback arrives or the sender is dropped.
                         if let Ok(path) = server.rx.recv() {
                             let full_url = format!("http://localhost{path}");
-                            let _ = event_tx.try_send(PiMsg::OAuthCallbackReceived(full_url));
+                            let _ = send_pi_msg_with_backpressure_blocking(
+                                &event_tx,
+                                PiMsg::OAuthCallbackReceived(full_url),
+                            );
                         }
                     });
                 }
@@ -1845,12 +2188,19 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                     self.status_message = Some(err.to_string());
                     return None;
                 }
-                self.sync_active_provider_credentials(&provider);
+                let diagnostic = self.refresh_provider_auth_state_from_auth(&auth, &provider);
                 if removed {
-                    self.status_message =
-                        Some(format!("Removed stored credentials for {provider}."));
+                    let mut status = format!("Removed stored credentials for {provider}.");
+                    if let Some(diagnostic) = diagnostic {
+                        let _ = write!(status, " models.json warning: {diagnostic}");
+                    }
+                    self.status_message = Some(status);
                 } else {
-                    self.status_message = Some(format!("No stored credentials for {provider}."));
+                    let mut status = format!("No stored credentials for {provider}.");
+                    if let Some(diagnostic) = diagnostic {
+                        let _ = write!(status, " models.json warning: {diagnostic}");
+                    }
+                    self.status_message = Some(status);
                 }
             }
             Err(err) => {
@@ -1973,18 +2323,14 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
             }
         };
 
-        if let Err(message) = self.switch_active_model(&next, provider_impl, resolved_key_opt) {
+        if let Err(message) =
+            self.switch_active_model(&next, provider_impl, resolved_key_opt.as_deref())
+        {
             self.status_message = Some(message);
             return None;
         }
 
-        if !self
-            .available_models
-            .iter()
-            .any(|entry| model_entry_matches(entry, &next))
-        {
-            self.available_models.push(next.clone());
-        }
+        self.push_available_model_if_missing(next.clone());
 
         self.status_message = Some(format!("Switched model: {}", self.model));
         None
@@ -2010,13 +2356,21 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                 return None;
             }
         };
+        let level = self.model_entry.clamp_thinking_level(level);
 
         let Ok(mut session_guard) = self.session.try_lock() else {
             self.status_message = Some("Session busy; try again".to_string());
             return None;
         };
+        let previous_level = session_guard
+            .header
+            .thinking_level
+            .as_deref()
+            .and_then(|value| value.parse::<ThinkingLevel>().ok());
         session_guard.header.thinking_level = Some(level.to_string());
-        session_guard.append_thinking_level_change(level.to_string());
+        if previous_level != Some(level) {
+            session_guard.append_thinking_level_change(level.to_string());
+        }
         drop(session_guard);
         self.spawn_save_session();
 
@@ -2161,11 +2515,19 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
         let cwd = self.cwd.clone();
         let event_tx = self.event_tx.clone();
         let runtime_handle = self.runtime_handle.clone();
+        let extensions = self.extensions.clone();
+        let agent = Arc::clone(&self.agent);
+        let session = Arc::clone(&self.session);
 
         runtime_handle.spawn(async move {
             let manager = PackageManager::new(cwd.clone());
             match ResourceLoader::load(&manager, &cwd, &config, &cli).await {
                 Ok(resources) => {
+                    let (extension_status, extension_error) = if let Some(manager) = &extensions {
+                        reload_live_extensions(manager, &agent, &session, &cwd, &resources).await
+                    } else {
+                        (None, None)
+                    };
                     let models_error =
                         match crate::auth::AuthStorage::load_async(Config::auth_path()).await {
                             Ok(auth) => {
@@ -2177,33 +2539,911 @@ result in account suspension/ban. Prefer using an Anthropic API key (ANTHROPIC_A
                         };
 
                     let (diagnostics, diag_count) =
-                        build_reload_diagnostics(models_error, &resources);
+                        build_reload_diagnostics(models_error, &resources, extension_error);
 
                     let mut status = format!(
-                        "Reloaded resources: {} skills, {} prompts, {} themes",
+                        "Reloaded resources: {} skills, {} prompts, {} themes; refreshed model catalog",
                         resources.skills().len(),
                         resources.prompts().len(),
                         resources.themes().len()
                     );
+                    if let Some(extension_status) = extension_status {
+                        let _ = write!(status, "; {extension_status}");
+                    }
                     if diag_count > 0 {
                         let _ = write!(status, " ({diag_count} diagnostics)");
                     }
 
-                    let _ = event_tx.try_send(PiMsg::ResourcesReloaded {
-                        resources,
-                        status,
-                        diagnostics,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ResourcesReloaded {
+                            resources,
+                            status,
+                            diagnostics,
+                        },
+                    )
+                    .await;
                 }
                 Err(err) => {
-                    let _ = event_tx.try_send(PiMsg::AgentError(format!(
-                        "Failed to reload resources: {err}"
-                    )));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::AgentError(format!("Failed to reload resources: {err}")),
+                    )
+                    .await;
                 }
             }
         });
 
-        self.status_message = Some("Reloading resources...".to_string());
+        self.status_message = Some(if self.extensions.is_some() {
+            "Reloading resources, model catalog, and extensions...".to_string()
+        } else {
+            "Reloading resources and model catalog...".to_string()
+        });
+        None
+    }
+
+    // ── V2: /systems ──────────────────────────────────────────────────────────
+
+    /// `/systems [<id>]` — list work systems or switch active system.
+    pub(super) fn handle_slash_systems(&mut self, args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+        let arg = args.trim();
+
+        // Switch active system if an id was given.
+        if !arg.is_empty() {
+            let exists = self
+                .config
+                .systems
+                .as_ref()
+                .is_some_and(|ss| ss.iter().any(|s| s.id == arg || s.name == arg));
+            if exists {
+                self.config.active_system_id = Some(arg.to_string());
+                let patch = serde_json::json!({ "activeSystemId": arg });
+                let global_dir = crate::config::Config::global_dir();
+                let _ = crate::config::Config::patch_settings_with_roots(
+                    crate::config::SettingsScope::Global,
+                    &global_dir,
+                    &self.cwd,
+                    patch,
+                );
+                self.status_message = Some(format!("Active system → '{arg}'"));
+                return None;
+            }
+        }
+
+        let Some(ref systems) = self.config.systems else {
+            self.status_message =
+                Some("No work systems configured. Complete onboarding to create one.".to_string());
+            return None;
+        };
+
+        let artifact_registry = crate::artifacts::ArtifactRegistry::new(&self.cwd);
+        let memory_store = crate::memory_v2::MemoryStore::new(&self.cwd);
+        let vault_mgr = crate::vault::VaultManager::new(&self.cwd);
+
+        let mut out = String::new();
+        let _ = writeln!(out, "Work Systems ({})\n", systems.len());
+        let active = self.config.active_system_id.as_deref().unwrap_or("");
+        for sys in systems {
+            let marker = if sys.id == active { "▶" } else { " " };
+            let artifact_count = artifact_registry
+                .list_for_system(&sys.id)
+                .map_or(0, |v| v.len());
+            let mem_total: usize = crate::memory_v2::MemoryPartition::all()
+                .iter()
+                .filter_map(|&p| memory_store.load_partition(&sys.id, p).ok())
+                .map(|v| v.len())
+                .sum();
+            let snap_count = vault_mgr.list_snapshots(&sys.id).map_or(0, |v| v.len());
+            let _ = writeln!(out, " {marker} {:<24}  id: {}", sys.name, sys.id);
+            let _ = writeln!(
+                out,
+                "     artifacts: {artifact_count}  memory: {mem_total} entries  vault: {snap_count} snapshot(s)"
+            );
+            if let Some(ref blueprint) = sys.team_blueprint {
+                let _ = writeln!(out, "     team: {}", blueprint.id);
+            }
+            out.push('\n');
+        }
+        let _ = writeln!(out, "Use '/sys <id>' to switch active system.");
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Work Systems");
+        None
+    }
+
+    // ── V2: /vault ────────────────────────────────────────────────────────────
+
+    /// `/vault [save [label] | list | restore <snap_id> [confirm] | clone <snap_id> <name> | compare <a> <b>]`
+    #[allow(clippy::too_many_lines)]
+    pub(super) fn handle_slash_vault(&mut self, args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let active_id = if let Some(id) = self.config.active_system_id.as_deref() {
+            id.to_string()
+        } else {
+            self.status_message = Some("No active system.".to_string());
+            return None;
+        };
+
+        let vault = crate::vault::VaultManager::new(&self.cwd);
+
+        let (sub, rest) = args
+            .trim()
+            .split_once(char::is_whitespace)
+            .map_or_else(|| (args.trim(), ""), |(a, b)| (a.trim(), b.trim()));
+
+        match (sub, rest) {
+            ("" | "list", _) => {
+                // List snapshots
+                let mut out = String::new();
+                match vault.list_snapshots(&active_id) {
+                    Ok(snaps) if snaps.is_empty() => {
+                        let _ = writeln!(out, "No snapshots for system '{active_id}'.");
+                        let _ = writeln!(out, "Use '/vault save [label]' to create one.");
+                    }
+                    Ok(snaps) => {
+                        let _ = writeln!(out, "Vault snapshots — {active_id}\n");
+                        let _ = writeln!(
+                            out,
+                            "  {:<36}  {:12}  {:12}  label",
+                            "id", "kind", "created_at"
+                        );
+                        for snap in &snaps {
+                            let _ = writeln!(
+                                out,
+                                "  {:<36}  {:12}  {:12}  {}",
+                                snap.id,
+                                format!("{:?}", snap.kind),
+                                &snap.created_at[..snap.created_at.len().min(16)],
+                                snap.label.as_deref().unwrap_or("(none)")
+                            );
+                        }
+                        let _ = writeln!(
+                            out,
+                            "\nUse '/vault restore <id>' or '/vault clone <id> <name>'."
+                        );
+                    }
+                    Err(e) => {
+                        let _ = writeln!(out, "Vault error: {e}");
+                    }
+                }
+                self.messages.push(ConversationMessage {
+                    role: MessageRole::System,
+                    content: out,
+                    thinking: None,
+                    collapsed: false,
+                });
+                self.scroll_to_last_match("Vault snapshots");
+            }
+
+            ("save", label) => {
+                let label = if label.is_empty() {
+                    None
+                } else {
+                    Some(label.to_string())
+                };
+                let system = self
+                    .config
+                    .systems
+                    .as_ref()
+                    .and_then(|ss| ss.iter().find(|s| s.id == active_id))
+                    .cloned();
+                match system {
+                    None => {
+                        self.status_message =
+                            Some("Active system not found in config.".to_string());
+                    }
+                    Some(sys) => {
+                        let snap = crate::vault::VaultSnapshot::new(
+                            crate::vault::SnapshotKind::Manual,
+                            sys,
+                            label,
+                        );
+                        let snap_id = snap.id.clone();
+                        match vault.save_snapshot(&snap) {
+                            Ok(_) => {
+                                self.status_message = Some(format!("Snapshot saved: {snap_id}"));
+                            }
+                            Err(e) => {
+                                self.status_message = Some(format!("Vault save error: {e}"));
+                            }
+                        }
+                    }
+                }
+            }
+
+            ("restore", snap_id) => {
+                if snap_id.is_empty() {
+                    self.status_message = Some("Usage: /vault restore <snapshot_id>".to_string());
+                    return None;
+                }
+
+                let confirm = snap_id.ends_with(" confirm");
+                let snap_id = snap_id.trim_end_matches(" confirm").trim();
+
+                if !confirm {
+                    // Show restore plan
+                    let snap = vault
+                        .list_snapshots(&active_id)
+                        .ok()
+                        .and_then(|snaps| snaps.into_iter().find(|s| s.id == snap_id));
+                    let mut plan = String::new();
+                    let _ = writeln!(plan, "Vault Restore Plan\n");
+                    let _ = writeln!(plan, "  Snapshot:  {snap_id}");
+                    if let Some(ref s) = snap {
+                        let _ = writeln!(
+                            plan,
+                            "  Label:     {}",
+                            s.label.as_deref().unwrap_or("(no label)")
+                        );
+                        let _ = writeln!(plan, "  Taken at:  {}", s.created_at);
+                        let _ = writeln!(plan, "  Kind:      {:?}", s.kind);
+                        let _ = writeln!(plan, "  System:    {} ({})", s.system.name, s.system.id);
+                    } else {
+                        let _ =
+                            writeln!(plan, "  [snapshot not found — will attempt restore anyway]");
+                    }
+                    let _ = writeln!(plan, "\nThis will overwrite the active system config.");
+                    let _ = writeln!(
+                        plan,
+                        "Current state will be lost unless you /vault save first.\n"
+                    );
+                    let _ = writeln!(plan, "To confirm: /vault restore {snap_id} confirm");
+                    let _ = writeln!(plan, "To cancel:  press Enter with no command");
+                    self.vault_restore_plan = Some((snap_id.to_string(), active_id, plan.clone()));
+                    self.messages.push(ConversationMessage {
+                        role: MessageRole::System,
+                        content: plan,
+                        thinking: None,
+                        collapsed: false,
+                    });
+                    self.scroll_to_last_match("Vault Restore Plan");
+                    return None;
+                }
+
+                // Execute confirmed restore
+                self.vault_restore_plan = None;
+                match vault.restore_full(&active_id, snap_id) {
+                    Ok(restored) => {
+                        if let Some(ref mut systems) = self.config.systems {
+                            if let Some(pos) = systems.iter().position(|s| s.id == active_id) {
+                                systems[pos] = restored;
+                            }
+                        }
+                        let patch = serde_json::json!({ "systems": &self.config.systems });
+                        let global_dir = crate::config::Config::global_dir();
+                        if let Err(e) = crate::config::Config::patch_settings_with_roots(
+                            crate::config::SettingsScope::Global,
+                            &global_dir,
+                            &self.cwd,
+                            patch,
+                        ) {
+                            self.status_message = Some(format!(
+                                "Restore saved locally but config persist failed: {e}"
+                            ));
+                        } else {
+                            self.status_message =
+                                Some(format!("Restored from snapshot '{snap_id}'."));
+                        }
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Vault restore error: {e}"));
+                    }
+                }
+            }
+
+            ("clone", rest) => {
+                let (snap_id, new_name) = rest
+                    .split_once(char::is_whitespace)
+                    .map_or((rest, ""), |(a, b)| (a.trim(), b.trim()));
+                if snap_id.is_empty() || new_name.is_empty() {
+                    self.status_message =
+                        Some("Usage: /vault clone <snapshot_id> <new name>".to_string());
+                    return None;
+                }
+                match vault.clone_from_snapshot(&active_id, snap_id, new_name) {
+                    Ok(cloned) => {
+                        let new_id = cloned.id.clone();
+                        self.config
+                            .systems
+                            .get_or_insert_with(Vec::new)
+                            .push(cloned);
+                        let patch = serde_json::json!({ "systems": &self.config.systems });
+                        let global_dir = crate::config::Config::global_dir();
+                        if let Err(e) = crate::config::Config::patch_settings_with_roots(
+                            crate::config::SettingsScope::Global,
+                            &global_dir,
+                            &self.cwd,
+                            patch,
+                        ) {
+                            self.status_message = Some(format!(
+                                "Cloned as '{new_id}' but config persist failed: {e}"
+                            ));
+                        } else {
+                            self.status_message =
+                                Some(format!("Cloned as new system '{new_id}' ({new_name})."));
+                        }
+                    }
+                    Err(e) => {
+                        self.status_message = Some(format!("Vault clone error: {e}"));
+                    }
+                }
+            }
+
+            ("compare", rest) => {
+                let (snap_a, snap_b) = rest
+                    .split_once(char::is_whitespace)
+                    .map_or((rest, ""), |(a, b)| (a.trim(), b.trim()));
+                if snap_a.is_empty() || snap_b.is_empty() {
+                    self.status_message =
+                        Some("Usage: /vault compare <snap_id_a> <snap_id_b>".to_string());
+                    return None;
+                }
+                let a = vault.load_snapshot(&active_id, snap_a);
+                let b = vault.load_snapshot(&active_id, snap_b);
+                match (a, b) {
+                    (Ok(a), Ok(b)) => {
+                        let mut out = String::new();
+                        let _ = writeln!(out, "Vault Compare\n");
+                        let _ = writeln!(out, "  A: {} ({:?}  {})", a.id, a.kind, a.created_at);
+                        let _ = writeln!(out, "  B: {} ({:?}  {})", b.id, b.kind, b.created_at);
+                        let _ = writeln!(out, "\nSystem name:");
+                        if a.system.name == b.system.name {
+                            let _ = writeln!(out, "  (same) {}", a.system.name);
+                        } else {
+                            let _ = writeln!(out, "  A: {}\n  B: {}", a.system.name, b.system.name);
+                        }
+                        if let (Some(desc_a), Some(desc_b)) =
+                            (&a.system.description, &b.system.description)
+                        {
+                            if desc_a != desc_b {
+                                let _ = writeln!(out, "\nDescription changed.");
+                            }
+                        }
+                        let _ =
+                            writeln!(out, "\nUse '/vault restore <id>' to switch to a version.");
+                        self.messages.push(ConversationMessage {
+                            role: MessageRole::System,
+                            content: out,
+                            thinking: None,
+                            collapsed: false,
+                        });
+                        self.scroll_to_last_match("Vault Compare");
+                    }
+                    (Err(e), _) | (_, Err(e)) => {
+                        self.status_message = Some(format!("Vault compare error: {e}"));
+                    }
+                }
+                return None;
+            }
+
+            _ => {
+                let help = "\
+Vault commands:\n\
+  /vault save [label]                      — save a manual snapshot\n\
+  /vault list                              — list snapshots for active system\n\
+  /vault restore <snapshot_id>             — show restore plan (then confirm)\n\
+  /vault restore <snapshot_id> confirm     — execute the restore\n\
+  /vault clone <snapshot_id> <name>        — clone into a new system\n\
+  /vault compare <snap_id_a> <snap_id_b>   — diff two snapshots\n\
+\n\
+The vault stores snapshots in .pi/vault/. Snapshots are never deleted automatically.";
+                self.messages.push(ConversationMessage {
+                    role: MessageRole::System,
+                    content: help.to_string(),
+                    thinking: None,
+                    collapsed: false,
+                });
+                self.scroll_to_last_match("Vault commands:");
+            }
+        }
+
+        None
+    }
+
+    // ── V2: /artifacts ────────────────────────────────────────────────────────
+
+    /// `/artifacts [<artifact_id> [export] | <system_id>]`
+    pub(super) fn handle_slash_artifacts(&mut self, args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let parts: Vec<&str> = args.trim().splitn(2, ' ').collect();
+        let first = parts.first().copied().unwrap_or("").trim();
+        let second = parts.get(1).copied().unwrap_or("").trim();
+
+        if first.starts_with("art_") {
+            return self.handle_artifact_detail(first, second);
+        }
+
+        let system_id = if first.is_empty() {
+            self.config.active_system_id.clone().or_else(|| {
+                self.config
+                    .systems
+                    .as_ref()
+                    .and_then(|ss| ss.first())
+                    .map(|s| s.id.clone())
+            })
+        } else {
+            Some(first.to_string())
+        };
+
+        let Some(system_id) = system_id else {
+            self.status_message = Some("No active system. Complete onboarding first.".to_string());
+            return None;
+        };
+
+        let registry = crate::artifacts::ArtifactRegistry::new(&self.cwd);
+        let mut out = String::new();
+
+        match registry.list_for_system(&system_id) {
+            Ok(arts) if arts.is_empty() => {
+                let _ = writeln!(out, "No artifacts yet for system '{system_id}'.\n");
+                let _ = writeln!(
+                    out,
+                    "Use '/task <goal>' to start a task and generate a result."
+                );
+            }
+            Ok(arts) => {
+                let sys_name = self
+                    .config
+                    .systems
+                    .as_ref()
+                    .and_then(|ss| ss.iter().find(|s| s.id == system_id))
+                    .map_or(system_id.as_str(), |s| s.name.as_str());
+                let _ = writeln!(out, "Artifacts — {sys_name}\n");
+                for art in &arts {
+                    let deliverable_count = art.deliverables.len();
+                    let _ = writeln!(
+                        out,
+                        "  {:32}  {:16}  {deliverable_count} deliverable(s)",
+                        art.id,
+                        art.status.label()
+                    );
+                    let _ = writeln!(out, "  {:>4}  {}", "", art.task_summary);
+                    if !art.artifact_type.is_empty() {
+                        let _ = writeln!(
+                            out,
+                            "  {:>4}  type: {}  target: {}",
+                            "", art.artifact_type, art.execution_target
+                        );
+                    }
+                    if !art.deliverables.is_empty() {
+                        for d in art.deliverables.iter().take(3) {
+                            let preview = d.content.as_deref().map_or_else(
+                                || d.path.as_deref().unwrap_or(""),
+                                |c| {
+                                    let trimmed = c.trim();
+                                    if trimmed.len() > 60 {
+                                        &trimmed[..60]
+                                    } else {
+                                        trimmed
+                                    }
+                                },
+                            );
+                            let _ = writeln!(out, "        • {}  {preview}", d.title);
+                        }
+                        if art.deliverables.len() > 3 {
+                            let _ =
+                                writeln!(out, "        … and {} more", art.deliverables.len() - 3);
+                        }
+                    }
+                    out.push('\n');
+                }
+                let _ = writeln!(out, "Use '/artifacts <id>' for detail view.");
+            }
+            Err(e) => {
+                let _ = writeln!(out, "Artifact registry error: {e}");
+            }
+        }
+
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Artifacts");
+        None
+    }
+
+    /// Show full detail for one artifact, or export it as markdown.
+    #[allow(clippy::too_many_lines)]
+    fn handle_artifact_detail(&mut self, artifact_id: &str, sub: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let systems: Vec<String> = self
+            .config
+            .systems
+            .as_ref()
+            .map(|ss| ss.iter().map(|s| s.id.clone()).collect())
+            .unwrap_or_default();
+
+        let registry = crate::artifacts::ArtifactRegistry::new(&self.cwd);
+        let art = systems
+            .iter()
+            .find_map(|sid| registry.load(sid, artifact_id).ok());
+
+        let Some(art) = art else {
+            self.status_message = Some(format!("Artifact '{artifact_id}' not found."));
+            return None;
+        };
+
+        let mut out = String::new();
+
+        if sub == "export" {
+            let _ = writeln!(out, "# {}", art.task_summary);
+            let _ = writeln!(
+                out,
+                "\n**Status**: {}  **Type**: {}  **Target**: {}",
+                art.status.label(),
+                art.artifact_type,
+                art.execution_target
+            );
+            let _ = writeln!(out, "**ID**: `{}`  **System**: `{}`", art.id, art.system_id);
+            if let Some(branch) = &art.branch_id {
+                let _ = writeln!(out, "**Branch**: `{branch}`");
+            }
+            let _ = writeln!(out, "\n---\n");
+            if !art.inputs.is_empty() {
+                let _ = writeln!(out, "## Inputs\n");
+                for e in &art.inputs {
+                    let _ = writeln!(out, "- **{}**: {}", e.key, e.value);
+                }
+            }
+            if !art.decisions.is_empty() {
+                let _ = writeln!(out, "\n## Decisions\n");
+                for e in &art.decisions {
+                    let _ = writeln!(out, "- **{}**: {}", e.key, e.value);
+                }
+            }
+            if !art.deliverables.is_empty() {
+                let _ = writeln!(out, "\n## Deliverables\n");
+                for d in &art.deliverables {
+                    let _ = writeln!(out, "### {}", d.title);
+                    if let Some(c) = &d.content {
+                        let _ = writeln!(out, "\n{c}\n");
+                    }
+                    if let Some(p) = &d.path {
+                        let _ = writeln!(out, "_File: `{p}`_\n");
+                    }
+                }
+            }
+            if !art.next_steps.is_empty() {
+                let _ = writeln!(out, "\n## Next Steps\n");
+                for ns in &art.next_steps {
+                    let _ = writeln!(out, "- {}", ns.label);
+                }
+            }
+        } else {
+            let _ = writeln!(out, "Result Page — {}\n", art.task_summary);
+            let _ = writeln!(out, "  ID:      {}", art.id);
+            let _ = writeln!(
+                out,
+                "  Status:  {}{}",
+                art.status.label(),
+                if art.status.is_actionable() {
+                    "  [actionable]"
+                } else {
+                    ""
+                }
+            );
+            let _ = writeln!(out, "  Type:    {}", art.artifact_type);
+            let _ = writeln!(out, "  Target:  {}", art.execution_target);
+            let _ = writeln!(out, "  System:  {}", art.system_id);
+            if let Some(b) = &art.branch_id {
+                let _ = writeln!(out, "  Branch:  {b}");
+            }
+            if let Some(s) = &art.snapshot_id {
+                let _ = writeln!(out, "  Snapshot: {s}");
+            }
+            let _ = writeln!(out, "  Updated: {}", art.updated_at);
+            if !art.inputs.is_empty() {
+                let _ = writeln!(out, "\nInputs:");
+                for e in &art.inputs {
+                    let _ = writeln!(out, "  {}: {}", e.key, e.value);
+                }
+            }
+            if !art.decisions.is_empty() {
+                let _ = writeln!(out, "\nDecisions:");
+                for e in &art.decisions {
+                    let _ = writeln!(out, "  {}: {}", e.key, e.value);
+                }
+            }
+            if !art.deliverables.is_empty() {
+                let _ = writeln!(out, "\nDeliverables ({}):", art.deliverables.len());
+                for d in &art.deliverables {
+                    let loc = d
+                        .content
+                        .as_ref()
+                        .map(|c| {
+                            let t = c.trim();
+                            format!(
+                                "\"{}{}\"",
+                                &t[..t.len().min(80)],
+                                if t.len() > 80 { "…" } else { "" }
+                            )
+                        })
+                        .or_else(|| d.path.clone())
+                        .unwrap_or_default();
+                    let _ = writeln!(out, "  • {}  {loc}", d.title);
+                }
+            }
+            if !art.next_steps.is_empty() {
+                let _ = writeln!(out, "\nNext steps:");
+                for ns in &art.next_steps {
+                    let _ = writeln!(out, "  → {}", ns.label);
+                }
+            }
+            let _ = writeln!(
+                out,
+                "\nTip: '/artifacts {artifact_id} export' dumps as markdown."
+            );
+        }
+
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Result Page");
+        None
+    }
+
+    // ── V2: /task ─────────────────────────────────────────────────────────────
+
+    /// `/task [goal description]` — start a structured task intake.
+    pub(super) fn handle_slash_task(&mut self, args: &str) -> Option<Cmd> {
+        let goal = args.trim();
+        if goal.is_empty() {
+            self.status_message =
+                Some("Usage: /task <goal description>  — starts a structured task run".to_string());
+            return None;
+        }
+        let system_name = self
+            .config
+            .active_system_id
+            .as_deref()
+            .and_then(|id| self.config.systems.as_ref()?.iter().find(|s| s.id == id))
+            .map_or("active system", |s| s.name.as_str());
+        // Inject a task intake prompt as the next user message.
+        let prompt = format!(
+            "[Task intake for {system_name}]\n\nGoal: {goal}\n\nPlease break this down into a structured plan, execute the steps, and produce a result artifact when complete."
+        );
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: format!("Starting task: {goal}"),
+            thinking: None,
+            collapsed: false,
+        });
+        // Set the input to the task prompt so the user can review/submit.
+        self.input.set_value(&prompt);
+        self.input.cursor_end();
+        None
+    }
+
+    // ── V2: /memory ───────────────────────────────────────────────────────────
+
+    /// `/memory [partition]` — show V2 memory partitions.
+    pub(super) fn handle_slash_memory(&mut self, args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let system_id = if let Some(id) = self.config.active_system_id.as_deref() {
+            id.to_string()
+        } else {
+            self.status_message = Some("No active system.".to_string());
+            return None;
+        };
+
+        let store = crate::memory_v2::MemoryStore::new(&self.cwd);
+        let partitions = crate::memory_v2::MemoryPartition::all();
+        let filter = args.trim();
+
+        let mut out = String::new();
+        let _ = writeln!(out, "Memory — {system_id}\n");
+
+        for &partition in partitions {
+            if !filter.is_empty() && !format!("{partition:?}").to_lowercase().contains(filter) {
+                continue;
+            }
+            match store.load_partition(&system_id, partition) {
+                Ok(entries) if entries.is_empty() => {}
+                Ok(entries) => {
+                    let _ = writeln!(out, "  {:?} ({} entries):", partition, entries.len());
+                    for entry in entries.iter().take(5) {
+                        let _ = writeln!(
+                            out,
+                            "    [{}] {}",
+                            entry.id,
+                            &entry.summary[..entry.summary.len().min(80)]
+                        );
+                    }
+                    if entries.len() > 5 {
+                        let _ = writeln!(out, "    … and {} more", entries.len() - 5);
+                    }
+                    out.push('\n');
+                }
+                Err(_) => {}
+            }
+        }
+
+        if out.trim_start_matches("Memory — ").trim() == system_id.as_str() {
+            let _ = writeln!(out, "  No memory entries yet.");
+        }
+
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Memory —");
+        None
+    }
+
+    // ── V2: /automations ──────────────────────────────────────────────────────
+
+    /// `/automations` — list automations for active system.
+    pub(super) fn handle_slash_automations(&mut self, args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let system_id = if let Some(id) = self.config.active_system_id.as_deref() {
+            id.to_string()
+        } else {
+            self.status_message = Some("No active system.".to_string());
+            return None;
+        };
+
+        let registry = crate::automations::AutomationRegistry::new(&self.cwd);
+        let filter = args.trim();
+        let mut out = String::new();
+
+        match registry.list_for_system(&system_id) {
+            Ok(autos) if autos.is_empty() => {
+                let _ = writeln!(out, "No automations for system '{system_id}'.");
+            }
+            Ok(autos) => {
+                let _ = writeln!(out, "Automations — {system_id}\n");
+                for auto in &autos {
+                    if !filter.is_empty() && !auto.name.to_lowercase().contains(filter) {
+                        continue;
+                    }
+                    let enabled = if auto.enabled { "enabled" } else { "disabled" };
+                    let trigger_label = auto.trigger.label();
+                    let _ = writeln!(
+                        out,
+                        "  {} {:8}  {:24}  {}",
+                        auto.id, enabled, auto.name, trigger_label
+                    );
+                }
+            }
+            Err(e) => {
+                let _ = writeln!(out, "Automation registry error: {e}");
+            }
+        }
+
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Automations —");
+        None
+    }
+
+    // ── V2: /agents ───────────────────────────────────────────────────────────
+
+    /// `/agents` — show team agents for active system.
+    pub(super) fn handle_slash_agents(&mut self, _args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+
+        let system_id = if let Some(id) = self.config.active_system_id.as_deref() {
+            id.to_string()
+        } else {
+            self.status_message = Some("No active system.".to_string());
+            return None;
+        };
+
+        let sys = self
+            .config
+            .systems
+            .as_ref()
+            .and_then(|ss| ss.iter().find(|s| s.id == system_id))
+            .cloned();
+
+        let mut out = String::new();
+        let _ = writeln!(out, "Agents — {system_id}\n");
+
+        if let Some(sys) = sys {
+            if let Some(ref blueprint) = sys.team_blueprint {
+                let _ = writeln!(out, "  Team blueprint: {}", blueprint.id);
+                let _ = writeln!(out, "  Roles: {}", blueprint.roles.len());
+                for role in &blueprint.roles {
+                    let _ = writeln!(out, "    • {}", role.id);
+                }
+            } else {
+                let _ = writeln!(out, "  No team blueprint configured.");
+            }
+            let profile = self
+                .config
+                .active_agent_profile
+                .as_deref()
+                .unwrap_or("default");
+            let _ = writeln!(out, "  Agent profile: {profile}");
+        } else {
+            let _ = writeln!(out, "  System not found.");
+        }
+
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Agents —");
+        None
+    }
+
+    // ── V2: /bindings ─────────────────────────────────────────────────────────
+
+    /// `/bindings` — show channel binding status.
+    pub(super) fn handle_slash_bindings(&mut self, _args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+        let mut out = String::new();
+        let _ = writeln!(out, "Channel Bindings\n");
+        if self.binding_status.is_empty() {
+            let _ = writeln!(out, "  No active bindings.");
+            let _ = writeln!(
+                out,
+                "\n  Configure bindings in the web control plane or settings."
+            );
+        } else {
+            for b in &self.binding_status {
+                let _ = writeln!(
+                    out,
+                    "  {:20}  {:18}  {}",
+                    b.platform,
+                    b.health.status_label(),
+                    b.id
+                );
+            }
+        }
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Channel Bindings");
+        None
+    }
+
+    // ── V2: /bridge ───────────────────────────────────────────────────────────
+
+    /// `/bridge` — show bridge/web control plane status.
+    pub(super) fn handle_slash_bridge(&mut self, _args: &str) -> Option<Cmd> {
+        use std::fmt::Write as _;
+        let mut out = String::new();
+        let _ = writeln!(out, "Bridge — Web Control Plane\n");
+        let _ = writeln!(out, "  The web UI runs at http://localhost:3000 (default).");
+        let _ = writeln!(out, "  Configure the bridge token in settings (/settings).");
+        let _ = writeln!(
+            out,
+            "  Bridge links this CLI session to the web control plane."
+        );
+        self.messages.push(ConversationMessage {
+            role: MessageRole::System,
+            content: out,
+            thinking: None,
+            collapsed: false,
+        });
+        self.scroll_to_last_match("Bridge —");
         None
     }
 }
@@ -2370,6 +3610,18 @@ mod tests {
     }
 
     #[test]
+    fn startup_hint_is_hidden_when_extension_provider_credential_exists() {
+        let mut auth = empty_auth_storage();
+        auth.set(
+            "ext-provider",
+            AuthCredential::ApiKey {
+                key: "extension-key".to_string(),
+            },
+        );
+        assert!(!should_show_startup_oauth_hint(&auth));
+    }
+
+    #[test]
     fn startup_hint_copy_no_longer_uses_front_and_center_phrase() {
         let auth = empty_auth_storage();
         let hint = super::format_startup_oauth_hint(&auth);
@@ -2523,6 +3775,7 @@ mod tests {
         let mut no_oauth = test_model_entry("ext-provider", "model-a");
         no_oauth.oauth_config = None;
         let mut with_oauth = test_model_entry("ext-provider", "model-b");
+        with_oauth.api_key = None;
         with_oauth.oauth_config = Some(crate::models::OAuthConfig {
             auth_url: "https://example.test/oauth/authorize".to_string(),
             token_url: "https://example.test/oauth/token".to_string(),
@@ -2542,5 +3795,21 @@ mod tests {
             selected.redirect_uri.as_deref(),
             Some("http://localhost/callback")
         );
+    }
+
+    #[test]
+    fn collect_extension_oauth_providers_includes_pre_auth_extension_entries() {
+        let mut ext_entry = test_model_entry("ext-provider", "model-a");
+        ext_entry.api_key = None;
+        ext_entry.oauth_config = Some(crate::models::OAuthConfig {
+            auth_url: "https://example.test/oauth/authorize".to_string(),
+            token_url: "https://example.test/oauth/token".to_string(),
+            scopes: vec!["scope:a".to_string()],
+            client_id: "client-id".to_string(),
+            redirect_uri: None,
+        });
+
+        let providers = super::collect_extension_oauth_providers(&[ext_entry]);
+        assert_eq!(providers, vec!["ext-provider".to_string()]);
     }
 }

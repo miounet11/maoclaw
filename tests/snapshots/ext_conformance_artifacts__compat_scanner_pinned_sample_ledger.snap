@@ -180,13 +180,13 @@ expression: text
         "evidence": [
           {
             "file": "wad-finder.ts",
-            "line": 14,
+            "line": 15,
             "column": 53,
             "snippet": "\t\tconst resolved = resolve(customPath.replace(/^~/, process.env.HOME || \"\"));"
           },
           {
             "file": "wad-finder.ts",
-            "line": 26,
+            "line": 27,
             "column": 44,
             "snippet": "\t\tconst resolved = resolve(p.replace(/^~/, process.env.HOME || \"\"));"
           }
@@ -381,7 +381,7 @@ expression: text
         "evidence": [
           {
             "file": "doom-engine.ts",
-            "line": 65,
+            "line": 151,
             "column": 22,
             "snippet": "\t\tconst moduleFunc = new Function(\"module\", \"exports\", \"__dirname\", \"__filename\", \"require\", doomJsCode);"
           }

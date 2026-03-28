@@ -398,7 +398,7 @@ The tier labels above match the static-scan and master-catalog artifacts in
    raw files (tracked by research beads).
 4. **npm registry sweep** (keyword search + reverse-dep trails) → candidate
    packages and tarballs (tracked by research beads).
-5. **Marketplaces/registries** (when applicable) such as OpenClaw/ClawHub
+5. **Marketplaces/registries** (when applicable) such as external skill or plugin hubs
    inventories (tracked by research beads).
 
 We treat discovery as a **pipeline**, not a one-off search:

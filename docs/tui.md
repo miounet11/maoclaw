@@ -71,7 +71,7 @@ command surface implemented in `src/interactive.rs`.
 | `/tree` | Show session branch tree summary. |
 | `/fork [id\|index]` | Fork from a user message (default: last on current path). |
 | `/compact [notes]` | Compact older context with optional instructions. |
-| `/reload` | Reload skills/prompts from disk. |
+| `/reload` | Reload skills/prompts/themes, refresh the model catalog, and hot-reload JS/native extensions. Runtime-kind changes and WASM extension reload still require restart or a new session. |
 | `/share` | Upload session HTML to a secret GitHub gist and show URL. |
 | `/exit` (`/quit`, `/q`) | Exit Pi. |
 

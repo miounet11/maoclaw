@@ -67,6 +67,22 @@ pub(super) fn apply_headers_ignoring_blank_auth_overrides<'a>(
     request
 }
 
+pub(super) fn format_openai_http_error(status: u16, body: &str) -> String {
+    let body = body.trim();
+    let body = if body.is_empty() {
+        "<empty body>"
+    } else {
+        body
+    };
+
+    match status {
+        504 => format!(
+            "OpenAI upstream timeout (HTTP 504): {body}. This is usually transient or caused by a proxy/base URL timeout."
+        ),
+        _ => format!("OpenAI API error (HTTP {status}): {body}"),
+    }
+}
+
 fn vcr_client_if_enabled() -> Result<Option<Client>> {
     if env::var(VCR_ENV_MODE).is_err() {
         return Ok(None);
@@ -1102,6 +1118,14 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
     use tempfile::tempdir;
+
+    #[test]
+    fn format_openai_http_error_marks_504_as_upstream_timeout() {
+        let formatted = format_openai_http_error(504, "Gateway Timeout");
+        assert!(formatted.contains("upstream timeout"));
+        assert!(formatted.contains("HTTP 504"));
+        assert!(formatted.contains("proxy/base URL timeout"));
+    }
 
     const STREAM_SIMPLE_EXTENSION: &str = r#"
 export default function init(pi) {

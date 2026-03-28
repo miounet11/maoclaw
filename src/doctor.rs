@@ -818,7 +818,7 @@ fn check_shell(findings: &mut Vec<Finding>) {
         cat,
         fd_bin,
         &["--version"],
-        Severity::Warn,
+        Severity::Info,
         ToolCheckMode::PresenceOnly,
         findings,
     );
@@ -1080,7 +1080,7 @@ fn check_sessions(findings: &mut Vec<Finding>) {
     }
 }
 
-/// Quick health check: non-empty and first line parses as JSON.
+/// Quick health check: non-empty and header matches the expected session schema.
 fn is_session_healthy(path: &Path) -> bool {
     let Ok(file) = std::fs::File::open(path) else {
         return false;
@@ -1089,7 +1089,14 @@ fn is_session_healthy(path: &Path) -> bool {
     let mut line = String::new();
     match reader.read_line(&mut line) {
         Ok(0) | Err(_) => false, // empty or unreadable
-        Ok(_) => serde_json::from_str::<serde_json::Value>(&line).is_ok(),
+        Ok(_) => serde_json::from_str::<crate::session::SessionHeader>(&line)
+            .ok()
+            .is_some_and(|header| {
+                header.r#type == "session"
+                    && header.version == Some(crate::session::SESSION_VERSION)
+                    && !header.id.trim().is_empty()
+                    && !header.cwd.trim().is_empty()
+            }),
     }
 }
 
@@ -1363,10 +1370,17 @@ mod tests {
     }
 
     #[test]
-    fn session_healthy_valid_json() {
+    fn session_healthy_valid_header() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("valid.jsonl");
-        std::fs::write(&path, r#"{"type":"header","version":1}"#).unwrap();
+        std::fs::write(
+            &path,
+            format!(
+                r#"{{"type":"session","version":{},"id":"test-session","timestamp":"2026-03-13T00:00:00.000Z","cwd":"/tmp/test"}}"#,
+                crate::session::SESSION_VERSION
+            ),
+        )
+        .unwrap();
         assert!(is_session_healthy(&path));
     }
 
@@ -1375,6 +1389,18 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("invalid.jsonl");
         std::fs::write(&path, "not json at all\n").unwrap();
+        assert!(!is_session_healthy(&path));
+    }
+
+    #[test]
+    fn session_healthy_rejects_wrong_header_type() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("wrong-type.jsonl");
+        std::fs::write(
+            &path,
+            r#"{"type":"header","version":3,"id":"test-session","timestamp":"2026-03-13T00:00:00.000Z","cwd":"/tmp/test"}"#,
+        )
+        .unwrap();
         assert!(!is_session_healthy(&path));
     }
 

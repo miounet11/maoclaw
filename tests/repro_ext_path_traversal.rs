@@ -10,35 +10,54 @@ fn repro_ext_path_traversal() {
         let ext_root = root.join("ext");
         fs::create_dir(&ext_root).unwrap();
 
-        let secret_file = root.join("secret.js");
+        let secret_file = root.join("secret.mjs");
         fs::write(&secret_file, "export const secret = 's3cr3t';").unwrap();
 
-        // index.js inside ext_root tries to import ../secret.js
-        let index_file = ext_root.join("index.js");
+        // The entry module lives inside the extension root but reaches outside it.
+        let index_file = ext_root.join("index.mjs");
         fs::write(
             &index_file,
-            "import { secret } from '../secret.js'; globalThis.secret = secret;",
+            "import { secret } from '../secret.mjs'; globalThis.secret = secret; export default secret;",
         )
         .unwrap();
 
         let runtime = PiJsRuntime::new().await.unwrap();
 
-        // Register extension root
         runtime.add_extension_root(ext_root.clone());
 
-        // Try to evaluate the module
-        let result = runtime.eval_file(&index_file).await;
+        let entry_spec = format!("file://{}", index_file.display());
+        let script = format!(
+            r#"
+            globalThis.importAttempt = {{}};
+            import({entry_spec:?})
+              .then(() => {{
+                globalThis.importAttempt.done = true;
+                globalThis.importAttempt.ok = true;
+                globalThis.importAttempt.error = "";
+              }})
+              .catch((err) => {{
+                globalThis.importAttempt.done = true;
+                globalThis.importAttempt.ok = false;
+                globalThis.importAttempt.error = String((err && err.message) || err || "");
+              }})
+              .finally(() => {{
+                globalThis.importAttempt.secretAssigned =
+                  Object.prototype.hasOwnProperty.call(globalThis, "secret");
+              }});
+            "#
+        );
+        runtime.eval(&script).await.unwrap();
 
-        // We expect this to FAIL with "Module path escapes extension root"
-        match result {
-            Ok(()) => panic!("Should have failed to import module outside root, but succeeded!"),
-            Err(e) => {
-                println!("Got expected error: {e}");
-                assert!(
-                    e.to_string().contains("Module path escapes extension root"),
-                    "Unexpected error message: {e}",
-                );
-            }
-        }
+        let result = runtime.read_global_json("importAttempt").await.unwrap();
+        assert_eq!(result["done"], serde_json::json!(true));
+        assert_eq!(result["ok"], serde_json::json!(false));
+        assert_eq!(result["secretAssigned"], serde_json::json!(false));
+
+        let message = result["error"].as_str().unwrap_or_default();
+        assert!(
+            message.contains("Unsupported module specifier: ../secret.mjs")
+                || message.contains("outside extension root"),
+            "Unexpected error message: {message}",
+        );
     });
 }

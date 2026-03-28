@@ -18,8 +18,8 @@ use pi::extensions_js::PiJsRuntimeConfig;
 use pi::interactive::{ConversationMessage, MessageRole, PendingInput, PiApp, PiMsg};
 use pi::keybindings::KeyBindings;
 use pi::model::{
-    AssistantMessage, ContentBlock, Cost, ImageContent, StopReason, StreamEvent, TextContent,
-    Usage, UserContent,
+    AssistantMessage, ContentBlock, Cost, ImageContent, Message as ModelMessage, StopReason,
+    StreamEvent, TextContent, Usage, UserContent, UserMessage,
 };
 use pi::models::ModelEntry;
 use pi::provider::{Context, InputType, Model, ModelCost, Provider, StreamOptions};
@@ -204,7 +204,7 @@ fn build_app_with_session_and_events_and_extension(
     let provider: Arc<dyn Provider> = Arc::new(DummyProvider);
     let agent = Agent::new(provider, tools, AgentConfig::default());
     let resources = ResourceLoader::empty(config.enable_skill_commands());
-    let resource_cli = ResourceCliOptions {
+    let mut resource_cli = ResourceCliOptions {
         no_skills: false,
         no_prompt_templates: false,
         no_extensions: false,
@@ -223,6 +223,7 @@ fn build_app_with_session_and_events_and_extension(
 
     let manager = ExtensionManager::new();
     let ext_entry_path = harness.create_file("extensions/ext.mjs", extension_source.as_bytes());
+    resource_cli.extension_paths = vec![ext_entry_path.display().to_string()];
 
     let tools_for_ext = Arc::new(ToolRegistry::new(&[], &cwd, Some(&config)));
     let js_config = PiJsRuntimeConfig {
@@ -322,6 +323,57 @@ fn build_app_with_models(
     );
     app.set_terminal_size(80, 24);
     app
+}
+
+fn build_app_with_models_and_events(
+    harness: &TestHarness,
+    session: Session,
+    config: Config,
+    model_entry: ModelEntry,
+    model_scope: Vec<ModelEntry>,
+    available_models: Vec<ModelEntry>,
+    keybindings: KeyBindings,
+) -> (PiApp, mpsc::Receiver<PiMsg>) {
+    let cwd = harness.temp_dir().to_path_buf();
+    let tools = ToolRegistry::new(&[], &cwd, Some(&config));
+    let provider: Arc<dyn Provider> = Arc::new(DummyProvider);
+    let agent = Agent::new(provider, tools, AgentConfig::default());
+    let resources = ResourceLoader::empty(config.enable_skill_commands());
+    let resource_cli = ResourceCliOptions {
+        no_skills: false,
+        no_prompt_templates: false,
+        no_extensions: false,
+        no_themes: false,
+        skill_paths: Vec::new(),
+        prompt_paths: Vec::new(),
+        extension_paths: Vec::new(),
+        theme_paths: Vec::new(),
+    };
+    let (event_tx, event_rx) = mpsc::channel(1024);
+    let (messages, usage) = conversation_from_session(&session);
+    let session = Arc::new(Mutex::new(session));
+
+    let mut app = PiApp::new(
+        agent,
+        session,
+        config,
+        resources,
+        resource_cli,
+        cwd,
+        model_entry,
+        model_scope,
+        available_models,
+        Vec::new(),
+        event_tx,
+        test_runtime_handle(),
+        false,
+        None,
+        Some(keybindings),
+        messages,
+        usage,
+    );
+    app.set_terminal_size(80, 24);
+    (app, event_rx)
 }
 
 fn read_project_settings_json(harness: &TestHarness) -> serde_json::Value {
@@ -448,16 +500,16 @@ fn conversation_from_session(session: &Session) -> (Vec<ConversationMessage>, Us
                 });
             }
             SessionMessage::Custom {
-                content, display, ..
+                content,
+                display: true,
+                ..
             } => {
-                if *display {
-                    messages.push(ConversationMessage {
-                        role: MessageRole::System,
-                        content: content.clone(),
-                        thinking: None,
-                        collapsed: false,
-                    });
-                }
+                messages.push(ConversationMessage {
+                    role: MessageRole::System,
+                    content: content.clone(),
+                    thinking: None,
+                    collapsed: false,
+                });
             }
             _ => {}
         }
@@ -577,6 +629,34 @@ fn create_session_on_disk(
 
     let mut session = Session::create_with_dir(Some(base_dir.to_path_buf()));
     session.header.cwd = cwd.display().to_string();
+    session.set_name(name);
+    session.append_message(SessionMessage::User {
+        content: UserContent::Text(user_text.to_string()),
+        timestamp: Some(0),
+    });
+    let path = project_dir.join(format!("{name}.jsonl"));
+    session.path = Some(path.clone());
+    common::run_async(async move {
+        session.save().await.expect("save session");
+    });
+    path
+}
+
+fn create_session_on_disk_with_model(
+    base_dir: &std::path::Path,
+    cwd: &std::path::Path,
+    name: &str,
+    user_text: &str,
+    provider: &str,
+    model_id: &str,
+) -> std::path::PathBuf {
+    let project_dir = base_dir.join(encode_cwd(cwd));
+    std::fs::create_dir_all(&project_dir).expect("create sessions dir");
+
+    let mut session = Session::create_with_dir(Some(base_dir.to_path_buf()));
+    session.header.cwd = cwd.display().to_string();
+    session.header.provider = Some(provider.to_string());
+    session.header.model_id = Some(model_id.to_string());
     session.set_name(name);
     session.append_message(SessionMessage::User {
         content: UserContent::Text(user_text.to_string()),
@@ -2525,6 +2605,101 @@ fn tui_state_resources_reloaded_sets_status_message() {
 }
 
 #[test]
+fn tui_state_resources_reloaded_with_extensions_keeps_supplied_status() {
+    let harness =
+        TestHarness::new("tui_state_resources_reloaded_with_extensions_keeps_supplied_status");
+    let extension_source = r#"
+export default function(pi) {
+  pi.registerCommand("test-cmd", {
+    description: "test",
+    handler: async () => ({ display: "ok" })
+  });
+}
+"#;
+    let (mut app, _event_rx) = build_app_with_session_and_events_and_extension(
+        &harness,
+        Vec::new(),
+        Session::in_memory(),
+        Config::default(),
+        extension_source,
+    );
+    log_initial_state(&harness, &app);
+
+    let step = apply_pi(
+        &harness,
+        &mut app,
+        "PiMsg::ResourcesReloaded",
+        PiMsg::ResourcesReloaded {
+            resources: ResourceLoader::empty(false),
+            status: "reloaded".to_string(),
+            diagnostics: None,
+        },
+    );
+    assert_after_contains(&harness, &step, "reloaded");
+    assert_after_not_contains(&harness, &step, "runtime unchanged");
+}
+
+#[test]
+fn tui_state_resources_reloaded_refreshes_extension_models_in_catalog() {
+    let harness =
+        TestHarness::new("tui_state_resources_reloaded_refreshes_extension_models_in_catalog");
+    let extension_source = r#"
+export default function(pi) {
+  pi.registerProvider("mock-provider", {
+    baseUrl: "https://api.mock-provider.test/v1",
+    apiKey: "MOCK_API_KEY",
+    api: "openai-completions",
+    models: [
+      {
+        id: "mock-fast",
+        name: "Mock Fast Model",
+        contextWindow: 32000,
+        maxTokens: 4096,
+        input: ["text"]
+      }
+    ]
+  });
+}
+"#;
+    let (mut app, _event_rx) = build_app_with_session_and_events_and_extension(
+        &harness,
+        Vec::new(),
+        Session::in_memory(),
+        Config::default(),
+        extension_source,
+    );
+    log_initial_state(&harness, &app);
+
+    type_text(&harness, &mut app, "/model mock-provider/mock-fast");
+    let missing = press_enter(&harness, &mut app);
+    assert_after_contains(
+        &harness,
+        &missing,
+        "Model not found: mock-provider/mock-fast",
+    );
+
+    let reload = apply_pi(
+        &harness,
+        &mut app,
+        "PiMsg::ResourcesReloaded",
+        PiMsg::ResourcesReloaded {
+            resources: ResourceLoader::empty(false),
+            status: "reloaded".to_string(),
+            diagnostics: None,
+        },
+    );
+    assert_after_contains(&harness, &reload, "reloaded");
+
+    type_text(&harness, &mut app, "/model mock-provider/mock-fast");
+    let switched = press_enter(&harness, &mut app);
+    assert_after_contains(
+        &harness,
+        &switched,
+        "Switched model: mock-provider/mock-fast",
+    );
+}
+
+#[test]
 fn tui_state_run_pending_text_submits_next_input() {
     let harness = TestHarness::new("tui_state_run_pending_text_submits_next_input");
     let mut app = build_app(&harness, vec![PendingInput::Text("hello".to_string())]);
@@ -3904,6 +4079,173 @@ export default function init(pi) {
 }
 
 #[test]
+fn tui_state_slash_resume_restores_model_runtime_and_header_label() {
+    let harness =
+        TestHarness::new("tui_state_slash_resume_restores_model_runtime_and_header_label");
+    let base_dir = harness.temp_path("sessions");
+    let cwd = harness.temp_dir().to_path_buf();
+
+    create_session_on_disk_with_model(
+        &base_dir,
+        &cwd,
+        "openai-session",
+        "Resumed on OpenAI",
+        "openai",
+        "gpt-a",
+    );
+
+    let mut session = Session::create_with_dir(Some(base_dir));
+    session.header.cwd = cwd.display().to_string();
+
+    let anthropic = make_model_entry(
+        "anthropic",
+        "claude-a",
+        "https://api.anthropic.com/v1/messages",
+    );
+    let openai = make_model_entry("openai", "gpt-a", "https://api.openai.com/v1");
+
+    let (mut app, event_rx) = build_app_with_models_and_events(
+        &harness,
+        session,
+        Config::default(),
+        anthropic.clone(),
+        Vec::new(),
+        vec![anthropic, openai],
+        KeyBindings::new(),
+    );
+    log_initial_state(&harness, &app);
+
+    type_text(&harness, &mut app, "/resume");
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Select a session to resume");
+
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Loading session...");
+
+    let events = wait_for_pi_msgs(&event_rx, Duration::from_secs(2), |msgs| {
+        let has_sync = msgs
+            .iter()
+            .any(|msg| matches!(msg, PiMsg::SyncModelState(_)));
+        let has_reset = msgs
+            .iter()
+            .any(|msg| matches!(msg, PiMsg::ConversationReset { .. }));
+        has_sync && has_reset
+    });
+
+    let sync = events
+        .iter()
+        .find(|msg| matches!(msg, PiMsg::SyncModelState(_)))
+        .cloned()
+        .expect("expected SyncModelState after resume");
+    let step = apply_pi(&harness, &mut app, "PiMsg::SyncModelState", sync);
+    assert_after_contains(&harness, &step, "openai/gpt-a");
+
+    let reset = events
+        .into_iter()
+        .find(|msg| matches!(msg, PiMsg::ConversationReset { .. }))
+        .expect("expected ConversationReset after resume");
+    let step = apply_pi(&harness, &mut app, "PiMsg::ConversationReset", reset);
+    assert_after_contains(&harness, &step, "Session resumed");
+    assert_after_contains(&harness, &step, "Resumed on OpenAI");
+    assert_after_contains(&harness, &step, "openai/gpt-a");
+
+    let session_handle = app.session_handle();
+    let session_guard = session_handle.try_lock().expect("session lock");
+    assert_eq!(session_guard.header.provider.as_deref(), Some("openai"));
+    assert_eq!(session_guard.header.model_id.as_deref(), Some("gpt-a"));
+    drop(session_guard);
+
+    assert_eq!(
+        app.agent_runtime_identity_for_test(),
+        Some(("openai".to_string(), "gpt-a".to_string()))
+    );
+}
+
+#[test]
+fn tui_state_slash_resume_restores_ad_hoc_model_runtime() {
+    let harness = TestHarness::new("tui_state_slash_resume_restores_ad_hoc_model_runtime");
+    let base_dir = harness.temp_path("sessions");
+    let cwd = harness.temp_dir().to_path_buf();
+
+    create_session_on_disk_with_model(
+        &base_dir,
+        &cwd,
+        "groq-session",
+        "Resumed on Groq ad-hoc model",
+        "groq",
+        "llama-3-70b",
+    );
+
+    let mut session = Session::create_with_dir(Some(base_dir));
+    session.header.cwd = cwd.display().to_string();
+
+    let current = make_model_entry(
+        "anthropic",
+        "claude-a",
+        "https://api.anthropic.com/v1/messages",
+    );
+
+    let (mut app, event_rx) = build_app_with_models_and_events(
+        &harness,
+        session,
+        Config::default(),
+        current.clone(),
+        Vec::new(),
+        vec![current],
+        KeyBindings::new(),
+    );
+    log_initial_state(&harness, &app);
+
+    type_text(&harness, &mut app, "/resume");
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Select a session to resume");
+
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Loading session...");
+
+    let events = wait_for_pi_msgs(&event_rx, Duration::from_secs(2), |msgs| {
+        let has_sync = msgs
+            .iter()
+            .any(|msg| matches!(msg, PiMsg::SyncModelState(_)));
+        let has_reset = msgs
+            .iter()
+            .any(|msg| matches!(msg, PiMsg::ConversationReset { .. }));
+        has_sync && has_reset
+    });
+
+    let sync = events
+        .iter()
+        .find(|msg| matches!(msg, PiMsg::SyncModelState(_)))
+        .cloned()
+        .expect("expected SyncModelState after resume");
+    let step = apply_pi(&harness, &mut app, "PiMsg::SyncModelState", sync);
+    assert_after_contains(&harness, &step, "groq/llama-3-70b");
+
+    let reset = events
+        .into_iter()
+        .find(|msg| matches!(msg, PiMsg::ConversationReset { .. }))
+        .expect("expected ConversationReset after resume");
+    let step = apply_pi(&harness, &mut app, "PiMsg::ConversationReset", reset);
+    assert_after_contains(&harness, &step, "Session resumed");
+    assert_after_contains(&harness, &step, "Resumed on Groq ad-hoc model");
+    assert_after_contains(&harness, &step, "groq/llama-3-70b");
+
+    let session_handle = app.session_handle();
+    let session_guard = session_handle.try_lock().expect("session lock");
+    assert_eq!(session_guard.header.provider.as_deref(), Some("groq"));
+    assert_eq!(
+        session_guard.header.model_id.as_deref(),
+        Some("llama-3-70b")
+    );
+    drop(session_guard);
+
+    assert_eq!(
+        app.agent_runtime_identity_for_test(),
+        Some(("groq".to_string(), "llama-3-70b".to_string()))
+    );
+}
+
+#[test]
 fn tui_state_session_picker_ctrl_d_prompts_for_delete() {
     let harness = TestHarness::new("tui_state_session_picker_ctrl_d_prompts_for_delete");
     let base_dir = harness.temp_path("sessions");
@@ -3970,7 +4312,110 @@ fn tui_state_slash_reload_sets_status_message() {
 
     type_text(&harness, &mut app, "/reload");
     let step = press_enter(&harness, &mut app);
-    assert_after_contains(&harness, &step, "Reloading resources...");
+    assert_after_contains(&harness, &step, "Reloading resources and model catalog...");
+}
+
+#[test]
+fn tui_state_slash_reload_hot_reloads_extension_tools() {
+    let harness = TestHarness::new("tui_state_slash_reload_hot_reloads_extension_tools");
+    let session = Session::in_memory();
+
+    let initial_source = r#"
+export default function init(pi) {
+  pi.registerTool({
+    name: "old_tool",
+    description: "old",
+    parameters: { type: "object" },
+    execute: async () => ({ content: [{ type: "text", text: "old" }], isError: false })
+  });
+}
+"#;
+    let updated_source = r#"
+export default function init(pi) {
+  pi.registerTool({
+    name: "new_tool",
+    description: "new",
+    parameters: { type: "object" },
+    execute: async () => ({ content: [{ type: "text", text: "new" }], isError: false })
+  });
+}
+"#;
+
+    let (mut app, event_rx) = build_app_with_session_and_events_and_extension(
+        &harness,
+        Vec::new(),
+        session,
+        Config::default(),
+        initial_source,
+    );
+    log_initial_state(&harness, &app);
+
+    type_text(&harness, &mut app, "/reload");
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(
+        &harness,
+        &step,
+        "Reloading resources, model catalog, and extensions...",
+    );
+
+    let events = wait_for_pi_msgs(&event_rx, Duration::from_secs(2), |msgs| {
+        msgs.iter()
+            .any(|msg| matches!(msg, PiMsg::ResourcesReloaded { .. }))
+    });
+    let reload = events
+        .into_iter()
+        .find(|msg| matches!(msg, PiMsg::ResourcesReloaded { .. }))
+        .expect("expected ResourcesReloaded after /reload");
+    let step = apply_pi(&harness, &mut app, "PiMsg::ResourcesReloaded", reload);
+    assert_after_contains(&harness, &step, "reloaded 1 live extension");
+    assert_after_not_contains(&harness, &step, "diagnostics");
+
+    let after_first_reload = app
+        .agent_tool_names_for_test()
+        .expect("tool names after first reload");
+    assert!(
+        after_first_reload.iter().any(|name| name == "old_tool"),
+        "expected old_tool after first reload, got {after_first_reload:?}"
+    );
+    assert!(
+        !after_first_reload.iter().any(|name| name == "new_tool"),
+        "did not expect new_tool after first reload, got {after_first_reload:?}"
+    );
+
+    let ext_entry_path = harness.temp_dir().join("extensions").join("ext.mjs");
+    std::fs::write(&ext_entry_path, updated_source).expect("rewrite extension source");
+
+    type_text(&harness, &mut app, "/reload");
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(
+        &harness,
+        &step,
+        "Reloading resources, model catalog, and extensions...",
+    );
+
+    let events = wait_for_pi_msgs(&event_rx, Duration::from_secs(2), |msgs| {
+        msgs.iter()
+            .any(|msg| matches!(msg, PiMsg::ResourcesReloaded { .. }))
+    });
+    let reload = events
+        .into_iter()
+        .find(|msg| matches!(msg, PiMsg::ResourcesReloaded { .. }))
+        .expect("expected ResourcesReloaded after second /reload");
+    let step = apply_pi(&harness, &mut app, "PiMsg::ResourcesReloaded", reload);
+    assert_after_contains(&harness, &step, "reloaded 1 live extension");
+    assert_after_not_contains(&harness, &step, "diagnostics");
+
+    let after_tools = app
+        .agent_tool_names_for_test()
+        .expect("tool names after second reload");
+    assert!(
+        after_tools.iter().any(|name| name == "new_tool"),
+        "expected new_tool after second reload, got {after_tools:?}"
+    );
+    assert!(
+        !after_tools.iter().any(|name| name == "old_tool"),
+        "did not expect old_tool after second reload, got {after_tools:?}"
+    );
 }
 
 #[test]
@@ -4171,7 +4616,7 @@ fn tui_state_slash_fork_creates_session_and_prefills_editor() {
     let base_dir = harness.temp_path("sessions");
     let cwd = harness.temp_dir().to_path_buf();
 
-    let mut session = Session::create_with_dir(Some(base_dir.clone()));
+    let mut session = Session::create_with_dir(Some(base_dir));
     session.header.cwd = cwd.display().to_string();
     session.append_message(SessionMessage::User {
         content: UserContent::Text("Root message".to_string()),
@@ -4224,18 +4669,21 @@ fn tui_state_slash_fork_creates_session_and_prefills_editor() {
     let step = apply_pi(&harness, &mut app, "PiMsg::SetEditorText", editor);
     assert_after_contains(&harness, &step, "Child message");
 
-    let repo_cwd = std::env::current_dir().expect("cwd");
-    let fork_dir = base_dir.join(encode_cwd(&repo_cwd));
-    let mut has_jsonl = false;
-    if let Ok(entries) = std::fs::read_dir(&fork_dir) {
-        for entry in entries.flatten() {
-            if entry.path().extension().is_some_and(|ext| ext == "jsonl") {
-                has_jsonl = true;
-                break;
-            }
-        }
-    }
-    assert!(has_jsonl, "expected fork to create a session file");
+    let session_handle = app.session_handle();
+    let session_guard = session_handle.try_lock().expect("session lock");
+    assert_eq!(session_guard.header.provider.as_deref(), Some("dummy"));
+    assert_eq!(
+        session_guard.header.model_id.as_deref(),
+        Some("dummy-model")
+    );
+    let session_path = session_guard.path.clone().expect("fork session path");
+    drop(session_guard);
+
+    assert!(
+        session_path.exists(),
+        "expected fork to create a session file at {}",
+        session_path.display()
+    );
 }
 
 #[test]
@@ -5245,6 +5693,38 @@ fn tui_grad_cycle_sibling_backward_with_branches() {
     assert!(
         !msg.contains("No sibling branches"),
         "Expected successful branch cycle, got status: {msg}"
+    );
+}
+
+#[test]
+fn tui_grad_cycle_sibling_clears_agent_queued_messages() {
+    let harness = TestHarness::new("tui_grad_cycle_sibling_clears_agent_queued_messages");
+    let (session, _, _, _) = create_two_branch_session();
+    let (mut app, _rx) = build_app_with_session_and_events(&harness, Vec::new(), session);
+    log_initial_state(&harness, &app);
+
+    {
+        let agent = app.agent_handle_for_test();
+        let mut agent_guard = agent.try_lock().expect("agent lock");
+        agent_guard.queue_steering(ModelMessage::User(UserMessage {
+            content: UserContent::Text("stale follow-up".to_string()),
+            timestamp: 0,
+        }));
+        assert_eq!(agent_guard.queued_message_count(), 1);
+    }
+
+    app.cycle_sibling_branch(true);
+
+    let agent = app.agent_handle_for_test();
+    let agent_guard = agent.try_lock().expect("agent lock");
+    assert_eq!(agent_guard.queued_message_count(), 0);
+    drop(agent_guard);
+
+    assert!(
+        app.status_message()
+            .is_some_and(|status| status.starts_with("Switched to ")),
+        "expected successful branch switch status, got {:?}",
+        app.status_message()
     );
 }
 

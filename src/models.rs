@@ -254,10 +254,15 @@ fn legacy_generated_models_cache_path() -> Option<PathBuf> {
 fn load_legacy_generated_models_cache() -> Option<Vec<LegacyGeneratedModel>> {
     let path = legacy_generated_models_cache_path()?;
     let cache = fs::read_to_string(path).ok()?;
-    serde_json::from_str::<Vec<LegacyGeneratedModel>>(&cache).ok()
+    let mut parsed = serde_json::from_str::<Vec<LegacyGeneratedModel>>(&cache).ok()?;
+    supplement_legacy_generated_models(&mut parsed);
+    Some(parsed)
 }
 
 fn persist_legacy_generated_models_cache(models: &[LegacyGeneratedModel]) {
+    if models.is_empty() {
+        return;
+    }
     let Some(path) = legacy_generated_models_cache_path() else {
         return;
     };
@@ -287,6 +292,139 @@ fn persist_legacy_generated_models_cache(models: &[LegacyGeneratedModel]) {
     }
 }
 
+fn fallback_legacy_generated_models() -> Vec<LegacyGeneratedModel> {
+    vec![
+        LegacyGeneratedModel {
+            id: "gpt-5.4".to_string(),
+            name: "GPT-5.4 Codex".to_string(),
+            api: "openai-codex-responses".to_string(),
+            provider: "openai-codex".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string(), "image".to_string()],
+            cost: None,
+            context_window: Some(272_000),
+            max_tokens: Some(128_000),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "gpt-5.2-codex".to_string(),
+            name: "GPT-5.2 Codex".to_string(),
+            api: "openai-codex-responses".to_string(),
+            provider: "openai-codex".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string(), "image".to_string()],
+            cost: None,
+            context_window: Some(272_000),
+            max_tokens: Some(128_000),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "gemini-2.5-pro".to_string(),
+            name: "Gemini 2.5 Pro".to_string(),
+            api: "google-gemini-cli".to_string(),
+            provider: "google-gemini-cli".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string()],
+            cost: None,
+            context_window: Some(1_000_000),
+            max_tokens: Some(65_536),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "gemini-3-flash".to_string(),
+            name: "Gemini 3 Flash".to_string(),
+            api: "google-gemini-cli".to_string(),
+            provider: "google-antigravity".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string()],
+            cost: None,
+            context_window: Some(1_000_000),
+            max_tokens: Some(65_536),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "gpt-5.2".to_string(),
+            name: "GPT-5.2".to_string(),
+            api: "openai-responses".to_string(),
+            provider: "azure-openai-responses".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string(), "image".to_string()],
+            cost: None,
+            context_window: Some(400_000),
+            max_tokens: Some(128_000),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "anthropic/claude-opus-4.5".to_string(),
+            name: "Claude Opus 4.5".to_string(),
+            api: "openai-completions".to_string(),
+            provider: "vercel-ai-gateway".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string()],
+            cost: None,
+            context_window: Some(128_000),
+            max_tokens: Some(16_384),
+            headers: HashMap::new(),
+            compat: None,
+        },
+        LegacyGeneratedModel {
+            id: "kimi-k2-thinking".to_string(),
+            name: "Kimi K2 Thinking".to_string(),
+            api: "anthropic-messages".to_string(),
+            provider: "kimi-coding".to_string(),
+            base_url: String::new(),
+            reasoning: true,
+            input: vec!["text".to_string(), "image".to_string()],
+            cost: None,
+            context_window: Some(262_144),
+            max_tokens: Some(32_768),
+            headers: HashMap::new(),
+            compat: None,
+        },
+    ]
+}
+
+fn supplement_legacy_generated_models(models: &mut Vec<LegacyGeneratedModel>) {
+    let mut seen = models
+        .iter()
+        .map(|entry| {
+            (
+                entry.provider.to_ascii_lowercase(),
+                canonicalize_model_id_for_provider(&entry.provider, &entry.id).to_ascii_lowercase(),
+            )
+        })
+        .collect::<HashSet<_>>();
+
+    for fallback in fallback_legacy_generated_models() {
+        let key = (
+            fallback.provider.to_ascii_lowercase(),
+            canonicalize_model_id_for_provider(&fallback.provider, &fallback.id)
+                .to_ascii_lowercase(),
+        );
+        if seen.insert(key) {
+            models.push(fallback);
+        }
+    }
+
+    models.sort_by(|a, b| {
+        a.provider
+            .cmp(&b.provider)
+            .then_with(|| a.id.cmp(&b.id))
+            .then_with(|| a.api.cmp(&b.api))
+    });
+}
+
 fn parse_legacy_generated_models() -> Vec<LegacyGeneratedModel> {
     if let Some(cached) = load_legacy_generated_models_cache() {
         return cached;
@@ -294,17 +432,26 @@ fn parse_legacy_generated_models() -> Vec<LegacyGeneratedModel> {
 
     let Some(models_decl_start) = LEGACY_MODELS_GENERATED_TS.find("export const MODELS =") else {
         tracing::warn!("Legacy model catalog missing MODELS declaration");
-        return Vec::new();
+        let mut fallback = fallback_legacy_generated_models();
+        supplement_legacy_generated_models(&mut fallback);
+        persist_legacy_generated_models_cache(&fallback);
+        return fallback;
     };
     let Some(object_start_rel) = LEGACY_MODELS_GENERATED_TS[models_decl_start..].find('{') else {
         tracing::warn!("Legacy model catalog missing object start after MODELS declaration");
-        return Vec::new();
+        let mut fallback = fallback_legacy_generated_models();
+        supplement_legacy_generated_models(&mut fallback);
+        persist_legacy_generated_models_cache(&fallback);
+        return fallback;
     };
     let object_start = models_decl_start + object_start_rel;
     let Some(end_marker_rel) = LEGACY_MODELS_GENERATED_TS[object_start..].rfind("} as const;")
     else {
         tracing::warn!("Legacy model catalog missing end marker");
-        return Vec::new();
+        let mut fallback = fallback_legacy_generated_models();
+        supplement_legacy_generated_models(&mut fallback);
+        persist_legacy_generated_models_cache(&fallback);
+        return fallback;
     };
     let end_marker = object_start + end_marker_rel;
 
@@ -321,7 +468,10 @@ fn parse_legacy_generated_models() -> Vec<LegacyGeneratedModel> {
             Ok(value) => value,
             Err(err) => {
                 tracing::warn!(error = %err, "Failed to parse legacy model catalog");
-                return Vec::new();
+                let mut fallback = fallback_legacy_generated_models();
+                supplement_legacy_generated_models(&mut fallback);
+                persist_legacy_generated_models_cache(&fallback);
+                return fallback;
             }
         };
 
@@ -329,12 +479,7 @@ fn parse_legacy_generated_models() -> Vec<LegacyGeneratedModel> {
         .into_values()
         .flat_map(HashMap::into_values)
         .collect::<Vec<_>>();
-    models.sort_by(|a, b| {
-        a.provider
-            .cmp(&b.provider)
-            .then_with(|| a.id.cmp(&b.id))
-            .then_with(|| a.api.cmp(&b.api))
-    });
+    supplement_legacy_generated_models(&mut models);
     persist_legacy_generated_models_cache(&models);
     models
 }
@@ -636,75 +781,91 @@ fn is_canonical_provider_for_model(model_id: &str, provider: &str) -> bool {
 ///
 /// This prevents non-reasoning models like `gpt-4o` from inheriting a
 /// provider-level `reasoning: true` flag from their provider (Issue #19).
+fn model_id_matches_family(id: &str, family: &str) -> bool {
+    id == family
+        || id.starts_with(family)
+        || id.contains(&format!("/{family}"))
+        || id.contains(&format!(".{family}"))
+        || id.contains(&format!(":{family}"))
+}
+
 fn model_is_reasoning(model_id: &str) -> Option<bool> {
     let id = model_id.to_ascii_lowercase();
 
     // OpenAI: o1/o3/o4 series and gpt-5.x are reasoning.
     // All gpt-4 variants (gpt-4o, gpt-4-turbo, gpt-4-0613, etc.) and gpt-3.5 are NOT.
-    if id.starts_with("o1") || id.starts_with("o3") || id.starts_with("o4") {
+    if model_id_matches_family(&id, "o1")
+        || model_id_matches_family(&id, "o3")
+        || model_id_matches_family(&id, "o4")
+    {
         return Some(true);
     }
-    if id.starts_with("gpt-5") {
+    if model_id_matches_family(&id, "gpt-5") {
         return Some(true);
     }
-    if id.starts_with("gpt-4") || id.starts_with("gpt-3.5") {
+    if model_id_matches_family(&id, "gpt-4") || model_id_matches_family(&id, "gpt-3.5") {
         return Some(false);
     }
 
     // Anthropic: Claude 3.5 Sonnet and Claude 4+ support extended thinking.
     // Claude 3 (Haiku/Sonnet/Opus) and Claude 3.5 Haiku do NOT.
-    if id.starts_with("claude-3-5-haiku")
-        || id.starts_with("claude-3-haiku")
-        || id.starts_with("claude-3-sonnet")
-        || id.starts_with("claude-3-opus")
+    if model_id_matches_family(&id, "claude-3-5-haiku")
+        || model_id_matches_family(&id, "claude-3-haiku")
+        || model_id_matches_family(&id, "claude-3-sonnet")
+        || model_id_matches_family(&id, "claude-3-opus")
     {
         return Some(false);
     }
-    if id.starts_with("claude") {
+    if model_id_matches_family(&id, "claude") {
         // Claude 3.5 Sonnet, Claude 4.x, Claude Opus 4+, Claude Sonnet 4+ etc.
         return Some(true);
     }
 
     // Google: gemini-2.5+ and gemini-2.0-flash-thinking are reasoning.
     // All other gemini models (2.0-flash, 2.0-flash-lite, 1.x, etc.) are NOT.
-    if id.starts_with("gemini-2.5")
-        || id.starts_with("gemini-3")
-        || id.starts_with("gemini-2.0-flash-thinking")
+    if model_id_matches_family(&id, "gemini-2.5")
+        || model_id_matches_family(&id, "gemini-3")
+        || model_id_matches_family(&id, "gemini-2.0-flash-thinking")
     {
         return Some(true);
     }
-    if id.starts_with("gemini") {
+    if model_id_matches_family(&id, "gemini") {
         return Some(false);
     }
 
     // Cohere: command-a is reasoning; command-r is not.
-    if id.starts_with("command-a") {
+    if model_id_matches_family(&id, "command-a") {
         return Some(true);
     }
-    if id.starts_with("command-r") {
+    if model_id_matches_family(&id, "command-r") {
         return Some(false);
     }
 
     // DeepSeek: deepseek-reasoner (R1) is reasoning; deepseek-chat (V3) and others are not.
-    if id.starts_with("deepseek-reasoner") || id.starts_with("deepseek-r") {
+    if model_id_matches_family(&id, "deepseek-reasoner")
+        || model_id_matches_family(&id, "deepseek-r")
+    {
         return Some(true);
     }
-    if id.starts_with("deepseek") {
+    if model_id_matches_family(&id, "deepseek") {
         return Some(false);
     }
 
     // Qwen: qwq- series are reasoning.
-    if id.starts_with("qwq-") {
+    if model_id_matches_family(&id, "qwq-") {
         return Some(true);
     }
 
     // Mistral/Codestral: no reasoning support currently.
-    if id.starts_with("mistral") || id.starts_with("codestral") || id.starts_with("pixtral") {
+    if model_id_matches_family(&id, "mistral")
+        || model_id_matches_family(&id, "codestral")
+        || model_id_matches_family(&id, "pixtral")
+    {
         return Some(false);
     }
 
     // Meta Llama: no reasoning support.
-    if id.starts_with("llama") {
+    if model_id_matches_family(&id, "llama") {
         return Some(false);
     }
 

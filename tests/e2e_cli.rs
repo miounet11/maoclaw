@@ -114,7 +114,12 @@ impl CliTestHarness {
         self.env
             .get("PI_CONFIG_PATH")
             .map(PathBuf::from)
-            .expect("PI_CONFIG_PATH set by CliTestHarness::new")
+            .or_else(|| {
+                self.env
+                    .get("PI_CODING_AGENT_DIR")
+                    .map(|path| PathBuf::from(path).join("settings.json"))
+            })
+            .expect("global settings path configured by CliTestHarness::new")
     }
 
     #[cfg(unix)]
@@ -1059,7 +1064,8 @@ fn e2e_cli_config_show_reports_empty_packages_when_none_configured() {
 
 #[test]
 fn e2e_cli_config_show_lists_discovered_package_resources() {
-    let harness = CliTestHarness::new("e2e_cli_config_show_lists_discovered_package_resources");
+    let mut harness = CliTestHarness::new("e2e_cli_config_show_lists_discovered_package_resources");
+    harness.env.remove("PI_CONFIG_PATH");
 
     let package_root = harness.harness.create_dir("config-ui-pkg");
     fs::create_dir_all(package_root.join("extensions")).expect("create package extensions");
@@ -1357,7 +1363,8 @@ fn e2e_cli_list_subcommand_works_offline() {
 #[cfg(unix)]
 #[test]
 fn e2e_cli_packages_install_list_remove_offline() {
-    let harness = CliTestHarness::new("e2e_cli_packages_install_list_remove_offline");
+    let mut harness = CliTestHarness::new("e2e_cli_packages_install_list_remove_offline");
+    harness.env.remove("PI_CONFIG_PATH");
 
     harness.harness.section("install local (project)");
     harness.harness.create_dir("local-pkg");
@@ -1463,8 +1470,10 @@ fn e2e_cli_packages_install_list_remove_offline() {
 
 #[cfg(unix)]
 #[test]
+#[allow(clippy::too_many_lines)]
 fn e2e_cli_packages_update_respects_pinning_offline() {
-    let harness = CliTestHarness::new("e2e_cli_packages_update_respects_pinning_offline");
+    let mut harness = CliTestHarness::new("e2e_cli_packages_update_respects_pinning_offline");
+    harness.env.remove("PI_CONFIG_PATH");
 
     let git = |cwd: &Path, args: &[&str]| -> String {
         let output = Command::new("git")
@@ -3221,12 +3230,21 @@ fn e2e_cli_specific_tools_enables_subset() {
     assert_contains(&harness.harness, &result.stdout, "tools");
 }
 
-/// Default tools (read,bash,edit,write) should be enabled when no --tools/--no-tools flag.
+/// Default tools should include all built-ins when no --tools/--no-tools flag.
 #[test]
 fn e2e_cli_default_tools_when_no_flag() {
     let mut harness = CliTestHarness::new("e2e_cli_default_tools_when_no_flag");
     let system_prompt = "Test default tools.";
-    let expected_tools = ["read", "bash", "edit", "write", "hashline_edit"];
+    let expected_tools = [
+        "read",
+        "bash",
+        "edit",
+        "write",
+        "grep",
+        "find",
+        "ls",
+        "hashline_edit",
+    ];
 
     let request_body = json!({
         "model": "claude-sonnet-4-5",

@@ -210,6 +210,7 @@ fn rpc_get_state_and_prompt() {
         let expected_response = serde_json::Value::String("response".to_string());
         let expected_get_state = serde_json::Value::String("get_state".to_string());
         let expected_prompt = serde_json::Value::String("prompt".to_string());
+        let expected_get_messages = serde_json::Value::String("get_messages".to_string());
         let expected_stats = serde_json::Value::String("get_session_stats".to_string());
         let expected_true = serde_json::Value::Bool(true);
 
@@ -273,6 +274,16 @@ fn rpc_get_state_and_prompt() {
             "prompt.success",
             &prompt_resp["success"],
             &expected_true,
+        );
+        let prompt_data = prompt_resp["data"].as_object().expect("prompt data");
+        assert_eq!(prompt_resp["data"]["phase"], "accepted");
+        assert_eq!(prompt_resp["data"]["isStreaming"], true);
+        assert!(prompt_data.get("sessionFile").is_some());
+        assert!(prompt_data.get("sessionId").is_some());
+        assert!(
+            prompt_resp["data"]["sessionId"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
         );
 
         // Collect events until agent_end.
@@ -394,6 +405,51 @@ fn rpc_get_state_and_prompt() {
         assert_eq!(get_stats_response["data"]["tokens"]["input"], 10);
         assert_eq!(get_stats_response["data"]["tokens"]["output"], 5);
         assert_eq!(get_stats_response["data"]["tokens"]["total"], 15);
+
+        // get_messages
+        in_tx
+            .send(&cx, r#"{"id":"4","type":"get_messages"}"#.to_string())
+            .await
+            .expect("send get_messages");
+
+        let line = recv_line(&out_rx, "get_messages response")
+            .await
+            .expect("recv get_messages response");
+        let get_messages_response: serde_json::Value = serde_json::from_str(line.trim()).unwrap();
+        assert_json_eq(
+            logger,
+            "get_messages.type",
+            &get_messages_response["type"],
+            &expected_response,
+        );
+        assert_json_eq(
+            logger,
+            "get_messages.command",
+            &get_messages_response["command"],
+            &expected_get_messages,
+        );
+        assert_json_eq(
+            logger,
+            "get_messages.success",
+            &get_messages_response["success"],
+            &expected_true,
+        );
+        let get_messages_data = get_messages_response["data"]
+            .as_object()
+            .expect("get_messages data");
+        assert!(get_messages_data.get("sessionFile").is_some());
+        assert!(get_messages_data.get("sessionId").is_some());
+        assert!(
+            get_messages_response["data"]["sessionId"]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+        );
+        let messages = get_messages_response["data"]["messages"]
+            .as_array()
+            .expect("get_messages messages");
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "user");
+        assert_eq!(messages[1]["role"], "assistant");
 
         drop(in_tx);
 

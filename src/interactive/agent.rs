@@ -449,7 +449,31 @@ impl PiApp {
                 }
             }
             PiMsg::CredentialUpdated { provider } => {
-                self.sync_active_provider_credentials(&provider);
+                match self.refresh_provider_auth_state(&provider) {
+                    Ok(Some(diagnostic)) => {
+                        self.messages.push(ConversationMessage {
+                            role: MessageRole::System,
+                            content: format!(
+                                "models.json warning after credential update:\n{diagnostic}"
+                            ),
+                            thinking: None,
+                            collapsed: false,
+                        });
+                        self.scroll_to_bottom();
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        self.messages.push(ConversationMessage {
+                            role: MessageRole::System,
+                            content: format!(
+                                "Credential update applied, but refreshing in-memory auth state failed: {err}"
+                            ),
+                            thinking: None,
+                            collapsed: false,
+                        });
+                        self.scroll_to_bottom();
+                    }
+                }
             }
             PiMsg::UpdateLastUserMessage(content) => {
                 if let Some(message) = self
@@ -526,11 +550,22 @@ impl PiApp {
                 self.current_thinking.clear();
                 self.agent_state = AgentState::Idle;
                 self.current_tool = None;
+                self.tool_progress = None;
+                self.pending_tool_output = None;
                 self.abort_handle = None;
                 self.status_message = status;
                 self.message_render_cache.clear();
                 self.scroll_to_bottom();
                 self.input.focus();
+            }
+            PiMsg::SyncModelState(entry) => {
+                let entry = *entry;
+                self.model_entry = entry.clone();
+                if let Ok(mut guard) = self.model_entry_shared.lock() {
+                    *guard = entry.clone();
+                }
+                self.push_available_model_if_missing(entry.clone());
+                self.model = format!("{}/{}", entry.model.provider, entry.model.id);
             }
             PiMsg::SetEditorText(text) => {
                 self.input.set_value(&text);
@@ -549,12 +584,19 @@ impl PiApp {
                 self.autocomplete.provider.set_catalog(autocomplete_catalog);
                 self.autocomplete.close();
                 self.resources = resources;
+                let catalog_reload_error = self.refresh_available_models_from_disk().err();
                 self.apply_theme(Theme::resolve(&self.config, &self.cwd));
                 self.agent_state = AgentState::Idle;
                 self.current_tool = None;
                 self.abort_handle = None;
                 self.status_message = Some(status);
-                if let Some(message) = diagnostics {
+                let combined_diagnostics = match (diagnostics, catalog_reload_error) {
+                    (Some(existing), Some(reload_err)) => Some(format!("{existing}\n{reload_err}")),
+                    (Some(existing), None) => Some(existing),
+                    (None, Some(reload_err)) => Some(reload_err),
+                    (None, None) => None,
+                };
+                if let Some(message) = combined_diagnostics {
                     self.messages.push(ConversationMessage {
                         role: MessageRole::System,
                         content: message,
@@ -996,18 +1038,26 @@ impl PiApp {
                     } else {
                         format!("/{cmd_for_msg} completed: {value}")
                     };
-                    let _ = event_tx.try_send(PiMsg::ExtensionCommandDone {
-                        command: cmd_for_msg,
-                        display,
-                        is_error: false,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ExtensionCommandDone {
+                            command: cmd_for_msg,
+                            display,
+                            is_error: false,
+                        },
+                    )
+                    .await;
                 }
                 Err(err) => {
-                    let _ = event_tx.try_send(PiMsg::ExtensionCommandDone {
-                        command: cmd_for_msg,
-                        display: format!("Extension command error: {err}"),
-                        is_error: true,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ExtensionCommandDone {
+                            command: cmd_for_msg,
+                            display: format!("Extension command error: {err}"),
+                            is_error: true,
+                        },
+                    )
+                    .await;
                 }
             }
         });
@@ -1053,18 +1103,26 @@ impl PiApp {
             match result {
                 Ok(_) => {
                     let display = format!("Shortcut [{key_for_msg}] executed.");
-                    let _ = event_tx.try_send(PiMsg::ExtensionCommandDone {
-                        command: key_for_msg,
-                        display,
-                        is_error: false,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ExtensionCommandDone {
+                            command: key_for_msg,
+                            display,
+                            is_error: false,
+                        },
+                    )
+                    .await;
                 }
                 Err(err) => {
-                    let _ = event_tx.try_send(PiMsg::ExtensionCommandDone {
-                        command: key_for_msg,
-                        display: format!("Shortcut error: {err}"),
-                        is_error: true,
-                    });
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::ExtensionCommandDone {
+                            command: key_for_msg,
+                            display: format!("Shortcut error: {err}"),
+                            is_error: true,
+                        },
+                    )
+                    .await;
                 }
             }
         });
@@ -1202,8 +1260,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&agent), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock agent: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1244,8 +1305,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&session), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1262,12 +1326,13 @@ impl PiApp {
             drop(session_guard);
 
             if let Some(err) = save_error {
-                let _ = event_tx.try_send(PiMsg::AgentError(err));
+                let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
             }
 
             if let Err(err) = result {
                 let formatted = crate::error_hints::format_error_with_hints(&err);
-                let _ = event_tx.try_send(PiMsg::AgentError(formatted));
+                let _ =
+                    send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(formatted)).await;
             }
         });
 
@@ -1331,18 +1396,31 @@ impl PiApp {
                         content_for_agent = build_content_blocks_for_input(&text, &images);
                         let updated = content_blocks_to_text(&content_for_agent);
                         if updated != display_owned {
-                            let _ = event_tx.try_send(PiMsg::UpdateLastUserMessage(updated));
+                            let _ = send_pi_msg_with_backpressure(
+                                &event_tx,
+                                PiMsg::UpdateLastUserMessage(updated),
+                            )
+                            .await;
                         }
                     }
                     Ok(InputEventOutcome::Block { reason }) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::UpdateLastUserMessage("[input blocked]".to_string()));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::UpdateLastUserMessage("[input blocked]".to_string()),
+                        )
+                        .await;
                         let message = reason.unwrap_or_else(|| "Input blocked".to_string());
-                        let _ = event_tx.try_send(PiMsg::AgentError(message));
+                        let _ =
+                            send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(message))
+                                .await;
                         return;
                     }
                     Err(err) => {
-                        let _ = event_tx.try_send(PiMsg::AgentError(err.to_string()));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(err.to_string()),
+                        )
+                        .await;
                         return;
                     }
                 }
@@ -1356,8 +1434,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&agent), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock agent: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1398,8 +1479,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&session), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1416,12 +1500,13 @@ impl PiApp {
             drop(session_guard);
 
             if let Some(err) = save_error {
-                let _ = event_tx.try_send(PiMsg::AgentError(err));
+                let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
             }
 
             if let Err(err) = result {
                 let formatted = crate::error_hints::format_error_with_hints(&err);
-                let _ = event_tx.try_send(PiMsg::AgentError(formatted));
+                let _ =
+                    send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(formatted)).await;
             }
         });
 
@@ -1559,19 +1644,31 @@ impl PiApp {
                         message_for_agent = text;
                         input_images = images;
                         if message_for_agent != displayed_message {
-                            let _ = event_tx
-                                .try_send(PiMsg::UpdateLastUserMessage(message_for_agent.clone()));
+                            let _ = send_pi_msg_with_backpressure(
+                                &event_tx,
+                                PiMsg::UpdateLastUserMessage(message_for_agent.clone()),
+                            )
+                            .await;
                         }
                     }
                     Ok(InputEventOutcome::Block { reason }) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::UpdateLastUserMessage("[input blocked]".to_string()));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::UpdateLastUserMessage("[input blocked]".to_string()),
+                        )
+                        .await;
                         let message = reason.unwrap_or_else(|| "Input blocked".to_string());
-                        let _ = event_tx.try_send(PiMsg::AgentError(message));
+                        let _ =
+                            send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(message))
+                                .await;
                         return;
                     }
                     Err(err) => {
-                        let _ = event_tx.try_send(PiMsg::AgentError(err.to_string()));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(err.to_string()),
+                        )
+                        .await;
                         return;
                     }
                 }
@@ -1585,8 +1682,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&agent), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock agent: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1651,8 +1751,11 @@ impl PiApp {
                 match asupersync::sync::OwnedMutexGuard::lock(Arc::clone(&session), &cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
@@ -1669,11 +1772,13 @@ impl PiApp {
             drop(session_guard);
 
             if let Some(err) = save_error {
-                let _ = event_tx.try_send(PiMsg::AgentError(err));
+                let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
             }
 
             if let Err(err) = result {
-                let _ = event_tx.try_send(PiMsg::AgentError(err.to_string()));
+                let _ =
+                    send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err.to_string()))
+                        .await;
             }
         });
 

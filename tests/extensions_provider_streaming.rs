@@ -531,7 +531,7 @@ fn stream_simple_string_chunks_map_to_text_deltas() {
 }
 
 #[test]
-fn stream_simple_string_chunks_accumulate_in_partials() {
+fn stream_simple_string_chunks_can_be_reconstructed_incrementally() {
     make_runtime().block_on(async move {
         let (_dir, manager) = load_extension(STRING_ONLY_EXTENSION).await;
         let entries = manager.extension_model_entries();
@@ -546,13 +546,16 @@ fn stream_simple_string_chunks_accumulate_in_partials() {
             .await
             .expect("stream");
 
-        // Track accumulated text in each TextDelta partial.
+        // Raw TextDelta events carry only the new chunk, so callers that want
+        // progressive full text must accumulate the deltas themselves.
         let mut accumulated_texts = Vec::new();
+        let mut running_text = String::new();
         while let Some(item) = stream.next().await {
             let event = item.expect("event ok");
             match event {
                 StreamEvent::TextDelta { delta, .. } => {
-                    accumulated_texts.push(delta);
+                    running_text.push_str(&delta);
+                    accumulated_texts.push(running_text.clone());
                 }
                 StreamEvent::Done { .. } => break,
                 _ => {}

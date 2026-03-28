@@ -175,6 +175,10 @@ impl Tool for ExtensionToolWrapper {
         self.def.parameters.clone()
     }
 
+    fn is_extension_tool(&self) -> bool {
+        true
+    }
+
     async fn execute(
         &self,
         tool_call_id: &str,
@@ -219,6 +223,10 @@ impl Tool for WasmExtensionToolWrapper {
 
     fn parameters(&self) -> Value {
         self.def.parameters.clone()
+    }
+
+    fn is_extension_tool(&self) -> bool {
+        true
     }
 
     async fn execute(

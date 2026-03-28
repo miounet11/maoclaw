@@ -715,8 +715,8 @@ fn security_gate_waiver_required_fields() {
         owner: "TestAgent".to_string(),
         bead: "bd-test".to_string(),
         reason: "Testing waiver validation".to_string(),
-        created: "2026-02-14".to_string(),
-        expires: "2026-02-28".to_string(),
+        created: "2099-01-01".to_string(),
+        expires: "2099-01-15".to_string(),
         scope: "full".to_string(),
         remove_when: "Tests pass consistently for 3 runs".to_string(),
     };
@@ -736,8 +736,8 @@ fn security_gate_waiver_rejects_missing_owner() {
         owner: String::new(),
         bead: "bd-test".to_string(),
         reason: "Testing".to_string(),
-        created: "2026-02-14".to_string(),
-        expires: "2026-02-28".to_string(),
+        created: "2099-01-01".to_string(),
+        expires: "2099-01-15".to_string(),
         scope: "full".to_string(),
         remove_when: "Tests pass".to_string(),
     };
@@ -753,8 +753,8 @@ fn security_gate_waiver_rejects_expired() {
         owner: "TestAgent".to_string(),
         bead: "bd-test".to_string(),
         reason: "Testing".to_string(),
-        created: "2026-01-01".to_string(),
-        expires: "2026-01-15".to_string(),
+        created: "2000-01-01".to_string(),
+        expires: "2000-01-15".to_string(),
         scope: "full".to_string(),
         remove_when: "Tests pass".to_string(),
     };
@@ -778,8 +778,8 @@ fn security_gate_waiver_rejects_too_long_duration() {
         owner: "TestAgent".to_string(),
         bead: "bd-test".to_string(),
         reason: "Testing".to_string(),
-        created: "2026-02-01".to_string(),
-        expires: "2026-04-01".to_string(), // 59 days > 30 max
+        created: "2099-01-01".to_string(),
+        expires: "2099-03-01".to_string(), // 59 days > 30 max
         scope: "full".to_string(),
         remove_when: "Tests pass".to_string(),
     };
@@ -803,8 +803,8 @@ fn security_gate_waiver_rejects_invalid_scope() {
         owner: "TestAgent".to_string(),
         bead: "bd-test".to_string(),
         reason: "Testing".to_string(),
-        created: "2026-02-14".to_string(),
-        expires: "2026-02-28".to_string(),
+        created: "2099-01-01".to_string(),
+        expires: "2099-01-15".to_string(),
         scope: "invalid_scope".to_string(),
         remove_when: "Tests pass".to_string(),
     };
@@ -824,8 +824,8 @@ fn security_gate_waiver_rejects_missing_bead() {
         owner: "TestAgent".to_string(),
         bead: String::new(),
         reason: "Testing".to_string(),
-        created: "2026-02-14".to_string(),
-        expires: "2026-02-28".to_string(),
+        created: "2099-01-01".to_string(),
+        expires: "2099-01-15".to_string(),
         scope: "full".to_string(),
         remove_when: "Tests pass".to_string(),
     };

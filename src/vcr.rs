@@ -429,88 +429,10 @@ impl VcrRecorder {
             }
 
             // Always dump debug bodies to a file when VCR_DEBUG_BODY_FILE is set
-            if let Ok(debug_path) = std::env::var("VCR_DEBUG_BODY_FILE") {
-                use std::fmt::Write as _;
-
-                let mut debug = String::new();
-                if let Some(body) = &request.body {
-                    let mut redacted = body.clone();
-                    redact_json(&mut redacted);
-                    if let Ok(pretty) = serde_json::to_string_pretty(&redacted) {
-                        debug.push_str("=== INCOMING (redacted) ===\n");
-                        debug.push_str(&pretty);
-                        debug.push('\n');
-                    }
-                }
-                if let Some(body_text) = &request.body_text {
-                    let redacted = normalize_body_text_for_matching(&request.headers, body_text);
-                    let _ = writeln!(debug, "=== INCOMING TEXT (redacted) ===");
-                    debug.push_str(&redacted);
-                    debug.push('\n');
-                }
-                for (idx, interaction) in cassette.interactions.iter().enumerate() {
-                    if let Some(body) = &interaction.request.body {
-                        if let Ok(pretty) = serde_json::to_string_pretty(body) {
-                            let _ = writeln!(debug, "=== RECORDED [{idx}] ===");
-                            debug.push_str(&pretty);
-                            debug.push('\n');
-                        }
-                    }
-                    if let Some(body_text) = &interaction.request.body_text {
-                        let redacted = normalize_body_text_for_matching(
-                            &interaction.request.headers,
-                            body_text,
-                        );
-                        let _ = writeln!(debug, "=== RECORDED TEXT [{idx}] ===");
-                        debug.push_str(&redacted);
-                        debug.push('\n');
-                    }
-                }
-                let _ = std::fs::write(&debug_path, &debug);
-            }
+            dump_debug_body_file(request, &cassette);
 
             if env_truthy("VCR_DEBUG_BODY") {
-                use std::fmt::Write as _;
-
-                let mut incoming_body = request.body.clone();
-                if let Some(body) = &mut incoming_body {
-                    redact_json(body);
-                }
-
-                if let Some(body) = &incoming_body {
-                    if let Ok(pretty) = serde_json::to_string_pretty(body) {
-                        message.push_str("\nIncoming JSON body (redacted):\n");
-                        message.push_str(&pretty);
-                        message.push('\n');
-                    }
-                }
-
-                if let Some(body_text) = &request.body_text {
-                    let redacted = normalize_body_text_for_matching(&request.headers, body_text);
-                    message.push_str("\nIncoming text body:\n");
-                    message.push_str(&redacted);
-                    message.push('\n');
-                }
-
-                for (idx, interaction) in cassette.interactions.iter().enumerate() {
-                    if let Some(body) = &interaction.request.body {
-                        if let Ok(pretty) = serde_json::to_string_pretty(body) {
-                            let _ = write!(message, "\nRecorded JSON body [{idx}]:\n");
-                            message.push_str(&pretty);
-                            message.push('\n');
-                        }
-                    }
-
-                    if let Some(body_text) = &interaction.request.body_text {
-                        let redacted = normalize_body_text_for_matching(
-                            &interaction.request.headers,
-                            body_text,
-                        );
-                        let _ = write!(message, "\nRecorded text body [{idx}]:\n");
-                        message.push_str(&redacted);
-                        message.push('\n');
-                    }
-                }
+                append_debug_bodies(&mut message, request, &cassette);
             }
             message.push_str(
                 "Match criteria: method + url + body + body_text (headers ignored). If the request changed, re-record with VCR_MODE=record.",
@@ -526,6 +448,90 @@ impl VcrRecorder {
         self.playback_cursor
             .store(matched_index + 1, Ordering::SeqCst);
         Ok(interaction.response.clone())
+    }
+}
+
+fn dump_debug_body_file(request: &RecordedRequest, cassette: &Cassette) {
+    use std::fmt::Write as _;
+
+    let Ok(debug_path) = std::env::var("VCR_DEBUG_BODY_FILE") else {
+        return;
+    };
+
+    let mut debug = String::new();
+    if let Some(body) = &request.body {
+        let mut redacted = body.clone();
+        redact_json(&mut redacted);
+        if let Ok(pretty) = serde_json::to_string_pretty(&redacted) {
+            debug.push_str("=== INCOMING (redacted) ===\n");
+            debug.push_str(&pretty);
+            debug.push('\n');
+        }
+    }
+    if let Some(body_text) = &request.body_text {
+        let redacted = normalize_body_text_for_matching(&request.headers, body_text);
+        let _ = writeln!(debug, "=== INCOMING TEXT (redacted) ===");
+        debug.push_str(&redacted);
+        debug.push('\n');
+    }
+    for (idx, interaction) in cassette.interactions.iter().enumerate() {
+        if let Some(body) = &interaction.request.body {
+            if let Ok(pretty) = serde_json::to_string_pretty(body) {
+                let _ = writeln!(debug, "=== RECORDED [{idx}] ===");
+                debug.push_str(&pretty);
+                debug.push('\n');
+            }
+        }
+        if let Some(body_text) = &interaction.request.body_text {
+            let redacted =
+                normalize_body_text_for_matching(&interaction.request.headers, body_text);
+            let _ = writeln!(debug, "=== RECORDED TEXT [{idx}] ===");
+            debug.push_str(&redacted);
+            debug.push('\n');
+        }
+    }
+    let _ = std::fs::write(&debug_path, &debug);
+}
+
+fn append_debug_bodies(message: &mut String, request: &RecordedRequest, cassette: &Cassette) {
+    use std::fmt::Write as _;
+
+    let mut incoming_body = request.body.clone();
+    if let Some(body) = &mut incoming_body {
+        redact_json(body);
+    }
+
+    if let Some(body) = &incoming_body {
+        if let Ok(pretty) = serde_json::to_string_pretty(body) {
+            message.push_str("\nIncoming JSON body (redacted):\n");
+            message.push_str(&pretty);
+            message.push('\n');
+        }
+    }
+
+    if let Some(body_text) = &request.body_text {
+        let redacted = normalize_body_text_for_matching(&request.headers, body_text);
+        message.push_str("\nIncoming text body:\n");
+        message.push_str(&redacted);
+        message.push('\n');
+    }
+
+    for (idx, interaction) in cassette.interactions.iter().enumerate() {
+        if let Some(body) = &interaction.request.body {
+            if let Ok(pretty) = serde_json::to_string_pretty(body) {
+                let _ = write!(message, "\nRecorded JSON body [{idx}]:\n");
+                message.push_str(&pretty);
+                message.push('\n');
+            }
+        }
+
+        if let Some(body_text) = &interaction.request.body_text {
+            let redacted =
+                normalize_body_text_for_matching(&interaction.request.headers, body_text);
+            let _ = write!(message, "\nRecorded text body [{idx}]:\n");
+            message.push_str(&redacted);
+            message.push('\n');
+        }
     }
 }
 
@@ -1279,6 +1285,7 @@ mod tests {
         restore_test_env_var(TEST_VAR, original);
     }
 
+    #[allow(clippy::significant_drop_tightening)] // Guard must be held during panic to poison the mutex
     fn poison_overrides_entry(
         overrides: &Mutex<HashMap<String, Option<String>>>,
         name: &str,

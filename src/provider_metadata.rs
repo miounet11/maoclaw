@@ -1553,17 +1553,31 @@ pub const PROVIDER_METADATA: &[ProviderMetadata] = &[
 ];
 
 pub fn provider_metadata(provider_id: &str) -> Option<&'static ProviderMetadata> {
+    let provider_id = provider_id.trim();
     if provider_id.is_empty() {
         return None;
     }
 
-    PROVIDER_METADATA.iter().find(|meta| {
-        meta.canonical_id.eq_ignore_ascii_case(provider_id)
-            || meta
-                .aliases
-                .iter()
-                .any(|alias| alias.eq_ignore_ascii_case(provider_id))
-    })
+    let matches_provider = |candidate: &str| {
+        PROVIDER_METADATA.iter().find(|meta| {
+            meta.canonical_id.eq_ignore_ascii_case(candidate)
+                || meta
+                    .aliases
+                    .iter()
+                    .any(|alias| alias.eq_ignore_ascii_case(candidate))
+        })
+    };
+
+    if let Some(metadata) = matches_provider(provider_id) {
+        return Some(metadata);
+    }
+
+    if provider_id.contains('_') {
+        let normalized = provider_id.replace('_', "-");
+        return matches_provider(&normalized);
+    }
+
+    None
 }
 
 pub fn canonical_provider_id(provider_id: &str) -> Option<&'static str> {
@@ -1625,6 +1639,9 @@ mod tests {
         let azure_cognitive_alias =
             provider_metadata("azure-cognitive-services").expect("azure-cognitive alias metadata");
         assert_eq!(azure_cognitive_alias.canonical_id, "azure-openai");
+        let azure_underscore_alias =
+            provider_metadata("azure_openai").expect("azure underscore alias metadata");
+        assert_eq!(azure_underscore_alias.canonical_id, "azure-openai");
         let azure_responses_alias =
             provider_metadata("azure-openai-responses").expect("azure responses alias metadata");
         assert_eq!(azure_responses_alias.canonical_id, "azure-openai");
@@ -1725,6 +1742,10 @@ mod tests {
         );
         assert_eq!(
             provider_auth_env_keys("azure-openai-responses"),
+            &["AZURE_OPENAI_API_KEY"]
+        );
+        assert_eq!(
+            provider_auth_env_keys("azure_openai"),
             &["AZURE_OPENAI_API_KEY"]
         );
         assert_eq!(

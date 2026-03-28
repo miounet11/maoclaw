@@ -2,7 +2,8 @@
 //!
 //! Tests the RPC protocol's session-management commands end-to-end:
 //! `get_state`, `get_messages`, `set_session_name`, `set_thinking_level`,
-//! `get_session_stats`, and `get_last_assistant_text`.
+//! `cycle_thinking_level`, queue-mode changes, `get_session_stats`,
+//! and `get_last_assistant_text`.
 //!
 //! These tests spin up a real RPC server over async channels (no network),
 //! pre-populate sessions with deterministic data, and verify that each
@@ -21,7 +22,8 @@ use pi::config::Config;
 use pi::model::{
     AssistantMessage, ContentBlock, StopReason, TextContent, ToolCall, Usage, UserContent,
 };
-use pi::provider::Provider;
+use pi::models::ModelEntry;
+use pi::provider::{InputType, Model, ModelCost, Provider};
 use pi::providers::openai::OpenAIProvider;
 use pi::resources::ResourceLoader;
 use pi::rpc::{RpcOptions, run};
@@ -115,9 +117,52 @@ fn setup_rpc(
         runtime_handle: runtime_handle.clone(),
     };
 
+    setup_rpc_with_options(agent_session, options)
+}
+
+fn setup_rpc_with_models(
+    session: Session,
+    runtime_handle: &asupersync::runtime::RuntimeHandle,
+    available_models: Vec<ModelEntry>,
+) -> (
+    asupersync::channel::mpsc::Sender<String>,
+    Arc<Mutex<Receiver<String>>>,
+    asupersync::runtime::JoinHandle<pi::error::Result<()>>,
+) {
+    let session = Arc::new(asupersync::sync::Mutex::new(session));
+    let agent_session = AgentSession::new(
+        dummy_agent(),
+        session,
+        false,
+        pi::compaction::ResolvedCompactionSettings::default(),
+    );
+
+    let auth_dir = tempfile::tempdir().unwrap();
+    let auth = AuthStorage::load(auth_dir.path().join("auth.json")).unwrap();
+    let options = RpcOptions {
+        config: Config::default(),
+        resources: ResourceLoader::empty(false),
+        available_models,
+        scoped_models: Vec::new(),
+        auth,
+        runtime_handle: runtime_handle.clone(),
+    };
+
+    setup_rpc_with_options(agent_session, options)
+}
+
+fn setup_rpc_with_options(
+    agent_session: AgentSession,
+    options: RpcOptions,
+) -> (
+    asupersync::channel::mpsc::Sender<String>,
+    Arc<Mutex<Receiver<String>>>,
+    asupersync::runtime::JoinHandle<pi::error::Result<()>>,
+) {
     let (in_tx, in_rx) = asupersync::channel::mpsc::channel::<String>(16);
     let (out_tx, out_rx) = std::sync::mpsc::channel::<String>();
     let out_rx = Arc::new(Mutex::new(out_rx));
+    let runtime_handle = options.runtime_handle.clone();
 
     let server =
         runtime_handle.spawn(async move { run(agent_session, options, in_rx, out_tx).await });
@@ -224,6 +269,83 @@ fn large_fork_session() -> (Session, String, String) {
         session,
         target_id.expect("fork target id should be captured"),
         target_text.expect("fork target text should be captured"),
+    )
+}
+
+fn rpc_test_model_entry(id: &str, reasoning: bool) -> ModelEntry {
+    ModelEntry {
+        model: Model {
+            id: id.to_string(),
+            name: id.to_string(),
+            api: "anthropic".to_string(),
+            provider: "anthropic".to_string(),
+            base_url: "https://api.anthropic.com".to_string(),
+            reasoning,
+            input: vec![InputType::Text],
+            cost: ModelCost {
+                input: 3.0,
+                output: 15.0,
+                cache_read: 0.0,
+                cache_write: 0.0,
+            },
+            context_window: 200_000,
+            max_tokens: 8192,
+            headers: std::collections::HashMap::new(),
+        },
+        api_key: Some("test-key".to_string()),
+        headers: std::collections::HashMap::new(),
+        auth_header: true,
+        compat: None,
+        oauth_config: None,
+    }
+}
+
+fn small_fork_session() -> (Session, String) {
+    let mut session = Session::in_memory();
+    session.header.provider = Some("openai".to_string());
+    session.header.model_id = Some("gpt-4o-mini".to_string());
+    session.header.thinking_level = Some("off".to_string());
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let mut fork_target_id = None::<String>;
+
+    for idx in 0..3 {
+        let user_text = format!("user-{idx}");
+        session.append_message(SessionMessage::User {
+            content: UserContent::Text(user_text),
+            timestamp: Some(now + idx),
+        });
+
+        if idx == 1 {
+            let SessionEntry::Message(message) = session
+                .entries
+                .last()
+                .expect("user message entry should exist")
+            else {
+                panic!("last entry should be a message");
+            };
+            fork_target_id.clone_from(&message.base.id);
+        }
+
+        session.append_message(SessionMessage::Assistant {
+            message: AssistantMessage {
+                content: vec![ContentBlock::Text(TextContent::new(format!(
+                    "assistant-{idx}"
+                )))],
+                api: "test".to_string(),
+                provider: "openai".to_string(),
+                model: "gpt-4o-mini".to_string(),
+                usage: Usage::default(),
+                stop_reason: StopReason::Stop,
+                error_message: None,
+                timestamp: now + idx,
+            },
+        });
+    }
+
+    (
+        session,
+        fork_target_id.expect("fork target id should be captured"),
     )
 }
 
@@ -513,6 +635,143 @@ fn rpc_set_thinking_level_invalid_level_returns_error() {
         )
         .await;
         assert_eq!(resp["success"], false);
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_set_thinking_level_updates_state_for_reasoning_model() {
+    let _harness = TestHarness::new("rpc_set_thinking_level_updates_state");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let models = vec![rpc_test_model_entry("claude-opus-4-20250514", true)];
+        let mut session = Session::in_memory();
+        session.header.provider = Some("anthropic".to_string());
+        session.header.model_id = Some("claude-opus-4-20250514".to_string());
+        session.header.thinking_level = Some("off".to_string());
+
+        let (in_tx, out_rx, server) = setup_rpc_with_models(session, &handle, models);
+
+        let resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"1","type":"set_thinking_level","level":"high"}"#,
+            "set_thinking_level high",
+        )
+        .await;
+        assert_eq!(resp["success"], true);
+        assert_eq!(resp["command"], "set_thinking_level");
+
+        let state = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"2","type":"get_state"}"#,
+            "get_state after set_thinking_level",
+        )
+        .await;
+        assert_eq!(state["success"], true);
+        assert_eq!(state["data"]["thinkingLevel"], "high");
+        assert_eq!(state["data"]["model"]["id"], "claude-opus-4-20250514");
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_cycle_thinking_level_advances_reasoning_model_and_updates_state() {
+    let _harness = TestHarness::new("rpc_cycle_thinking_level_updates_state");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let models = vec![rpc_test_model_entry("claude-opus-4-20250514", true)];
+        let mut session = Session::in_memory();
+        session.header.provider = Some("anthropic".to_string());
+        session.header.model_id = Some("claude-opus-4-20250514".to_string());
+        session.header.thinking_level = Some("off".to_string());
+
+        let (in_tx, out_rx, server) = setup_rpc_with_models(session, &handle, models);
+
+        let resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"1","type":"cycle_thinking_level"}"#,
+            "cycle_thinking_level",
+        )
+        .await;
+        assert_eq!(resp["success"], true);
+        assert_eq!(resp["command"], "cycle_thinking_level");
+        assert_eq!(resp["data"]["level"], "minimal");
+
+        let state = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"2","type":"get_state"}"#,
+            "get_state after cycle_thinking_level",
+        )
+        .await;
+        assert_eq!(state["success"], true);
+        assert_eq!(state["data"]["thinkingLevel"], "minimal");
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_set_queue_modes_are_reflected_in_state() {
+    let _harness = TestHarness::new("rpc_set_queue_modes_are_reflected_in_state");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let (in_tx, out_rx, server) = setup_rpc(Session::in_memory(), &handle);
+
+        let steering = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"1","type":"set_steering_mode","mode":"all"}"#,
+            "set_steering_mode",
+        )
+        .await;
+        assert_eq!(steering["success"], true);
+        assert_eq!(steering["command"], "set_steering_mode");
+
+        let follow_up = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"2","type":"set_follow_up_mode","mode":"all"}"#,
+            "set_follow_up_mode",
+        )
+        .await;
+        assert_eq!(follow_up["success"], true);
+        assert_eq!(follow_up["command"], "set_follow_up_mode");
+
+        let state = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"3","type":"get_state"}"#,
+            "get_state after queue mode changes",
+        )
+        .await;
+        assert_eq!(state["success"], true);
+        assert_eq!(state["data"]["steeringMode"], "all");
+        assert_eq!(state["data"]["followUpMode"], "all");
+        assert_eq!(state["data"]["pendingMessageCount"], 0);
 
         drop(in_tx);
         let _ = server.await;
@@ -1059,6 +1318,178 @@ fn rpc_fork_large_payload_state_budget() {
             "get_state exceeded latency budget during fork scenario ({state_roundtrip_ms}ms > {MAX_FORK_EXPORT_STATE_ROUNDTRIP_MS}ms)",
         );
         assert!(fork_seen, "expected fork response");
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_fork_replaces_current_path_and_trims_visible_messages() {
+    let _harness = TestHarness::new("rpc_fork_replaces_current_path");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let (session, target_id) = small_fork_session();
+        let (in_tx, out_rx, server) = setup_rpc(session, &handle);
+
+        let fork_resp = send_recv(
+            &in_tx,
+            &out_rx,
+            &serde_json::json!({
+                "id": "fork",
+                "type": "fork",
+                "entryId": target_id,
+            })
+            .to_string(),
+            "fork response",
+        )
+        .await;
+        assert_eq!(fork_resp["success"], true);
+        assert_eq!(fork_resp["command"], "fork");
+        assert_eq!(fork_resp["data"]["text"], "user-1");
+        assert_eq!(fork_resp["data"]["cancelled"], false);
+
+        let state_resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"state","type":"get_state"}"#,
+            "get_state after fork",
+        )
+        .await;
+        assert_eq!(state_resp["success"], true);
+        assert_eq!(state_resp["data"]["pendingMessageCount"], 0);
+
+        let messages_resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"msgs","type":"get_messages"}"#,
+            "get_messages after fork",
+        )
+        .await;
+        assert_eq!(messages_resp["success"], true);
+        let messages = messages_resp["data"]["messages"]
+            .as_array()
+            .expect("messages array");
+        assert_eq!(messages.len(), 2, "fork should retain only the parent path");
+        assert_eq!(messages[0]["role"], "user");
+        assert_eq!(messages[0]["content"], "user-0");
+        assert_eq!(messages[1]["role"], "assistant");
+        assert_eq!(messages[1]["content"][0]["type"], "text");
+        assert_eq!(messages[1]["content"][0]["text"], "assistant-0");
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_get_fork_messages_reports_user_messages_on_current_path() {
+    let _harness = TestHarness::new("rpc_get_fork_messages_current_path");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let (session, target_id) = small_fork_session();
+        let (in_tx, out_rx, server) = setup_rpc(session, &handle);
+
+        let _ = send_recv(
+            &in_tx,
+            &out_rx,
+            &serde_json::json!({
+                "id": "fork",
+                "type": "fork",
+                "entryId": target_id,
+            })
+            .to_string(),
+            "fork before get_fork_messages",
+        )
+        .await;
+
+        let resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"fork_msgs","type":"get_fork_messages"}"#,
+            "get_fork_messages",
+        )
+        .await;
+        assert_eq!(resp["success"], true);
+        assert_eq!(resp["command"], "get_fork_messages");
+
+        let messages = resp["data"]["messages"]
+            .as_array()
+            .expect("fork messages array");
+        assert_eq!(
+            messages.len(),
+            1,
+            "only user messages on the current path are returned"
+        );
+        assert_eq!(messages[0]["text"], "user-0");
+        assert!(
+            messages[0]["entryId"]
+                .as_str()
+                .is_some_and(|id| !id.is_empty()),
+            "entryId should be present for current-path fork messages"
+        );
+
+        drop(in_tx);
+        let _ = server.await;
+    });
+}
+
+#[test]
+fn rpc_cycle_model_switches_to_next_available_model() {
+    let _harness = TestHarness::new("rpc_cycle_model_switches_to_next_available_model");
+
+    let runtime = asupersync::runtime::RuntimeBuilder::current_thread()
+        .build()
+        .expect("build runtime");
+    let handle = runtime.handle();
+
+    runtime.block_on(async move {
+        let models = vec![
+            rpc_test_model_entry("claude-opus-4-20250514", true),
+            rpc_test_model_entry("claude-sonnet-4-20250514", true),
+        ];
+
+        let mut session = Session::in_memory();
+        session.header.provider = Some("anthropic".to_string());
+        session.header.model_id = Some("claude-opus-4-20250514".to_string());
+        session.header.thinking_level = Some("off".to_string());
+
+        let (in_tx, out_rx, server) = setup_rpc_with_models(session, &handle, models);
+
+        let resp = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"1","type":"cycle_model"}"#,
+            "cycle_model",
+        )
+        .await;
+        assert_eq!(resp["success"], true);
+        assert_eq!(resp["command"], "cycle_model");
+        assert_eq!(resp["data"]["model"]["id"], "claude-sonnet-4-20250514");
+        assert_eq!(resp["data"]["model"]["provider"], "anthropic");
+        assert_eq!(resp["data"]["thinkingLevel"], "off");
+        assert_eq!(resp["data"]["isScoped"], false);
+
+        let state = send_recv(
+            &in_tx,
+            &out_rx,
+            r#"{"id":"2","type":"get_state"}"#,
+            "get_state after cycle_model",
+        )
+        .await;
+        assert_eq!(state["success"], true);
+        assert_eq!(state["data"]["model"]["id"], "claude-sonnet-4-20250514");
+        assert_eq!(state["data"]["model"]["provider"], "anthropic");
 
         drop(in_tx);
         let _ = server.await;

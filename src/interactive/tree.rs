@@ -9,8 +9,9 @@ use serde_json::json;
 
 use super::conversation::{assistant_content_to_text, user_content_to_text};
 use super::{
-    AgentState, Cmd, ConversationMessage, EXTENSION_EVENT_TIMEOUT_MS, MessageRole, PiApp, PiMsg,
-    conversation_from_session,
+    AgentState, Cmd, ConversationMessage, EXTENSION_EVENT_TIMEOUT_MS,
+    InteractiveSessionInstallContext, MessageRole, PiApp, PiMsg, install_interactive_session,
+    send_pi_msg_with_backpressure, snapshot_conversation_state, snapshot_session_id,
 };
 
 #[derive(Debug, Clone)]
@@ -342,8 +343,10 @@ impl PiApp {
         let session = Arc::clone(&self.session);
         let agent = Arc::clone(&self.agent);
         let extensions = self.extensions.clone();
-        let model_provider = self.model_entry.model.provider.clone();
-        let model_id = self.model_entry.model.id.clone();
+        let available_models_shared = self.available_models_shared.clone();
+        let active_model_entry = self.model_entry.clone();
+        let model_entry_shared = self.model_entry_shared.clone();
+        let save_enabled = self.save_enabled;
         let (thinking_level, session_id) = if let Ok(guard) = self.session.try_lock() {
             (guard.header.thinking_level.clone(), guard.header.id.clone())
         } else {
@@ -371,96 +374,119 @@ impl PiApp {
                     .await
                     .unwrap_or(false);
                 if cancelled {
-                    let _ =
-                        event_tx.try_send(PiMsg::System("Fork cancelled by extension".to_string()));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::System("Fork cancelled by extension".to_string()),
+                    )
+                    .await;
                     return;
                 }
             }
 
-            let (fork_plan, parent_path, session_dir) = {
+            let (fork_plan, parent_path, session_dir, store_kind) = {
                 let guard = match session.lock(&cx).await {
                     Ok(guard) => guard,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
                 let fork_plan = match guard.plan_fork_from_user_message(&selection.id) {
                     Ok(plan) => plan,
                     Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to build fork: {err}")));
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to build fork: {err}")),
+                        )
+                        .await;
                         return;
                     }
                 };
-                let parent_path = guard.path.as_ref().map(|p| p.display().to_string());
-                let session_dir = guard.session_dir.clone();
-                drop(guard);
-                (fork_plan, parent_path, session_dir)
+                (
+                    fork_plan,
+                    guard.path.as_ref().map(|p| p.display().to_string()),
+                    guard.session_dir.clone(),
+                    guard.store_kind(),
+                )
             };
 
             let selected_text = fork_plan.selected_text.clone();
 
-            let mut new_session = Session::create_with_dir(session_dir);
-            new_session.header.provider = Some(model_provider);
-            new_session.header.model_id = Some(model_id);
+            let mut new_session = if save_enabled {
+                Session::create_with_dir_and_store(session_dir, store_kind)
+            } else {
+                Session::in_memory()
+            };
+            new_session.header.provider = Some(active_model_entry.model.provider.clone());
+            new_session.header.model_id = Some(active_model_entry.model.id.clone());
             new_session.header.thinking_level = thinking_level;
             if let Some(parent_path) = parent_path {
                 new_session.set_branched_from(Some(parent_path));
             }
             new_session.init_from_fork_plan(fork_plan);
-            let new_session_id = new_session.header.id.clone();
 
             if let Err(err) = new_session.save().await {
-                let _ = event_tx.try_send(PiMsg::AgentError(format!("Failed to save fork: {err}")));
+                let _ = send_pi_msg_with_backpressure(
+                    &event_tx,
+                    PiMsg::AgentError(format!("Failed to save fork: {err}")),
+                )
+                .await;
                 return;
             }
 
-            let messages_for_agent = new_session.to_messages_for_current_path();
+            let available_models = available_models_shared
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            if let Err(err) = install_interactive_session(
+                InteractiveSessionInstallContext {
+                    session: &session,
+                    agent: &agent,
+                    available_models: &available_models,
+                    preferred_model_entry: Some(active_model_entry),
+                    reuse_active_runtime: true,
+                    model_entry_shared: &model_entry_shared,
+                    extensions: extensions.as_ref(),
+                },
+                new_session,
+            )
+            .await
             {
-                let mut agent_guard = match agent.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
-                        return;
-                    }
-                };
-                agent_guard.replace_messages(messages_for_agent);
+                let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                return;
             }
 
-            {
-                let mut guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                *guard = new_session;
-            }
-
-            let (messages, usage) = {
-                let guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                conversation_from_session(&guard)
+            let new_session_id = match snapshot_session_id(&session).await {
+                Ok(session_id) => session_id,
+                Err(err) => {
+                    let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                    return;
+                }
+            };
+            let (messages, usage) = match snapshot_conversation_state(&session).await {
+                Ok(snapshot) => snapshot,
+                Err(err) => {
+                    let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                    return;
+                }
             };
 
-            let _ = event_tx.try_send(PiMsg::ConversationReset {
-                messages,
-                usage,
-                status: Some(format!("Forked new session from {}", selection.summary)),
-            });
+            let _ = send_pi_msg_with_backpressure(
+                &event_tx,
+                PiMsg::ConversationReset {
+                    messages,
+                    usage,
+                    status: Some(format!("Forked new session from {}", selection.summary)),
+                },
+            )
+            .await;
 
-            let _ = event_tx.try_send(PiMsg::SetEditorText(selected_text));
+            let _ =
+                send_pi_msg_with_backpressure(&event_tx, PiMsg::SetEditorText(selected_text)).await;
 
             if let Some(manager) = extensions {
                 let _ = manager

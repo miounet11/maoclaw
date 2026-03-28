@@ -577,6 +577,11 @@ fn no_disallowed_doubles_in_unit_suite() {
         ("non_mock_compliance_gate", "NullSession"),
         ("non_mock_compliance_gate", "NullUiHandler"),
         ("non_mock_compliance_gate", "DummyProvider"),
+        // QA docs policy validation also references rejected double names as
+        // documentation strings, not executable doubles.
+        ("qa_docs_policy_validation", "NullSession"),
+        ("qa_docs_policy_validation", "NullUiHandler"),
+        ("qa_docs_policy_validation", "DummyProvider"),
     ];
 
     let mut violations = Vec::new();

@@ -26,7 +26,7 @@
       "kind": "tool",
       "summary": "Overrides the bash tool label to indicate sandboxing tier",
       "event_name": null,
-      "tool_name": null,
+      "tool_name": "bash",
       "command_name": null,
       "provider_id": null,
       "input": null,
@@ -234,8 +234,18 @@
       "id": "scn-sandbox-neg-001",
       "kind": "command",
       "summary": "Negative: sandbox command fails with invalid sandbox configuration",
+      "event_name": null,
+      "tool_name": null,
+      "command_name": "sandbox",
+      "provider_id": null,
+      "input": null,
       "expect": {
         "is_error": true
+      },
+      "outputs": {
+        "stdout_normalized_jsonl": [],
+        "meta_normalized": {},
+        "capture_log_normalized_jsonl": []
       }
     }
   ]

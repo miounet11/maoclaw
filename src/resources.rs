@@ -523,8 +523,8 @@ pub async fn discover_package_resources(manager: &PackageManager) -> Result<Pack
             continue;
         }
 
-        if let Some(pi) = read_pi_manifest(&root) {
-            append_resources_from_manifest(&mut resources, &root, &pi);
+        if let Some(pi) = read_pi_manifest(&root)? {
+            append_resources_from_manifest(&mut resources, &root, &pi)?;
         } else {
             append_resources_from_defaults(&mut resources, &root);
         }
@@ -533,29 +533,36 @@ pub async fn discover_package_resources(manager: &PackageManager) -> Result<Pack
     Ok(resources)
 }
 
-fn read_pi_manifest(root: &Path) -> Option<Value> {
+fn read_pi_manifest(root: &Path) -> Result<Option<Value>> {
     let manifest_path = root.join("package.json");
     if !manifest_path.exists() {
-        return None;
+        return Ok(None);
     }
-    let raw = fs::read_to_string(&manifest_path).ok()?;
-    let json: Value = serde_json::from_str(&raw).ok()?;
-    json.get("pi").cloned()
+    let raw = fs::read_to_string(&manifest_path)
+        .map_err(|e| Error::config(format!("Failed to read {}: {e}", manifest_path.display())))?;
+    let json: Value = serde_json::from_str(&raw)
+        .map_err(|e| Error::config(format!("Failed to parse {}: {e}", manifest_path.display())))?;
+    Ok(json.get("pi").cloned())
 }
 
-fn append_resources_from_manifest(resources: &mut PackageResources, root: &Path, pi: &Value) {
+fn append_resources_from_manifest(
+    resources: &mut PackageResources,
+    root: &Path,
+    pi: &Value,
+) -> Result<()> {
     let Some(obj) = pi.as_object() else {
-        return;
+        return Ok(());
     };
     append_resource_paths(
         resources,
         root,
         obj.get("extensions"),
         ResourceKind::Extensions,
-    );
-    append_resource_paths(resources, root, obj.get("skills"), ResourceKind::Skills);
-    append_resource_paths(resources, root, obj.get("prompts"), ResourceKind::Prompts);
-    append_resource_paths(resources, root, obj.get("themes"), ResourceKind::Themes);
+    )?;
+    append_resource_paths(resources, root, obj.get("skills"), ResourceKind::Skills)?;
+    append_resource_paths(resources, root, obj.get("prompts"), ResourceKind::Prompts)?;
+    append_resource_paths(resources, root, obj.get("themes"), ResourceKind::Themes)?;
+    Ok(())
 }
 
 fn append_resources_from_defaults(resources: &mut PackageResources, root: &Path) {
@@ -592,21 +599,17 @@ fn append_resource_paths(
     root: &Path,
     value: Option<&Value>,
     kind: ResourceKind,
-) {
+) -> Result<()> {
     let Some(value) = value else {
-        return;
+        return Ok(());
     };
-    let paths = extract_string_list(value);
+    let paths = extract_manifest_string_list(value)?;
     if paths.is_empty() {
-        return;
+        return Ok(());
     }
 
     for path in paths {
-        let resolved = if Path::new(&path).is_absolute() {
-            PathBuf::from(path)
-        } else {
-            root.join(path)
-        };
+        let resolved = resolve_manifest_resource_path(root, &path)?;
         match kind {
             ResourceKind::Extensions => resources.extensions.push(resolved),
             ResourceKind::Skills => resources.skills.push(resolved),
@@ -614,6 +617,7 @@ fn append_resource_paths(
             ResourceKind::Themes => resources.themes.push(resolved),
         }
     }
+    Ok(())
 }
 
 fn extract_string_list(value: &Value) -> Vec<String> {
@@ -626,6 +630,58 @@ fn extract_string_list(value: &Value) -> Vec<String> {
             .collect(),
         _ => Vec::new(),
     }
+}
+
+fn extract_manifest_string_list(value: &Value) -> Result<Vec<String>> {
+    match value {
+        Value::String(s) => {
+            if s.trim().is_empty() {
+                Err(Error::config(
+                    "Package manifest path entries must not be empty",
+                ))
+            } else {
+                Ok(vec![s.clone()])
+            }
+        }
+        Value::Array(items) => {
+            let mut out = Vec::with_capacity(items.len());
+            for item in items {
+                let Some(path) = item.as_str() else {
+                    return Err(Error::config(
+                        "Package manifest path arrays must contain only strings",
+                    ));
+                };
+                if path.trim().is_empty() {
+                    return Err(Error::config(
+                        "Package manifest path entries must not be empty",
+                    ));
+                }
+                out.push(path.to_string());
+            }
+            Ok(out)
+        }
+        _ => Err(Error::config(
+            "Package manifest path entries must be a string or array of strings",
+        )),
+    }
+}
+
+fn resolve_manifest_resource_path(root: &Path, raw_path: &str) -> Result<PathBuf> {
+    let path = Path::new(raw_path);
+    if path.is_absolute() {
+        return Err(Error::config(format!(
+            "Package manifest path must be relative to the package root: {raw_path}"
+        )));
+    }
+    if path
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(Error::config(format!(
+            "Package manifest path must not escape the package root: {raw_path}"
+        )));
+    }
+    Ok(root.join(path))
 }
 
 // ============================================================================
@@ -2260,6 +2316,27 @@ mod tests {
             vec!["one".to_string(), "three".to_string()]
         );
         assert!(extract_string_list(&json!({"a": 1})).is_empty());
+    }
+
+    #[test]
+    fn test_extract_manifest_string_list_rejects_non_string_items() {
+        let err = extract_manifest_string_list(&json!(["one", 2]))
+            .expect_err("non-string entries should fail");
+        assert!(err.to_string().contains("only strings"));
+    }
+
+    #[test]
+    fn test_resolve_manifest_resource_path_rejects_absolute_paths() {
+        let err = resolve_manifest_resource_path(Path::new("/tmp/pkg"), "/etc/passwd")
+            .expect_err("absolute paths should fail");
+        assert!(err.to_string().contains("must be relative"));
+    }
+
+    #[test]
+    fn test_resolve_manifest_resource_path_rejects_parent_traversal() {
+        let err = resolve_manifest_resource_path(Path::new("/tmp/pkg"), "../escape")
+            .expect_err("parent traversal should fail");
+        assert!(err.to_string().contains("must not escape"));
     }
 
     #[test]

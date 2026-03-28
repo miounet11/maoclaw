@@ -776,7 +776,7 @@ const fn builtin_slash_commands() -> &'static [BuiltinSlashCommand] {
         },
         BuiltinSlashCommand {
             name: "reload",
-            description: "Reload resources from disk",
+            description: "Reload resources, model catalog, and JS/native extensions",
         },
         BuiltinSlashCommand {
             name: "share",

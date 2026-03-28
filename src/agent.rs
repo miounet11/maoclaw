@@ -28,6 +28,7 @@ use crate::extensions::{
 #[cfg(feature = "wasm-host")]
 use crate::extensions::{WasmExtensionHost, WasmExtensionLoadSpec};
 use crate::extensions_js::{PiJsRuntimeConfig, RepairMode};
+use crate::goals::{self, GoalLifecycleAction, GoalRunState, GoalSpec};
 use crate::model::{
     AssistantMessage, AssistantMessageEvent, ContentBlock, CustomMessage, ImageContent, Message,
     StopReason, StreamEvent, TextContent, ThinkingContent, ToolCall, ToolResultMessage, Usage,
@@ -48,6 +49,7 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use std::borrow::Cow;
 use std::collections::VecDeque;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -145,6 +147,11 @@ impl MessageQueue {
 
     fn pending_count(&self) -> usize {
         self.steering.len() + self.follow_up.len()
+    }
+
+    fn clear(&mut self) {
+        self.steering.clear();
+        self.follow_up.clear();
     }
 
     fn push(&mut self, kind: QueueKind, message: Message) -> u64 {
@@ -475,6 +482,15 @@ impl Agent {
         self.cached_tool_defs = None; // Invalidate cache when tools change
     }
 
+    /// Replace only extension-owned tools, preserving built-in tools.
+    pub fn replace_extension_tools<I>(&mut self, tools: I)
+    where
+        I: IntoIterator<Item = Box<dyn Tool>>,
+    {
+        self.tools.replace_extension_tools(tools);
+        self.cached_tool_defs = None;
+    }
+
     /// Queue a steering message (delivered after tool completion).
     pub fn queue_steering(&mut self, message: Message) -> u64 {
         self.message_queue.push_steering(message)
@@ -490,14 +506,35 @@ impl Agent {
         self.message_queue.set_modes(steering, follow_up);
     }
 
+    /// Return the current queue delivery modes.
+    pub const fn queue_modes(&self) -> (QueueMode, QueueMode) {
+        (
+            self.message_queue.steering_mode,
+            self.message_queue.follow_up_mode,
+        )
+    }
+
     /// Count queued messages (steering + follow-up).
     #[must_use]
     pub fn queued_message_count(&self) -> usize {
         self.message_queue.pending_count()
     }
 
+    /// Drop all queued steering/follow-up messages.
+    pub fn clear_queued_messages(&mut self) {
+        self.message_queue.clear();
+    }
+
     pub fn provider(&self) -> Arc<dyn Provider> {
         Arc::clone(&self.provider)
+    }
+
+    pub(crate) fn tool_names_for_test(&self) -> Vec<String> {
+        self.tools
+            .tools()
+            .iter()
+            .map(|tool| tool.name().to_string())
+            .collect()
     }
 
     pub const fn stream_options(&self) -> &StreamOptions {
@@ -506,6 +543,10 @@ impl Agent {
 
     pub const fn stream_options_mut(&mut self) -> &mut StreamOptions {
         &mut self.config.stream_options
+    }
+
+    pub fn set_system_prompt(&mut self, system_prompt: Option<String>) {
+        self.config.system_prompt = system_prompt;
     }
 
     /// Build context for a completion request.
@@ -2082,11 +2123,27 @@ pub struct AgentSession {
     pub extensions: Option<ExtensionRegion>,
     extensions_is_streaming: Arc<AtomicBool>,
     extensions_turn_active: Arc<AtomicBool>,
+    extensions_injected_queue: Arc<StdMutex<ExtensionInjectedQueue>>,
     extensions_pending_idle_actions: Arc<StdMutex<VecDeque<PendingIdleAction>>>,
     compaction_settings: ResolvedCompactionSettings,
     compaction_worker: CompactionWorkerState,
     model_registry: Option<ModelRegistry>,
     auth_storage: Option<AuthStorage>,
+    base_system_prompt: Option<String>,
+    active_goal_contract: Option<GoalSpec>,
+    active_goal_run: Option<GoalRunState>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SessionSwapOutcome {
+    pub session_id: String,
+    pub previous_session_file: Option<String>,
+    pub target_session_file: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SessionForkOutcome {
+    pub selected_text: String,
 }
 
 #[derive(Debug, Default)]
@@ -2110,6 +2167,11 @@ impl ExtensionInjectedQueue {
 
     fn pop_follow_up(&mut self) -> Vec<Message> {
         self.follow_up.drain(..).collect()
+    }
+
+    fn clear(&mut self) {
+        self.steering.clear();
+        self.follow_up.clear();
     }
 }
 
@@ -2632,6 +2694,109 @@ mod extensions_integration_tests {
                 Some("extension")
             );
         });
+    }
+
+    #[derive(Debug)]
+    struct BuiltinEchoTool;
+
+    #[allow(clippy::unnecessary_literal_bound)]
+    #[async_trait]
+    impl Tool for BuiltinEchoTool {
+        fn name(&self) -> &str {
+            "builtin_echo"
+        }
+
+        fn label(&self) -> &str {
+            "builtin_echo"
+        }
+
+        fn description(&self) -> &str {
+            "builtin"
+        }
+
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+
+        async fn execute(
+            &self,
+            _tool_call_id: &str,
+            _input: Value,
+            _on_update: Option<Box<dyn Fn(ToolUpdate) + Send + Sync>>,
+        ) -> Result<ToolOutput> {
+            Ok(ToolOutput {
+                content: vec![ContentBlock::Text(TextContent::new("builtin"))],
+                details: None,
+                is_error: false,
+            })
+        }
+    }
+
+    #[derive(Debug)]
+    struct TestExtensionTool(&'static str);
+
+    #[allow(clippy::unnecessary_literal_bound)]
+    #[async_trait]
+    impl Tool for TestExtensionTool {
+        fn name(&self) -> &str {
+            self.0
+        }
+
+        fn label(&self) -> &str {
+            self.0
+        }
+
+        fn description(&self) -> &str {
+            "extension"
+        }
+
+        fn parameters(&self) -> Value {
+            json!({ "type": "object" })
+        }
+
+        fn is_extension_tool(&self) -> bool {
+            true
+        }
+
+        async fn execute(
+            &self,
+            _tool_call_id: &str,
+            _input: Value,
+            _on_update: Option<Box<dyn Fn(ToolUpdate) + Send + Sync>>,
+        ) -> Result<ToolOutput> {
+            Ok(ToolOutput {
+                content: vec![ContentBlock::Text(TextContent::new(self.0))],
+                details: None,
+                is_error: false,
+            })
+        }
+    }
+
+    #[test]
+    fn replace_extension_tools_preserves_builtins_and_removes_stale_extensions() {
+        let provider = Arc::new(NoopProvider);
+        let tools = ToolRegistry::from_tools(vec![Box::new(BuiltinEchoTool)]);
+        let mut agent = Agent::new(provider, tools, AgentConfig::default());
+
+        agent.extend_tools(vec![Box::new(TestExtensionTool("old_ext")) as Box<dyn Tool>]);
+        assert!(agent.tools.get("builtin_echo").is_some());
+        assert!(agent.tools.get("old_ext").is_some());
+
+        let _ = agent.build_context();
+        assert!(
+            agent
+                .cached_tool_defs
+                .as_ref()
+                .is_some_and(|defs| defs.iter().any(|def| def.name == "old_ext"))
+        );
+
+        agent
+            .replace_extension_tools(vec![Box::new(TestExtensionTool("new_ext")) as Box<dyn Tool>]);
+
+        assert!(agent.tools.get("builtin_echo").is_some());
+        assert!(agent.tools.get("new_ext").is_some());
+        assert!(agent.tools.get("old_ext").is_none());
+        assert!(agent.cached_tool_defs.is_none());
     }
 
     #[test]
@@ -4883,6 +5048,7 @@ impl AgentSession {
         save_enabled: bool,
         compaction_settings: ResolvedCompactionSettings,
     ) -> Self {
+        let base_system_prompt = agent.config.system_prompt.clone();
         Self {
             agent,
             session,
@@ -4890,11 +5056,15 @@ impl AgentSession {
             extensions: None,
             extensions_is_streaming: Arc::new(AtomicBool::new(false)),
             extensions_turn_active: Arc::new(AtomicBool::new(false)),
+            extensions_injected_queue: Arc::new(StdMutex::new(ExtensionInjectedQueue::default())),
             extensions_pending_idle_actions: Arc::new(StdMutex::new(VecDeque::new())),
             compaction_settings,
             compaction_worker: CompactionWorkerState::new(CompactionQuota::default()),
             model_registry: None,
             auth_storage: None,
+            base_system_prompt,
+            active_goal_contract: None,
+            active_goal_run: None,
         }
     }
 
@@ -4918,8 +5088,207 @@ impl AgentSession {
         self.auth_storage = Some(auth);
     }
 
+    pub fn configure_goal_contract_context(
+        &mut self,
+        base_system_prompt: Option<String>,
+        goal_contract: Option<GoalSpec>,
+        goal_run: Option<GoalRunState>,
+    ) {
+        self.base_system_prompt = base_system_prompt;
+        self.active_goal_contract = goal_contract;
+        self.active_goal_run = goal_run;
+        self.refresh_goal_contract_prompt();
+    }
+
+    #[must_use]
+    pub const fn active_goal_contract(&self) -> Option<&GoalSpec> {
+        self.active_goal_contract.as_ref()
+    }
+
+    #[must_use]
+    pub const fn active_goal_run(&self) -> Option<&GoalRunState> {
+        self.active_goal_run.as_ref()
+    }
+
     pub const fn set_compaction_context_window(&mut self, context_window_tokens: u32) {
         self.compaction_settings.context_window_tokens = context_window_tokens;
+    }
+
+    pub async fn set_goal_contract(&mut self, goal_contract: GoalSpec) -> Result<GoalRunState> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let goal_run = {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            goals::persist_goal_contract(&mut session, &goal_contract);
+            goals::persist_goal_run_state(&mut session, &goal_contract);
+            goals::latest_goal_run_state(&session).unwrap_or_else(|| {
+                GoalRunState::new(&goal_contract, Some(session.header.id.clone()))
+            })
+        };
+
+        self.active_goal_contract = Some(goal_contract);
+        self.active_goal_run = Some(goal_run.clone());
+        self.refresh_goal_contract_prompt();
+        Ok(goal_run)
+    }
+
+    pub async fn clear_goal_contract(&mut self) -> Result<()> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            let _ = goals::clear_goal_tracking(&mut session);
+        }
+
+        self.active_goal_contract = None;
+        self.active_goal_run = None;
+        self.refresh_goal_contract_prompt();
+        Ok(())
+    }
+
+    pub async fn update_goal_run(
+        &mut self,
+        action: GoalLifecycleAction,
+        evidence: Option<String>,
+    ) -> Result<GoalRunState> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let (goal_contract, goal_run) = {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            let goal_run = goals::update_goal_run_state(&mut session, action, evidence)
+                .map_err(|err| Error::validation(err.to_string()))?;
+            let goal_contract = goals::latest_goal_contract(&session)
+                .ok_or_else(|| Error::validation("no active goal contract is available"))?;
+            (goal_contract, goal_run)
+        };
+
+        self.active_goal_contract = Some(goal_contract);
+        self.active_goal_run = Some(goal_run.clone());
+        self.refresh_goal_contract_prompt();
+        Ok(goal_run)
+    }
+
+    pub async fn update_goal_criterion(
+        &mut self,
+        criterion_id: &str,
+        satisfied: bool,
+        evidence: Option<String>,
+    ) -> Result<GoalRunState> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let (goal_contract, goal_run) = {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            let goal_run =
+                goals::update_goal_criterion_state(&mut session, criterion_id, satisfied, evidence)
+                    .map_err(|err| Error::validation(err.to_string()))?;
+            let goal_contract = goals::latest_goal_contract(&session)
+                .ok_or_else(|| Error::validation("no active goal contract is available"))?;
+            (goal_contract, goal_run)
+        };
+
+        self.active_goal_contract = Some(goal_contract);
+        self.active_goal_run = Some(goal_run.clone());
+        self.refresh_goal_contract_prompt();
+        Ok(goal_run)
+    }
+
+    async fn sync_goal_watchdog_state(&mut self) -> Result<()> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let (goal_contract, goal_run) = {
+            let session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            (
+                goals::latest_goal_contract(&session),
+                goals::latest_goal_run_state(&session),
+            )
+        };
+
+        self.active_goal_contract = goal_contract;
+        self.active_goal_run = goal_run;
+        self.refresh_goal_contract_prompt();
+        Ok(())
+    }
+
+    pub(crate) async fn block_goal_watchdog_if_idle(&mut self) -> Result<Option<GoalRunState>> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let goal_run = {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            goals::block_goal_run_due_to_watchdog(&mut session)
+                .map_err(|err| Error::validation(err.to_string()))?
+        };
+        self.sync_goal_watchdog_state().await?;
+        Ok(goal_run)
+    }
+
+    async fn preflight_goal_watchdog_for_turn(&mut self) -> Result<()> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        let outcome = {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            match goals::goal_watchdog_decision(&session) {
+                Some(goals::GoalWatchdogDecision::RestartEligible { overdue_seconds }) => {
+                    let _ = goals::restart_goal_run_after_watchdog(&mut session)
+                        .map_err(|err| Error::validation(err.to_string()))?;
+                    Ok(Some(overdue_seconds))
+                }
+                Some(goals::GoalWatchdogDecision::BlockRequired { overdue_seconds }) => {
+                    let _ = goals::block_goal_run_due_to_watchdog(&mut session)
+                        .map_err(|err| Error::validation(err.to_string()))?;
+                    Err(Error::validation(format!(
+                        "Goal watchdog blocked this run after {overdue_seconds}s of inactivity. Resume or clear the goal contract before continuing."
+                    )))
+                }
+                Some(goals::GoalWatchdogDecision::Healthy) | None => Ok(None),
+            }
+        };
+        self.sync_goal_watchdog_state().await?;
+
+        match outcome {
+            Ok(Some(overdue_seconds)) => {
+                tracing::info!(
+                    "goal watchdog restarted an overdue goal run after {overdue_seconds}s of inactivity"
+                );
+                Ok(())
+            }
+            Ok(None) => Ok(()),
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn touch_goal_progress_heartbeat(&mut self) -> Result<()> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            let _ = goals::touch_goal_run_progress(&mut session)
+                .map_err(|err| Error::validation(err.to_string()))?;
+        }
+        self.sync_goal_watchdog_state().await
     }
 
     pub async fn set_provider_model(&mut self, provider_id: &str, model_id: &str) -> Result<()> {
@@ -5038,6 +5407,136 @@ impl AgentSession {
 
     pub const fn save_enabled(&self) -> bool {
         self.save_enabled
+    }
+
+    pub fn is_streaming(&self) -> bool {
+        self.extensions_is_streaming.load(Ordering::SeqCst)
+    }
+
+    pub const fn compaction_enabled(&self) -> bool {
+        self.compaction_settings.enabled
+    }
+
+    pub(crate) async fn set_session_name(&mut self, name: &str) -> Result<()> {
+        let cx = crate::agent_cx::AgentCx::for_request();
+        {
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            session.set_name(name);
+        }
+        self.persist_session().await
+    }
+
+    pub(crate) async fn new_session(
+        &mut self,
+        parent_session: Option<String>,
+    ) -> Result<SessionSwapOutcome> {
+        let (session_dir, store_kind, header_snapshot) = {
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            (
+                session.session_dir.clone(),
+                session.store_kind(),
+                session.header.clone(),
+            )
+        };
+
+        let mut new_session = if self.save_enabled {
+            Session::create_with_dir_and_store(session_dir, store_kind)
+        } else {
+            Session::in_memory()
+        };
+        new_session.header.parent_session = parent_session;
+        new_session
+            .header
+            .provider
+            .clone_from(&header_snapshot.provider);
+        new_session
+            .header
+            .model_id
+            .clone_from(&header_snapshot.model_id);
+        new_session
+            .header
+            .thinking_level
+            .clone_from(&header_snapshot.thinking_level);
+        new_session
+            .header
+            .agent_profile
+            .clone_from(&header_snapshot.agent_profile);
+
+        self.install_session(new_session).await
+    }
+
+    pub(crate) async fn switch_session(
+        &mut self,
+        session_path: &Path,
+    ) -> Result<SessionSwapOutcome> {
+        let session_dir = {
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            session.session_dir.clone()
+        };
+
+        let mut loaded_session = Session::open(session_path.to_string_lossy().as_ref()).await?;
+        loaded_session.session_dir = session_dir;
+        self.install_session(loaded_session).await
+    }
+
+    pub(crate) async fn fork_session(&mut self, entry_id: &str) -> Result<SessionForkOutcome> {
+        let (fork_plan, parent_path, session_dir, store_kind, header_snapshot) = {
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            (
+                session.plan_fork_from_user_message(entry_id)?,
+                session.path.as_ref().map(|p| p.display().to_string()),
+                session.session_dir.clone(),
+                session.store_kind(),
+                session.header.clone(),
+            )
+        };
+
+        let selected_text = fork_plan.selected_text.clone();
+        let mut new_session = if self.save_enabled {
+            Session::create_with_dir_and_store(session_dir, store_kind)
+        } else {
+            Session::in_memory()
+        };
+        new_session.header.parent_session = parent_path;
+        new_session
+            .header
+            .provider
+            .clone_from(&header_snapshot.provider);
+        new_session
+            .header
+            .model_id
+            .clone_from(&header_snapshot.model_id);
+        new_session
+            .header
+            .thinking_level
+            .clone_from(&header_snapshot.thinking_level);
+        new_session
+            .header
+            .agent_profile
+            .clone_from(&header_snapshot.agent_profile);
+        new_session.init_from_fork_plan(fork_plan);
+
+        let _ = self.install_session(new_session).await?;
+        Ok(SessionForkOutcome { selected_text })
     }
 
     /// Force-run compaction synchronously (used by `/compact` slash command).
@@ -5456,7 +5955,7 @@ impl AgentSession {
         // dispatching hostcalls, which happens during extension loading.
         manager.set_session(Arc::new(SessionHandle(self.session.clone())));
 
-        let injected = Arc::new(StdMutex::new(ExtensionInjectedQueue::default()));
+        let injected = Arc::clone(&self.extensions_injected_queue);
         let host_actions = AgentSessionHostActions {
             session: Arc::clone(&self.session),
             injected: Arc::clone(&injected),
@@ -5594,6 +6093,7 @@ impl AgentSession {
         abort: Option<AbortSignal>,
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
+        self.preflight_goal_watchdog_for_turn().await?;
         self.extensions_turn_active.store(true, Ordering::SeqCst);
         let result = async {
             let outcome = self.dispatch_input_event(input, Vec::new()).await?;
@@ -5616,7 +6116,9 @@ impl AgentSession {
         }
         .await;
         self.extensions_turn_active.store(false, Ordering::SeqCst);
-        result
+        let result = result?;
+        self.touch_goal_progress_heartbeat().await?;
+        Ok(result)
     }
 
     pub async fn run_with_content(
@@ -5634,9 +6136,10 @@ impl AgentSession {
         abort: Option<AbortSignal>,
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
+        self.preflight_goal_watchdog_for_turn().await?;
         self.extensions_turn_active.store(true, Ordering::SeqCst);
         let result = async {
-            let (text, images) = Self::split_content_blocks_for_input(&content);
+            let (text, images) = Self::split_content_blocks_for_input(&content)?;
             let outcome = self.dispatch_input_event(text, images).await?;
             let (text, images) = match outcome {
                 InputEventOutcome::Continue { text, images } => (text, images),
@@ -5654,7 +6157,9 @@ impl AgentSession {
         }
         .await;
         self.extensions_turn_active.store(false, Ordering::SeqCst);
-        result
+        let result = result?;
+        self.touch_goal_progress_heartbeat().await?;
+        Ok(result)
     }
 
     pub async fn revert_last_user_message(&mut self) -> Result<bool> {
@@ -5713,24 +6218,34 @@ impl AgentSession {
         }
     }
 
-    fn split_content_blocks_for_input(blocks: &[ContentBlock]) -> (String, Vec<ImageContent>) {
+    pub(crate) fn split_content_blocks_for_input(
+        blocks: &[ContentBlock],
+    ) -> Result<(String, Vec<ImageContent>)> {
         let mut text = String::new();
         let mut images = Vec::new();
         for block in blocks {
             match block {
-                ContentBlock::Text(text_block) => {
-                    if !text_block.text.trim().is_empty() {
-                        if !text.is_empty() {
-                            text.push('\n');
-                        }
-                        text.push_str(&text_block.text);
+                ContentBlock::Text(text_block) if !text_block.text.trim().is_empty() => {
+                    if !text.is_empty() {
+                        text.push('\n');
                     }
+                    text.push_str(&text_block.text);
                 }
                 ContentBlock::Image(image) => images.push(image.clone()),
-                _ => {}
+                ContentBlock::Text(_) => {}
+                ContentBlock::Thinking(_) | ContentBlock::ToolCall(_) => {
+                    let kind = match block {
+                        ContentBlock::Thinking(_) => "thinking",
+                        ContentBlock::ToolCall(_) => "tool_call",
+                        ContentBlock::Text(_) | ContentBlock::Image(_) => unreachable!(),
+                    };
+                    return Err(Error::validation(format!(
+                        "prompt_with_content only accepts text and image blocks; found {kind}"
+                    )));
+                }
             }
         }
-        (text, images)
+        Ok((text, images))
     }
 
     fn build_content_blocks_for_input(text: &str, images: &[ImageContent]) -> Vec<ContentBlock> {
@@ -5749,6 +6264,91 @@ impl AgentSession {
             return Vec::new();
         };
         actions.drain(..).collect()
+    }
+
+    fn clear_runtime_state_after_session_swap(
+        &mut self,
+        provider_id: Option<&str>,
+        model_id: Option<&str>,
+        thinking_level: Option<crate::model::ThinkingLevel>,
+        session_id: &str,
+        messages: Vec<Message>,
+    ) {
+        if let (Some(provider_id), Some(model_id)) = (provider_id, model_id) {
+            self.apply_session_model_selection(provider_id, model_id);
+        }
+        self.agent.replace_messages(messages);
+        self.agent.clear_queued_messages();
+
+        let stream_options = self.agent.stream_options_mut();
+        stream_options.session_id = Some(session_id.to_string());
+        stream_options.thinking_level = thinking_level;
+
+        self.compaction_worker.reset();
+
+        if let Ok(mut queue) = self.extensions_injected_queue.lock() {
+            queue.clear();
+        }
+        if let Ok(mut actions) = self.extensions_pending_idle_actions.lock() {
+            actions.clear();
+        }
+    }
+
+    fn refresh_goal_contract_prompt(&mut self) {
+        let prompt = compose_goal_contract_prompt(
+            self.base_system_prompt.as_deref(),
+            self.active_goal_contract.as_ref(),
+            self.active_goal_run.as_ref(),
+        );
+        self.agent.set_system_prompt(prompt);
+    }
+
+    async fn install_session(&mut self, new_session: Session) -> Result<SessionSwapOutcome> {
+        let session_id = new_session.header.id.clone();
+        let target_session_file = new_session
+            .path
+            .as_ref()
+            .map(|path| path.display().to_string());
+        let provider_id = new_session.header.provider.clone();
+        let model_id = new_session.header.model_id.clone();
+        let active_goal_contract = goals::latest_goal_contract(&new_session);
+        let active_goal_run = goals::latest_goal_run_state(&new_session);
+        let thinking_level = new_session
+            .header
+            .thinking_level
+            .as_deref()
+            .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok());
+        let messages = new_session.to_messages_for_current_path();
+
+        let previous_session_file = {
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let mut session = self
+                .session
+                .lock(cx.cx())
+                .await
+                .map_err(|e| Error::session(e.to_string()))?;
+            let previous = session.path.as_ref().map(|path| path.display().to_string());
+            *session = new_session;
+            previous
+        };
+
+        self.clear_runtime_state_after_session_swap(
+            provider_id.as_deref(),
+            model_id.as_deref(),
+            thinking_level,
+            &session_id,
+            messages,
+        );
+        self.active_goal_contract = active_goal_contract;
+        self.active_goal_run = active_goal_run;
+        self.refresh_goal_contract_prompt();
+        let _ = self.block_goal_watchdog_if_idle().await?;
+
+        Ok(SessionSwapOutcome {
+            session_id,
+            previous_session_file,
+            target_session_file,
+        })
     }
 
     async fn run_pending_idle_actions_with_abort(
@@ -5783,6 +6383,7 @@ impl AgentSession {
         abort: Option<AbortSignal>,
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
+        self.preflight_goal_watchdog_for_turn().await?;
         self.extensions_turn_active.store(true, Ordering::SeqCst);
         let result = async {
             self.dispatch_before_agent_start().await;
@@ -5791,7 +6392,9 @@ impl AgentSession {
         }
         .await;
         self.extensions_turn_active.store(false, Ordering::SeqCst);
-        result
+        let result = result?;
+        self.touch_goal_progress_heartbeat().await?;
+        Ok(result)
     }
 
     async fn run_agent_with_prompt_message(
@@ -5801,7 +6404,7 @@ impl AgentSession {
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
         let on_event: AgentEventHandler = Arc::new(on_event);
-        let session_model = {
+        let (session_provider, session_model_id, session_id) = {
             let cx = crate::agent_cx::AgentCx::for_request();
             let session = self
                 .session
@@ -5811,12 +6414,14 @@ impl AgentSession {
             (
                 session.header.provider.clone(),
                 session.header.model_id.clone(),
+                session.header.id.clone(),
             )
         };
 
-        if let (Some(provider_id), Some(model_id)) = session_model {
+        if let (Some(provider_id), Some(model_id)) = (&session_provider, &session_model_id) {
             self.apply_session_model_selection(provider_id.as_str(), model_id.as_str());
         }
+        self.agent.stream_options_mut().session_id = Some(session_id);
 
         self.maybe_compact(Arc::clone(&on_event)).await?;
         let history = {
@@ -5869,7 +6474,7 @@ impl AgentSession {
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
         let on_event: AgentEventHandler = Arc::new(on_event);
-        let session_model = {
+        let (session_provider, session_model_id, session_id) = {
             let cx = crate::agent_cx::AgentCx::for_request();
             let session = self
                 .session
@@ -5879,12 +6484,14 @@ impl AgentSession {
             (
                 session.header.provider.clone(),
                 session.header.model_id.clone(),
+                session.header.id.clone(),
             )
         };
 
-        if let (Some(provider_id), Some(model_id)) = session_model {
+        if let (Some(provider_id), Some(model_id)) = (&session_provider, &session_model_id) {
             self.apply_session_model_selection(provider_id.as_str(), model_id.as_str());
         }
+        self.agent.stream_options_mut().session_id = Some(session_id);
 
         self.maybe_compact(Arc::clone(&on_event)).await?;
         let history = {
@@ -5945,7 +6552,7 @@ impl AgentSession {
         on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
     ) -> Result<AssistantMessage> {
         let on_event: AgentEventHandler = Arc::new(on_event);
-        let session_model = {
+        let (session_provider, session_model_id, session_id) = {
             let cx = crate::agent_cx::AgentCx::for_request();
             let session = self
                 .session
@@ -5955,12 +6562,14 @@ impl AgentSession {
             (
                 session.header.provider.clone(),
                 session.header.model_id.clone(),
+                session.header.id.clone(),
             )
         };
 
-        if let (Some(provider_id), Some(model_id)) = session_model {
+        if let (Some(provider_id), Some(model_id)) = (&session_provider, &session_model_id) {
             self.apply_session_model_selection(provider_id.as_str(), model_id.as_str());
         }
+        self.agent.stream_options_mut().session_id = Some(session_id);
 
         self.maybe_compact(Arc::clone(&on_event)).await?;
         let history = {
@@ -6033,6 +6642,27 @@ impl AgentSession {
             }
         }
         Ok(())
+    }
+}
+
+fn compose_goal_contract_prompt(
+    base_system_prompt: Option<&str>,
+    goal_contract: Option<&GoalSpec>,
+    goal_run: Option<&GoalRunState>,
+) -> Option<String> {
+    let goal_contract = if goal_run.is_none_or(|goal_run| goal_run.status.keeps_contract_active()) {
+        goal_contract
+    } else {
+        None
+    };
+
+    match (base_system_prompt, goal_contract) {
+        (None, None) => None,
+        (Some(base), None) => Some(base.to_string()),
+        (None, Some(goal_contract)) => Some(goal_contract.render_prompt_block()),
+        (Some(base), Some(goal_contract)) => {
+            Some(format!("{base}\n\n{}", goal_contract.render_prompt_block()))
+        }
     }
 }
 
@@ -6185,6 +6815,7 @@ mod tests {
     use super::*;
     use crate::auth::AuthCredential;
     use crate::provider::{InputType, Model, ModelCost};
+    use asupersync::runtime::RuntimeBuilder;
     use async_trait::async_trait;
     use futures::Stream;
     use std::collections::HashMap;
@@ -6273,6 +6904,61 @@ mod tests {
             Pin<Box<dyn Stream<Item = crate::error::Result<StreamEvent>> + Send>>,
         > {
             Ok(Box::pin(futures::stream::empty()))
+        }
+    }
+
+    #[derive(Debug)]
+    struct SingleReplyProvider;
+
+    #[async_trait]
+    #[allow(clippy::unnecessary_literal_bound)]
+    impl Provider for SingleReplyProvider {
+        fn name(&self) -> &str {
+            "test-provider"
+        }
+
+        fn api(&self) -> &str {
+            "test-api"
+        }
+
+        fn model_id(&self) -> &str {
+            "test-model"
+        }
+
+        async fn stream(
+            &self,
+            _context: &Context<'_>,
+            _options: &StreamOptions,
+        ) -> crate::error::Result<
+            Pin<Box<dyn Stream<Item = crate::error::Result<StreamEvent>> + Send>>,
+        > {
+            let partial = AssistantMessage {
+                content: vec![ContentBlock::Text(TextContent::new(""))],
+                api: "test-api".to_string(),
+                provider: "test-provider".to_string(),
+                model: "test-model".to_string(),
+                usage: Usage::default(),
+                stop_reason: StopReason::Stop,
+                error_message: None,
+                timestamp: 0,
+            };
+            let done = AssistantMessage {
+                content: vec![ContentBlock::Text(TextContent::new("hello"))],
+                api: "test-api".to_string(),
+                provider: "test-provider".to_string(),
+                model: "test-model".to_string(),
+                usage: Usage::default(),
+                stop_reason: StopReason::Stop,
+                error_message: None,
+                timestamp: 0,
+            };
+            Ok(Box::pin(futures::stream::iter(vec![
+                Ok(StreamEvent::Start { partial }),
+                Ok(StreamEvent::Done {
+                    reason: StopReason::Stop,
+                    message: done,
+                }),
+            ])))
         }
     }
 
@@ -7046,5 +7732,156 @@ mod tests {
         assert_eq!(json["success"], false);
         assert_eq!(json["attempt"], 3);
         assert_eq!(json["finalError"], "max retries exceeded");
+    }
+
+    #[test]
+    fn compose_goal_contract_prompt_ignores_non_active_goal_runs() {
+        let goal = GoalSpec {
+            goal: "Ship the release".to_string(),
+            criteria: vec![crate::goals::SuccessCriterion {
+                id: "criterion_1".to_string(),
+                description: "All checks pass".to_string(),
+                verification_hint: None,
+                required: true,
+            }],
+            ..GoalSpec::default()
+        };
+        let goal_run = GoalRunState {
+            status: crate::goals::GoalRunStatus::Paused,
+            ..GoalRunState::new(&goal, Some("session_1".to_string()))
+        };
+
+        let prompt =
+            compose_goal_contract_prompt(Some("Base system prompt"), Some(&goal), Some(&goal_run));
+
+        assert_eq!(prompt.as_deref(), Some("Base system prompt"));
+    }
+
+    #[test]
+    fn run_text_restarts_overdue_goal_watchdog_when_restart_is_enabled() {
+        let runtime = RuntimeBuilder::current_thread()
+            .build()
+            .expect("runtime build");
+
+        runtime.block_on(async {
+            let goal = GoalSpec {
+                goal: "Ship the release".to_string(),
+                criteria: vec![crate::goals::SuccessCriterion {
+                    id: "criterion_1".to_string(),
+                    description: "All checks pass".to_string(),
+                    verification_hint: None,
+                    required: true,
+                }],
+                watchdog: crate::goals::GoalWatchdog {
+                    inactivity_timeout_seconds: 1,
+                    restart_on_inactive: true,
+                    max_restarts: 2,
+                    ..crate::goals::GoalWatchdog::default()
+                },
+                ..GoalSpec::default()
+            };
+            let old_last_progress_at =
+                (chrono::Utc::now() - chrono::Duration::seconds(120)).to_rfc3339();
+            let mut seed_session = Session::in_memory();
+            let seed_session_id = seed_session.header.id.clone();
+            assert!(crate::goals::persist_goal_contract(
+                &mut seed_session,
+                &goal
+            ));
+            assert!(crate::goals::persist_goal_run_snapshot(
+                &mut seed_session,
+                &GoalRunState {
+                    last_progress_at: old_last_progress_at.clone(),
+                    ..GoalRunState::new(&goal, Some(seed_session_id))
+                }
+            ));
+
+            let provider = Arc::new(SingleReplyProvider);
+            let tools = ToolRegistry::new(&[], Path::new("."), None);
+            let agent = Agent::new(provider, tools, AgentConfig::default());
+            let session = Arc::new(Mutex::new(seed_session));
+            let mut agent_session = AgentSession::new(
+                agent,
+                Arc::clone(&session),
+                false,
+                ResolvedCompactionSettings::default(),
+            );
+
+            agent_session
+                .run_text("hello".to_string(), |_| {})
+                .await
+                .expect("run_text");
+
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let session = session.lock(cx.cx()).await.expect("lock session");
+            let goal_run = crate::goals::latest_goal_run_state(&session).expect("goal run");
+            assert_eq!(goal_run.status, crate::goals::GoalRunStatus::Active);
+            assert_eq!(goal_run.restart_count, 1);
+            assert_ne!(goal_run.last_progress_at, old_last_progress_at);
+        });
+    }
+
+    #[test]
+    fn run_text_blocks_overdue_goal_watchdog_when_restart_is_disabled() {
+        let runtime = RuntimeBuilder::current_thread()
+            .build()
+            .expect("runtime build");
+
+        runtime.block_on(async {
+            let goal = GoalSpec {
+                goal: "Ship the release".to_string(),
+                criteria: vec![crate::goals::SuccessCriterion {
+                    id: "criterion_1".to_string(),
+                    description: "All checks pass".to_string(),
+                    verification_hint: None,
+                    required: true,
+                }],
+                watchdog: crate::goals::GoalWatchdog {
+                    inactivity_timeout_seconds: 1,
+                    restart_on_inactive: false,
+                    ..crate::goals::GoalWatchdog::default()
+                },
+                ..GoalSpec::default()
+            };
+            let mut seed_session = Session::in_memory();
+            let seed_session_id = seed_session.header.id.clone();
+            assert!(crate::goals::persist_goal_contract(
+                &mut seed_session,
+                &goal
+            ));
+            assert!(crate::goals::persist_goal_run_snapshot(
+                &mut seed_session,
+                &GoalRunState {
+                    last_progress_at: (chrono::Utc::now() - chrono::Duration::seconds(120))
+                        .to_rfc3339(),
+                    ..GoalRunState::new(&goal, Some(seed_session_id))
+                }
+            ));
+
+            let provider = Arc::new(SingleReplyProvider);
+            let tools = ToolRegistry::new(&[], Path::new("."), None);
+            let agent = Agent::new(provider, tools, AgentConfig::default());
+            let session = Arc::new(Mutex::new(seed_session));
+            let mut agent_session = AgentSession::new(
+                agent,
+                Arc::clone(&session),
+                false,
+                ResolvedCompactionSettings::default(),
+            );
+
+            let err = agent_session
+                .run_text("hello".to_string(), |_| {})
+                .await
+                .expect_err("run_text should be blocked");
+            assert!(
+                err.to_string().contains("Goal watchdog blocked this run"),
+                "unexpected error: {err}"
+            );
+
+            let cx = crate::agent_cx::AgentCx::for_request();
+            let session = session.lock(cx.cx()).await.expect("lock session");
+            let goal_run = crate::goals::latest_goal_run_state(&session).expect("goal run");
+            assert_eq!(goal_run.status, crate::goals::GoalRunStatus::Blocked);
+        });
     }
 }

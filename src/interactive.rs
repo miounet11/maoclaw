@@ -29,6 +29,7 @@ use futures::future::BoxFuture;
 use glamour::StyleConfig as GlamourStyleConfig;
 use glob::Pattern;
 use serde_json::{Value, json};
+use url::Url;
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Write as _;
@@ -86,12 +87,11 @@ pub use self::commands::{
 #[cfg(test)]
 use self::commands::{
     api_key_login_prompt, format_login_provider_listing, format_resource_diagnostics, kind_rank,
-    normalize_api_key_input, normalize_auth_provider_input, remove_provider_credentials,
-    save_provider_credential,
 };
 use self::commands::{
-    format_startup_oauth_hint, parse_bash_command, parse_extension_command,
-    should_show_startup_oauth_hint,
+    format_startup_oauth_hint, normalize_api_key_input, normalize_auth_provider_input,
+    parse_bash_command, parse_extension_command, remove_provider_credentials,
+    save_provider_credential, should_show_startup_oauth_hint,
 };
 use self::conversation::conversation_from_session;
 #[cfg(test)]
@@ -116,9 +116,9 @@ pub use self::state::{AgentState, InputMode, PendingInput};
 use self::state::{
     AutocompleteState, BranchPickerOverlay, CapabilityAction, CapabilityPromptOverlay,
     ExtensionCustomOverlay, HistoryList, InjectedMessageQueue, InteractiveMessageQueue,
-    PendingLoginKind, PendingOAuth, QueuedMessageKind, SessionPickerOverlay, SettingsUiEntry,
-    SettingsUiState, TOOL_COLLAPSE_PREVIEW_LINES, ThemePickerItem, ThemePickerOverlay,
-    ToolProgress, format_count,
+    PendingLoginKind, PendingOAuth, ProviderSetupField, ProviderSetupOverlay, QueuedMessageKind,
+    SessionPickerOverlay, SettingsUiEntry, SettingsUiState, TOOL_COLLAPSE_PREVIEW_LINES,
+    ThemePickerItem, ThemePickerOverlay, ToolProgress, format_count,
 };
 pub use self::state::{ConversationMessage, MessageRole};
 #[cfg(test)]
@@ -392,6 +392,148 @@ fn overlay_max_visible(term_height: usize) -> usize {
     term_height.saturating_sub(OVERLAY_CHROME_ROWS).clamp(3, 30)
 }
 
+fn validate_provider_base_url(value: &str) -> Result<Option<String>, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+
+    let parsed = Url::parse(trimmed)
+        .map_err(|err| format!("API URL must be a valid http or https URL: {err}"))?;
+    match parsed.scheme() {
+        "http" | "https" => Ok(Some(trimmed.to_string())),
+        _ => Err("API URL must be a valid http or https URL".to_string()),
+    }
+}
+
+fn provider_default_base_url(provider: &str) -> Option<String> {
+    let canonical = crate::provider_metadata::canonical_provider_id(provider).unwrap_or(provider);
+    crate::provider_metadata::provider_routing_defaults(canonical).and_then(|defaults| {
+        let trimmed = defaults.base_url.trim();
+        (!trimmed.is_empty()).then(|| trimmed.to_string())
+    })
+}
+
+fn read_json_object_file(path: &Path) -> Result<Value, String> {
+    if !path.exists() {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+
+    let content =
+        std::fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
+    if content.trim().is_empty() {
+        return Ok(Value::Object(serde_json::Map::new()));
+    }
+
+    let value: Value =
+        serde_json::from_str(&content).map_err(|err| format!("parse {}: {err}", path.display()))?;
+    if value.is_object() {
+        Ok(value)
+    } else {
+        Err(format!("{} must contain a JSON object", path.display()))
+    }
+}
+
+fn load_provider_base_url_override(models_path: &Path, provider: &str) -> Option<String> {
+    let provider = crate::provider_metadata::canonical_provider_id(provider)
+        .unwrap_or(provider)
+        .trim();
+    if provider.is_empty() {
+        return None;
+    }
+
+    let value = read_json_object_file(models_path).ok()?;
+    value
+        .get("providers")
+        .and_then(Value::as_object)
+        .and_then(|providers| providers.get(provider))
+        .and_then(Value::as_object)
+        .and_then(|config| config.get("baseUrl"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn save_provider_base_url_override(
+    models_path: &Path,
+    provider: &str,
+    base_url: Option<&str>,
+) -> Result<(), String> {
+    let provider = crate::provider_metadata::canonical_provider_id(provider)
+        .unwrap_or(provider)
+        .trim();
+    if provider.is_empty() {
+        return Ok(());
+    }
+
+    let mut root = read_json_object_file(models_path)?;
+    let root_obj = root
+        .as_object_mut()
+        .ok_or_else(|| format!("{} must contain a JSON object", models_path.display()))?;
+    let providers_entry = root_obj
+        .entry("providers".to_string())
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let providers = providers_entry.as_object_mut().ok_or_else(|| {
+        format!(
+            "providers in {} must be a JSON object",
+            models_path.display()
+        )
+    })?;
+
+    if let Some(value) = base_url.map(str::trim).filter(|value| !value.is_empty()) {
+        let provider_entry = providers
+            .entry(provider.to_string())
+            .or_insert_with(|| Value::Object(serde_json::Map::new()));
+        let provider_obj = provider_entry.as_object_mut().ok_or_else(|| {
+            format!(
+                "provider entry {provider} in {} must be a JSON object",
+                models_path.display()
+            )
+        })?;
+        provider_obj.insert("baseUrl".to_string(), Value::String(value.to_string()));
+    } else {
+        let remove_provider = providers
+            .get_mut(provider)
+            .and_then(Value::as_object_mut)
+            .is_some_and(|provider_obj| {
+                provider_obj.remove("baseUrl");
+                provider_obj.is_empty()
+            });
+        if remove_provider {
+            providers.remove(provider);
+        }
+    }
+
+    if providers.is_empty() {
+        root_obj.remove("providers");
+    }
+
+    if let Some(parent) = models_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("create {}: {err}", parent.display()))?;
+    }
+    std::fs::write(
+        models_path,
+        serde_json::to_string_pretty(&root)
+            .map_err(|err| format!("serialize {}: {err}", models_path.display()))?,
+    )
+    .map_err(|err| format!("write {}: {err}", models_path.display()))
+}
+
+fn editable_api_key_for_provider(
+    auth: &crate::auth::AuthStorage,
+    provider: &str,
+) -> Option<String> {
+    match auth.get(provider) {
+        Some(crate::auth::AuthCredential::ApiKey { key }) => Some(key.clone()),
+        Some(crate::auth::AuthCredential::BearerToken { token }) => Some(token.clone()),
+        _ => crate::provider_metadata::canonical_provider_id(provider)
+            .filter(|canonical| *canonical != provider)
+            .and_then(|canonical| editable_api_key_for_provider(auth, canonical)),
+    }
+}
+
 // ============================================================================
 // Slash Commands
 // ============================================================================
@@ -518,7 +660,12 @@ impl PiApp {
             return None;
         }
 
-        // Priority 5: theme picker overlay.
+        // Priority 5: provider setup overlay.
+        if self.provider_setup.is_some() {
+            return None;
+        }
+
+        // Priority 6: theme picker overlay.
         if let Some(ref mut picker) = self.theme_picker {
             if is_up {
                 picker.select_prev();
@@ -528,7 +675,7 @@ impl PiApp {
             return None;
         }
 
-        // Priority 6: branch picker overlay.
+        // Priority 7: branch picker overlay.
         if let Some(ref mut picker) = self.branch_picker {
             if is_up {
                 picker.select_prev();
@@ -679,6 +826,213 @@ impl PiApp {
         true
     }
 
+    fn open_provider_setup_overlay(&mut self, provider_override: Option<&str>) {
+        let provider = provider_override
+            .map(normalize_auth_provider_input)
+            .or_else(|| {
+                self.config
+                    .default_provider
+                    .as_deref()
+                    .map(normalize_auth_provider_input)
+            })
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| normalize_auth_provider_input(&self.model_entry.model.provider));
+        let model = self
+            .config
+            .default_model
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| self.model_entry.model.id.clone());
+        let models_path = default_models_path(&Config::global_dir());
+        let base_url = load_provider_base_url_override(&models_path, &provider)
+            .or_else(|| provider_default_base_url(&provider))
+            .unwrap_or_default();
+        let api_key = crate::auth::AuthStorage::load(Config::auth_path())
+            .ok()
+            .and_then(|auth| editable_api_key_for_provider(&auth, &provider))
+            .unwrap_or_default();
+
+        self.provider_setup = Some(ProviderSetupOverlay::new(
+            provider, model, base_url, api_key,
+        ));
+        self.session_picker = None;
+        self.settings_ui = None;
+        self.theme_picker = None;
+        self.model_selector = None;
+        self.autocomplete.close();
+    }
+
+    fn refresh_available_models_from_auth(
+        &mut self,
+        auth: &crate::auth::AuthStorage,
+    ) -> Option<String> {
+        let registry = load_interactive_model_registry(auth, self.extensions.as_ref());
+        let mut available_models = registry.get_available();
+        if !available_models
+            .iter()
+            .any(|entry| model_entry_matches(entry, &self.model_entry))
+        {
+            available_models.push(self.model_entry.clone());
+        }
+        self.set_available_models(available_models);
+
+        let enabled_patterns = self.config.enabled_models.clone().unwrap_or_default();
+        if enabled_patterns.is_empty() {
+            self.model_scope.clear();
+        } else if let Ok(scope) =
+            resolve_scoped_model_entries(&enabled_patterns, &self.available_models)
+        {
+            self.model_scope = scope;
+        } else {
+            self.model_scope.clear();
+        }
+
+        registry.error().map(ToOwned::to_owned)
+    }
+
+    fn refresh_available_models_from_disk(&mut self) -> Result<Option<String>, String> {
+        let auth =
+            crate::auth::AuthStorage::load(Config::auth_path()).map_err(|err| err.to_string())?;
+        Ok(self.refresh_available_models_from_auth(&auth))
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn apply_provider_setup(&mut self, overlay: &ProviderSetupOverlay) -> Result<String, String> {
+        let provider = normalize_auth_provider_input(&overlay.provider);
+        if provider.is_empty() {
+            return Err("Provider is required".to_string());
+        }
+
+        let model = overlay.model.trim();
+        if model.is_empty() {
+            return Err("Model is required".to_string());
+        }
+
+        let normalized_api_key = if overlay.api_key.trim().is_empty() {
+            None
+        } else {
+            Some(normalize_api_key_input(overlay.api_key.trim())?)
+        };
+        let base_url_input = if !overlay.base_url_dirty
+            && normalize_auth_provider_input(&overlay.initial_provider) != provider
+            && overlay.base_url.trim() == overlay.initial_base_url.trim()
+        {
+            provider_default_base_url(&provider).unwrap_or_default()
+        } else {
+            overlay.base_url.trim().to_string()
+        };
+        let base_url = validate_provider_base_url(&base_url_input)?;
+        let mut auth =
+            crate::auth::AuthStorage::load(Config::auth_path()).map_err(|err| err.to_string())?;
+        let global_dir = Config::global_dir();
+        let settings_patch = json!({
+            "defaultProvider": provider,
+            "defaultModel": model,
+            "default_provider": provider,
+            "default_model": model,
+        });
+        Config::patch_settings_with_roots(
+            SettingsScope::Global,
+            &global_dir,
+            &self.cwd,
+            settings_patch,
+        )
+        .map_err(|err| format!("Failed to save provider defaults: {err}"))?;
+
+        let models_path = default_models_path(&global_dir);
+        save_provider_base_url_override(&models_path, &provider, base_url.as_deref())?;
+        let api_key_value = overlay.api_key.trim();
+        let provider_matches_initial =
+            normalize_auth_provider_input(&overlay.initial_provider) == provider;
+
+        if api_key_value.is_empty() {
+            if provider_matches_initial && !overlay.initial_api_key.is_empty() {
+                remove_provider_credentials(&mut auth, &provider);
+                auth.save().map_err(|err| err.to_string())?;
+                self.sync_active_provider_credentials_from_auth(&auth, &provider);
+            }
+        } else {
+            save_provider_credential(
+                &mut auth,
+                &provider,
+                crate::auth::AuthCredential::ApiKey {
+                    key: normalized_api_key.expect("validated api key"),
+                },
+            );
+            auth.save().map_err(|err| err.to_string())?;
+            self.sync_active_provider_credentials_from_auth(&auth, &provider);
+        }
+
+        self.config.default_provider = Some(provider.clone());
+        self.config.default_model = Some(model.to_string());
+
+        let registry = load_interactive_model_registry(&auth, self.extensions.as_ref());
+        self.set_available_models(registry.get_available());
+        let registry_diagnostic = registry.error().map(ToOwned::to_owned);
+
+        let next = registry
+            .find(&provider, model)
+            .or_else(|| crate::models::ad_hoc_model_entry(&provider, model));
+
+        let mut status = format!(
+            "Provider setup saved: {provider}/{model}. Updated global settings, auth.json, and models.json"
+        );
+
+        if let Some(next) = next {
+            let resolved_key_opt = self::commands::resolve_model_key_from_default_auth(&next);
+            if crate::models::model_requires_configured_credential(&next)
+                && resolved_key_opt.is_none()
+            {
+                status
+                    .push_str(". Saved defaults, but the provider still has no usable credentials");
+            } else {
+                let provider_impl = providers::create_provider(&next, self.extensions.as_ref())
+                    .map_err(|err| err.to_string())?;
+                if let Err(err) =
+                    self.switch_active_model(&next, provider_impl, resolved_key_opt.as_deref())
+                {
+                    let _ = write!(status, ". Saved defaults, but live switch failed: {err}");
+                } else {
+                    self.push_available_model_if_missing(next);
+                    let _ = write!(status, ". Active model: {}", self.model);
+                }
+            }
+        } else {
+            status.push_str(
+                ". Saved defaults, but this provider/model is not routable yet; use a supported provider id such as openai for OpenAI-compatible services",
+            );
+        }
+
+        if let Some(diagnostic) = registry_diagnostic {
+            let _ = write!(status, ". models.json warning: {diagnostic}");
+        }
+
+        let _ = self.refresh_available_models_from_disk();
+        Ok(status)
+    }
+
+    fn sync_available_models_shared(&self) {
+        if let Ok(mut guard) = self.available_models_shared.lock() {
+            guard.clone_from(&self.available_models);
+        }
+    }
+
+    fn set_available_models(&mut self, available_models: Vec<ModelEntry>) {
+        self.available_models = available_models;
+        self.sync_available_models_shared();
+    }
+
+    fn push_available_model_if_missing(&mut self, entry: ModelEntry) {
+        if !self
+            .available_models
+            .iter()
+            .any(|candidate| model_entry_matches(candidate, &entry))
+        {
+            self.available_models.push(entry);
+            self.sync_available_models_shared();
+        }
+    }
+
     fn effective_show_hardware_cursor(&self) -> bool {
         self.config.show_hardware_cursor.unwrap_or_else(|| {
             std::env::var("PI_HARDWARE_CURSOR")
@@ -707,6 +1061,9 @@ impl PiApp {
     #[allow(clippy::too_many_lines)]
     fn toggle_settings_entry(&mut self, entry: SettingsUiEntry) {
         match entry {
+            SettingsUiEntry::ProviderSetup => {
+                self.open_provider_setup_overlay(None);
+            }
             SettingsUiEntry::SteeringMode | SettingsUiEntry::FollowUpMode => {
                 self.toggle_queue_mode_setting(entry);
             }
@@ -1046,15 +1403,21 @@ impl PiApp {
             let mut session_guard = match session.lock(&cx).await {
                 Ok(guard) => guard,
                 Err(err) => {
-                    let _ = event_tx
-                        .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                    )
+                    .await;
                     return;
                 }
             };
 
             if let Err(err) = session_guard.save().await {
-                let _ =
-                    event_tx.try_send(PiMsg::AgentError(format!("Failed to save session: {err}")));
+                let _ = send_pi_msg_with_backpressure(
+                    &event_tx,
+                    PiMsg::AgentError(format!("Failed to save session: {err}")),
+                )
+                .await;
             }
         });
     }
@@ -1063,6 +1426,7 @@ impl PiApp {
         if !matches!(self.agent_state, AgentState::Idle)
             || self.session_picker.is_some()
             || self.settings_ui.is_some()
+            || self.provider_setup.is_some()
         {
             self.autocomplete.close();
             return;
@@ -1136,6 +1500,7 @@ impl PiApp {
             && self.tree_ui.is_none()
             && self.session_picker.is_none()
             && self.settings_ui.is_none()
+            && self.provider_setup.is_none()
             && self.theme_picker.is_none()
             && self.capability_prompt.is_none()
             && self.extension_custom_overlay.is_none()
@@ -1153,6 +1518,7 @@ impl PiApp {
             && self.tree_ui.is_none()
             && self.session_picker.is_none()
             && self.settings_ui.is_none()
+            && self.provider_setup.is_none()
             && self.theme_picker.is_none()
             && self.capability_prompt.is_none()
             && self.branch_picker.is_none()
@@ -1235,6 +1601,11 @@ impl PiApp {
         if let Some(ref settings) = self.settings_ui {
             let visible = settings.entries.len().min(settings.max_visible);
             chrome += visible + 5; // title + blank + items + help + blank
+        }
+
+        // Provider setup overlay: title + intro + fields + help + padding.
+        if self.provider_setup.is_some() {
+            chrome += 11;
         }
 
         // Theme picker overlay: title + items + help + padding.
@@ -1403,19 +1774,10 @@ impl PiApp {
         let session = Arc::clone(&self.session);
         let agent = Arc::clone(&self.agent);
         let extensions = self.extensions.clone();
+        let available_models_shared = self.available_models_shared.clone();
+        let model_entry_shared = self.model_entry_shared.clone();
         let event_tx = self.event_tx.clone();
         let runtime_handle = self.runtime_handle.clone();
-
-        let (session_dir, previous_session_file) = {
-            let Ok(guard) = self.session.try_lock() else {
-                self.status_message = Some("Session busy; try again".to_string());
-                return None;
-            };
-            (
-                guard.session_dir.clone(),
-                guard.path.as_ref().map(|p| p.display().to_string()),
-            )
-        };
 
         runtime_handle.spawn(async move {
             let cx = Cx::for_request();
@@ -1433,69 +1795,88 @@ impl PiApp {
                     .await
                     .unwrap_or(false);
                 if cancelled {
-                    let _ = event_tx.try_send(PiMsg::System(
-                        "Session switch cancelled by extension".to_string(),
-                    ));
+                    let _ = send_pi_msg_with_backpressure(
+                        &event_tx,
+                        PiMsg::System("Session switch cancelled by extension".to_string()),
+                    )
+                    .await;
                     return;
                 }
             }
 
-            let mut loaded_session = match Session::open(&path).await {
-                Ok(session) => session,
+            let outcome = {
+                let session_dir = match session.lock(&cx).await {
+                    Ok(guard) => guard.session_dir.clone(),
+                    Err(err) => {
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to lock session: {err}")),
+                        )
+                        .await;
+                        return;
+                    }
+                };
+                let mut loaded_session = match Session::open(&path).await {
+                    Ok(session) => session,
+                    Err(err) => {
+                        let _ = send_pi_msg_with_backpressure(
+                            &event_tx,
+                            PiMsg::AgentError(format!("Failed to open session: {err}")),
+                        )
+                        .await;
+                        return;
+                    }
+                };
+                loaded_session.session_dir = session_dir;
+                let available_models = available_models_shared
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone();
+                match install_interactive_session(
+                    InteractiveSessionInstallContext {
+                        session: &session,
+                        agent: &agent,
+                        available_models: &available_models,
+                        preferred_model_entry: None,
+                        reuse_active_runtime: false,
+                        model_entry_shared: &model_entry_shared,
+                        extensions: extensions.as_ref(),
+                    },
+                    loaded_session,
+                )
+                .await {
+                    Ok(outcome) => outcome,
+                    Err(err) => {
+                        let _ =
+                            send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
+                        return;
+                    }
+                }
+            };
+
+            if let Some(entry) = outcome.active_model_entry.clone() {
+                let _ =
+                    send_pi_msg_with_backpressure(&event_tx, PiMsg::SyncModelState(Box::new(entry)))
+                        .await;
+            }
+
+            let (messages, usage) = match snapshot_conversation_state(&session).await {
+                Ok(snapshot) => snapshot,
                 Err(err) => {
-                    let _ = event_tx
-                        .try_send(PiMsg::AgentError(format!("Failed to open session: {err}")));
+                    let _ = send_pi_msg_with_backpressure(&event_tx, PiMsg::AgentError(err)).await;
                     return;
                 }
             };
-            let new_session_id = loaded_session.header.id.clone();
-            loaded_session.session_dir = session_dir;
 
-            let messages_for_agent = loaded_session.to_messages_for_current_path();
-
-            // Replace the session.
-            {
-                let mut session_guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                *session_guard = loaded_session;
-            }
-
-            // Update the agent messages.
-            {
-                let mut agent_guard = match agent.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock agent: {err}")));
-                        return;
-                    }
-                };
-                agent_guard.replace_messages(messages_for_agent);
-            }
-
-            let (messages, usage) = {
-                let session_guard = match session.lock(&cx).await {
-                    Ok(guard) => guard,
-                    Err(err) => {
-                        let _ = event_tx
-                            .try_send(PiMsg::AgentError(format!("Failed to lock session: {err}")));
-                        return;
-                    }
-                };
-                conversation_from_session(&session_guard)
-            };
-
-            let _ = event_tx.try_send(PiMsg::ConversationReset {
-                messages,
-                usage,
-                status: Some("Session resumed".to_string()),
-            });
+            let _ = send_pi_msg_with_backpressure(
+                &event_tx,
+                PiMsg::ConversationReset {
+                    messages,
+                    usage,
+                    status: Some("Session resumed".to_string()),
+                },
+            )
+            .await;
 
             if let Some(manager) = extensions {
                 let _ = manager
@@ -1503,9 +1884,9 @@ impl PiApp {
                         ExtensionEventName::SessionSwitch,
                         Some(json!({
                             "reason": "resume",
-                            "previousSessionFile": previous_session_file,
-                            "targetSessionFile": path,
-                            "sessionId": new_session_id,
+                            "previousSessionFile": outcome.session_swap.previous_session_file,
+                            "targetSessionFile": outcome.session_swap.target_session_file.unwrap_or(path),
+                            "sessionId": outcome.session_swap.session_id,
                         })),
                     )
                     .await;
@@ -1573,7 +1954,14 @@ pub async fn run_interactive(
         runtime_handle.spawn(async move {
             let cx = Cx::for_request();
             while let Ok(request) = extension_ui_rx.recv(&cx).await {
-                let _ = extension_event_tx.try_send(PiMsg::ExtensionUiRequest(request));
+                if !send_pi_msg_with_backpressure(
+                    &extension_event_tx,
+                    PiMsg::ExtensionUiRequest(request),
+                )
+                .await
+                {
+                    break;
+                }
             }
         });
     }
@@ -1673,9 +2061,11 @@ pub enum PiMsg {
         usage: Usage,
         status: Option<String>,
     },
+    /// Synchronize the active model label/state after a session swap.
+    SyncModelState(Box<ModelEntry>),
     /// Set the editor contents (used by /tree selection of user/custom messages).
     SetEditorText(String),
-    /// Reloaded skills/prompts/themes/extensions.
+    /// Reloaded skills/prompts/themes and refreshed the model catalog.
     ResourcesReloaded {
         resources: ResourceLoader,
         status: String,
@@ -1692,6 +2082,371 @@ pub enum PiMsg {
     /// OAuth callback server received the browser redirect.
     /// The string is the full callback URL (e.g. `http://localhost:1455/auth/callback?code=abc&state=xyz`).
     OAuthCallbackReceived(String),
+}
+
+pub(super) async fn send_pi_msg_with_backpressure(
+    event_tx: &mpsc::Sender<PiMsg>,
+    msg: PiMsg,
+) -> bool {
+    let cx = Cx::for_request();
+    event_tx.send(&cx, msg).await.is_ok()
+}
+
+pub(super) fn send_pi_msg_with_backpressure_blocking(
+    event_tx: &mpsc::Sender<PiMsg>,
+    msg: PiMsg,
+) -> bool {
+    futures::executor::block_on(send_pi_msg_with_backpressure(event_tx, msg))
+}
+
+pub(super) async fn snapshot_conversation_state(
+    session: &Arc<Mutex<Session>>,
+) -> std::result::Result<(Vec<ConversationMessage>, Usage), String> {
+    let cx = Cx::for_request();
+    let guard = session
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("Failed to lock session: {err}"))?;
+    Ok(conversation_from_session(&guard))
+}
+
+pub(super) async fn snapshot_session_id(
+    session: &Arc<Mutex<Session>>,
+) -> std::result::Result<String, String> {
+    let cx = Cx::for_request();
+    let guard = session
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("Failed to lock session: {err}"))?;
+    Ok(guard.header.id.clone())
+}
+
+struct InteractiveAgentRefresh {
+    agent_messages: Vec<ModelMessage>,
+    messages: Vec<ConversationMessage>,
+    usage: Usage,
+    session_id: String,
+    thinking_level: Option<crate::model::ThinkingLevel>,
+}
+
+fn capture_interactive_agent_refresh(session: &Session) -> InteractiveAgentRefresh {
+    let (messages, usage) = conversation_from_session(session);
+    InteractiveAgentRefresh {
+        agent_messages: session.to_messages_for_current_path(),
+        messages,
+        usage,
+        session_id: session.header.id.clone(),
+        thinking_level: session
+            .header
+            .thinking_level
+            .as_deref()
+            .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok()),
+    }
+}
+
+fn reset_interactive_agent_state(
+    agent: &mut Agent,
+    messages: Vec<ModelMessage>,
+    session_id: String,
+    thinking_level: Option<crate::model::ThinkingLevel>,
+) {
+    agent.replace_messages(messages);
+    agent.clear_queued_messages();
+    let stream_options = agent.stream_options_mut();
+    stream_options.session_id = Some(session_id);
+    stream_options.thinking_level = thinking_level;
+}
+
+pub(super) async fn refresh_interactive_agent_from_session(
+    session: &Arc<Mutex<Session>>,
+    agent: &Arc<Mutex<Agent>>,
+) -> std::result::Result<(Vec<ConversationMessage>, Usage), String> {
+    let cx = Cx::for_request();
+    let refresh = {
+        let guard = session
+            .lock(&cx)
+            .await
+            .map_err(|err| format!("Failed to lock session: {err}"))?;
+        capture_interactive_agent_refresh(&guard)
+    };
+
+    let InteractiveAgentRefresh {
+        agent_messages,
+        messages,
+        usage,
+        session_id,
+        thinking_level,
+    } = refresh;
+
+    let mut agent_guard = agent
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("Failed to lock agent: {err}"))?;
+    reset_interactive_agent_state(&mut agent_guard, agent_messages, session_id, thinking_level);
+    Ok((messages, usage))
+}
+
+pub(super) fn refresh_interactive_agent_from_session_try(
+    session: &Arc<Mutex<Session>>,
+    agent: &Arc<Mutex<Agent>>,
+) -> std::result::Result<(Vec<ConversationMessage>, Usage), String> {
+    let refresh = {
+        let guard = session
+            .try_lock()
+            .map_err(|err| format!("Failed to lock session: {err}"))?;
+        capture_interactive_agent_refresh(&guard)
+    };
+
+    let InteractiveAgentRefresh {
+        agent_messages,
+        messages,
+        usage,
+        session_id,
+        thinking_level,
+    } = refresh;
+
+    let mut agent_guard = agent
+        .try_lock()
+        .map_err(|err| format!("Failed to lock agent: {err}"))?;
+    reset_interactive_agent_state(&mut agent_guard, agent_messages, session_id, thinking_level);
+    Ok((messages, usage))
+}
+
+pub(super) fn collect_interactive_model_candidates(
+    available_models: &[ModelEntry],
+    preferred_model_entry: Option<&ModelEntry>,
+    extensions: Option<&ExtensionManager>,
+) -> Vec<ModelEntry> {
+    let mut candidates = available_models.to_vec();
+
+    if let Some(manager) = extensions {
+        for entry in manager.extension_model_entries() {
+            if !candidates
+                .iter()
+                .any(|candidate| commands::model_entry_matches(candidate, &entry))
+            {
+                candidates.push(entry);
+            }
+        }
+    }
+
+    if let Some(preferred) = preferred_model_entry {
+        if !candidates
+            .iter()
+            .any(|candidate| commands::model_entry_matches(candidate, preferred))
+        {
+            candidates.push(preferred.clone());
+        }
+    }
+
+    candidates
+}
+
+fn resolve_session_model_entry(
+    available_models: &[ModelEntry],
+    preferred_model_entry: Option<&ModelEntry>,
+    provider_id: &str,
+    model_id: &str,
+) -> Option<ModelEntry> {
+    preferred_model_entry
+        .filter(|entry| {
+            crate::provider_metadata::provider_ids_match(&entry.model.provider, provider_id)
+                && entry.model.id.eq_ignore_ascii_case(model_id)
+        })
+        .cloned()
+        .or_else(|| {
+            available_models
+                .iter()
+                .find(|entry| {
+                    crate::provider_metadata::provider_ids_match(&entry.model.provider, provider_id)
+                        && entry.model.id.eq_ignore_ascii_case(model_id)
+                })
+                .cloned()
+        })
+}
+
+fn load_interactive_model_registry(
+    auth: &crate::auth::AuthStorage,
+    extensions: Option<&ExtensionManager>,
+) -> ModelRegistry {
+    let models_path = default_models_path(&Config::global_dir());
+    let mut registry = ModelRegistry::load(auth, Some(models_path));
+    if let Some(manager) = extensions {
+        let extension_models = manager.extension_model_entries();
+        if !extension_models.is_empty() {
+            registry.merge_entries(extension_models);
+        }
+    }
+    registry
+}
+
+pub(super) struct InteractiveSessionInstallOutcome {
+    pub(super) session_swap: crate::agent::SessionSwapOutcome,
+    pub(super) active_model_entry: Option<ModelEntry>,
+}
+
+pub(super) struct InteractiveSessionInstallContext<'a> {
+    pub(super) session: &'a Arc<Mutex<Session>>,
+    pub(super) agent: &'a Arc<Mutex<Agent>>,
+    pub(super) available_models: &'a [ModelEntry],
+    pub(super) preferred_model_entry: Option<ModelEntry>,
+    pub(super) reuse_active_runtime: bool,
+    pub(super) model_entry_shared: &'a Arc<StdMutex<ModelEntry>>,
+    pub(super) extensions: Option<&'a ExtensionManager>,
+}
+
+struct InteractiveRuntimeModel {
+    entry: ModelEntry,
+    provider_impl: Option<Arc<dyn crate::provider::Provider>>,
+    resolved_key: Option<String>,
+}
+
+fn resolve_interactive_runtime_model(
+    available_models: &[ModelEntry],
+    preferred_model_entry: Option<&ModelEntry>,
+    reuse_active_runtime: bool,
+    extensions: Option<&ExtensionManager>,
+    provider_id: Option<&str>,
+    model_id: Option<&str>,
+) -> std::result::Result<Option<InteractiveRuntimeModel>, String> {
+    let (Some(provider_id), Some(model_id)) = (provider_id, model_id) else {
+        return Ok(None);
+    };
+
+    let preferred_matches = preferred_model_entry.filter(|entry| {
+        crate::provider_metadata::provider_ids_match(&entry.model.provider, provider_id)
+            && entry.model.id.eq_ignore_ascii_case(model_id)
+    });
+    let candidate_models =
+        collect_interactive_model_candidates(available_models, preferred_model_entry, extensions);
+
+    if reuse_active_runtime {
+        return Ok(preferred_matches
+            .cloned()
+            .map(|entry| InteractiveRuntimeModel {
+                entry,
+                provider_impl: None,
+                resolved_key: None,
+            })
+            .or_else(|| {
+                resolve_session_model_entry(
+                    &candidate_models,
+                    preferred_model_entry,
+                    provider_id,
+                    model_id,
+                )
+                .map(|entry| InteractiveRuntimeModel {
+                    entry,
+                    provider_impl: None,
+                    resolved_key: None,
+                })
+            })
+            .or_else(|| {
+                crate::models::ad_hoc_model_entry(provider_id, model_id).map(|entry| {
+                    InteractiveRuntimeModel {
+                        entry,
+                        provider_impl: None,
+                        resolved_key: None,
+                    }
+                })
+            }));
+    }
+
+    let entry = resolve_session_model_entry(
+        &candidate_models,
+        preferred_model_entry,
+        provider_id,
+        model_id,
+    )
+    .or_else(|| crate::models::ad_hoc_model_entry(provider_id, model_id))
+    .ok_or_else(|| {
+        format!(
+            "Failed to restore session model {provider_id}/{model_id}: model not found in available models or supported ad-hoc providers"
+        )
+    })?;
+    let provider_impl = providers::create_provider(&entry, extensions).map_err(|err| {
+        format!("Failed to restore session model {provider_id}/{model_id}: {err}")
+    })?;
+    let resolved_key = commands::resolve_model_key_from_default_auth(&entry);
+
+    Ok(Some(InteractiveRuntimeModel {
+        entry,
+        provider_impl: Some(provider_impl),
+        resolved_key,
+    }))
+}
+
+pub(super) async fn install_interactive_session(
+    context: InteractiveSessionInstallContext<'_>,
+    new_session: Session,
+) -> std::result::Result<InteractiveSessionInstallOutcome, String> {
+    let session_id = new_session.header.id.clone();
+    let target_session_file = new_session
+        .path
+        .as_ref()
+        .map(|path| path.display().to_string());
+    let thinking_level = new_session
+        .header
+        .thinking_level
+        .as_deref()
+        .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok());
+    let messages = new_session.to_messages_for_current_path();
+    let runtime_model = resolve_interactive_runtime_model(
+        context.available_models,
+        context.preferred_model_entry.as_ref(),
+        context.reuse_active_runtime,
+        context.extensions,
+        new_session.header.provider.as_deref(),
+        new_session.header.model_id.as_deref(),
+    )?;
+    let active_model_entry = runtime_model.as_ref().map(|runtime| runtime.entry.clone());
+
+    let cx = Cx::for_request();
+    let previous_session_file = {
+        let mut guard = context
+            .session
+            .lock(&cx)
+            .await
+            .map_err(|err| format!("Failed to lock session: {err}"))?;
+        let previous = guard.path.as_ref().map(|path| path.display().to_string());
+        *guard = new_session;
+        previous
+    };
+
+    let mut agent_guard = context
+        .agent
+        .lock(&cx)
+        .await
+        .map_err(|err| format!("Failed to lock agent: {err}"))?;
+    if let Some(runtime) = &runtime_model {
+        if let Some(provider_impl) = &runtime.provider_impl {
+            agent_guard.set_provider(Arc::clone(provider_impl));
+            let stream_options = agent_guard.stream_options_mut();
+            stream_options.api_key.clone_from(&runtime.resolved_key);
+            stream_options.headers.clone_from(&runtime.entry.headers);
+        }
+    }
+    reset_interactive_agent_state(
+        &mut agent_guard,
+        messages,
+        session_id.clone(),
+        thinking_level,
+    );
+
+    if let Some(entry) = &active_model_entry {
+        if let Ok(mut guard) = context.model_entry_shared.lock() {
+            *guard = entry.clone();
+        }
+    }
+
+    Ok(InteractiveSessionInstallOutcome {
+        session_swap: crate::agent::SessionSwapOutcome {
+            session_id,
+            previous_session_file,
+            target_session_file,
+        },
+        active_model_entry,
+    })
 }
 
 /// Read the current git branch from `.git/HEAD` in the given directory.
@@ -1761,6 +2516,7 @@ fn build_startup_welcome_message(config: &Config) -> String {
 
     let mut message = String::from("  Welcome to Pi!\n");
     message.push_str("  Type a message to begin, or /help for commands.\n");
+    message.push_str("  Use /setup to configure provider, model, API URL, and API key.\n");
 
     let auth_path = Config::auth_path();
     if let Ok(auth) = crate::auth::AuthStorage::load(auth_path) {
@@ -1819,6 +2575,7 @@ pub struct PiApp {
     cwd: PathBuf,
     model_entry: ModelEntry,
     model_entry_shared: Arc<StdMutex<ModelEntry>>,
+    available_models_shared: Arc<StdMutex<Vec<ModelEntry>>>,
     model_scope: Vec<ModelEntry>,
     available_models: Vec<ModelEntry>,
     model: String,
@@ -1845,6 +2602,10 @@ pub struct PiApp {
 
     // Status message (for slash command feedback)
     status_message: Option<String>,
+    // V2 binding status snapshots for `/bindings`.
+    binding_status: Vec<crate::bindings::types::BindingStatusView>,
+    // Pending restore confirmation tuple: `(snapshot_id, system_id, rendered_plan)`.
+    vault_restore_plan: Option<(String, String, String)>,
 
     // Login flow state (awaiting sensitive credential input)
     pending_oauth: Option<PendingOAuth>,
@@ -1868,6 +2629,9 @@ pub struct PiApp {
 
     // Settings UI overlay for /settings
     settings_ui: Option<SettingsUiState>,
+
+    // Provider setup overlay for /setup and /settings
+    provider_setup: Option<ProviderSetupOverlay>,
 
     // Theme picker overlay
     theme_picker: Option<ThemePickerOverlay>,
@@ -1985,6 +2749,7 @@ impl PiApp {
         );
 
         let model_entry_shared = Arc::new(StdMutex::new(model_entry.clone()));
+        let available_models_shared = Arc::new(StdMutex::new(available_models.clone()));
         let extension_streaming = Arc::new(AtomicBool::new(false));
         let extension_compacting = Arc::new(AtomicBool::new(false));
         let steering_mode = parse_queue_mode_or_default(config.steering_mode.as_deref());
@@ -2093,6 +2858,7 @@ impl PiApp {
             cwd,
             model_entry,
             model_entry_shared: model_entry_shared.clone(),
+            available_models_shared: available_models_shared.clone(),
             model_scope,
             available_models,
             model,
@@ -2108,6 +2874,8 @@ impl PiApp {
             extension_custom_active: false,
             extension_custom_key_queue: VecDeque::new(),
             status_message: None,
+            binding_status: Vec::new(),
+            vault_restore_plan: None,
             save_enabled,
             abort_handle: None,
             bash_running: false,
@@ -2119,6 +2887,7 @@ impl PiApp {
             autocomplete,
             session_picker: None,
             settings_ui: None,
+            provider_setup: None,
             theme_picker: None,
             tree_ui: None,
             capability_prompt: None,
@@ -2137,8 +2906,12 @@ impl PiApp {
             let session_handle = Arc::new(InteractiveExtensionSession {
                 session: Arc::clone(&app.session),
                 model_entry: model_entry_shared,
+                available_models: available_models_shared,
+                agent: Arc::clone(&app.agent),
+                event_tx: app.event_tx.clone(),
                 is_streaming: extension_streaming,
                 is_compacting: extension_compacting,
+                extensions: Some(manager.clone()),
                 config: app.config.clone(),
                 save_enabled: app.save_enabled,
             });
@@ -2174,6 +2947,24 @@ impl PiApp {
     #[must_use]
     pub fn session_handle(&self) -> Arc<Mutex<Session>> {
         Arc::clone(&self.session)
+    }
+
+    #[must_use]
+    pub fn agent_handle_for_test(&self) -> Arc<Mutex<Agent>> {
+        Arc::clone(&self.agent)
+    }
+
+    /// Snapshot the live provider/model identity (integration test helper).
+    pub fn agent_runtime_identity_for_test(&self) -> Option<(String, String)> {
+        let guard = self.agent.try_lock().ok()?;
+        let provider = guard.provider();
+        Some((provider.name().to_string(), provider.model_id().to_string()))
+    }
+
+    /// Snapshot the current live tool names (integration test helper).
+    pub fn agent_tool_names_for_test(&self) -> Option<Vec<String>> {
+        let guard = self.agent.try_lock().ok()?;
+        Some(guard.tool_names_for_test())
     }
 
     /// Get the current status message (for testing).
@@ -2495,6 +3286,94 @@ impl PiApp {
                         return None;
                     }
                 }
+            }
+
+            if self.provider_setup.is_some() {
+                let mut overlay = self
+                    .provider_setup
+                    .take()
+                    .expect("checked provider_setup is_some");
+                match key.key_type {
+                    KeyType::Up => {
+                        overlay.select_prev();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::Down | KeyType::Tab => {
+                        overlay.select_next();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::Runes if key.runes == ['k'] => {
+                        overlay.select_prev();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::Runes if key.runes == ['j'] => {
+                        overlay.select_next();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::Backspace | KeyType::CtrlH => {
+                        overlay.pop_char();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::CtrlU => {
+                        overlay.clear_active_field();
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    KeyType::CtrlS => match self.apply_provider_setup(&overlay) {
+                        Ok(status) => {
+                            self.provider_setup = None;
+                            self.status_message = Some(status);
+                        }
+                        Err(err) => {
+                            self.status_message = Some(err);
+                            self.provider_setup = Some(overlay);
+                        }
+                    },
+                    KeyType::Enter => {
+                        if overlay.selected_field() == ProviderSetupField::ApiKey {
+                            match self.apply_provider_setup(&overlay) {
+                                Ok(status) => {
+                                    self.provider_setup = None;
+                                    self.status_message = Some(status);
+                                }
+                                Err(err) => {
+                                    self.status_message = Some(err);
+                                    self.provider_setup = Some(overlay);
+                                }
+                            }
+                        } else {
+                            overlay.select_next();
+                            self.provider_setup = Some(overlay);
+                        }
+                        return None;
+                    }
+                    KeyType::Esc => {
+                        self.provider_setup = None;
+                        self.status_message = Some("Provider setup cancelled".to_string());
+                        return None;
+                    }
+                    KeyType::Runes if key.runes == ['q'] => {
+                        self.provider_setup = None;
+                        self.status_message = Some("Provider setup cancelled".to_string());
+                        return None;
+                    }
+                    KeyType::Runes => {
+                        overlay.push_chars(key.runes.iter().copied());
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                    _ => {
+                        self.provider_setup = Some(overlay);
+                        return None;
+                    }
+                }
+
+                return None;
             }
 
             // Handle session picker navigation when overlay is open

@@ -107,6 +107,8 @@ fn request_builder_sends_headers_and_json_body() {
             .expect("write response");
     });
 
+    let expected_host = format!("Host: 127.0.0.1:{}\r\n", server.addr.port());
+    let expected_user_agent = format!("User-Agent: maoclaw/{}\r\n", env!("CARGO_PKG_VERSION"));
     let url = server.url("/hello");
     common::run_async(async move {
         let payload = serde_json::json!({"x": 1});
@@ -130,8 +132,8 @@ fn request_builder_sends_headers_and_json_body() {
 
     let request_text = String::from_utf8_lossy(&request);
     assert!(request_text.starts_with("POST /hello HTTP/1.1\r\n"));
-    assert!(request_text.contains("Host: 127.0.0.1\r\n"));
-    assert!(request_text.contains("User-Agent: maoclaw/0.1\r\n"));
+    assert!(request_text.contains(&expected_host));
+    assert!(request_text.contains(&expected_user_agent));
     assert!(request_text.contains("Content-Type: application/json\r\n"));
     assert!(request_text.contains("X-Test: 1\r\n"));
 

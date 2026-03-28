@@ -69,9 +69,11 @@ impl ExtensionHostActions for InteractiveExtensionHostActions {
             self.queue_custom_message(message.deliver_as, custom_message.clone())?;
             if let ModelMessage::Custom(custom) = &custom_message {
                 if custom.display {
-                    let _ = self
-                        .event_tx
-                        .try_send(PiMsg::SystemNote(custom.content.clone()));
+                    let _ = send_pi_msg_with_backpressure(
+                        &self.event_tx,
+                        PiMsg::SystemNote(custom.content.clone()),
+                    )
+                    .await;
                 }
             }
             return Ok(());
@@ -87,16 +89,20 @@ impl ExtensionHostActions for InteractiveExtensionHostActions {
 
         if let ModelMessage::Custom(custom) = &custom_message {
             if custom.display {
-                let _ = self
-                    .event_tx
-                    .try_send(PiMsg::SystemNote(custom.content.clone()));
+                let _ = send_pi_msg_with_backpressure(
+                    &self.event_tx,
+                    PiMsg::SystemNote(custom.content.clone()),
+                )
+                .await;
             }
         }
 
         if Self::should_trigger_turn(message.deliver_as, message.trigger_turn) {
-            let _ = self
-                .event_tx
-                .try_send(PiMsg::EnqueuePendingInput(PendingInput::Continue));
+            let _ = send_pi_msg_with_backpressure(
+                &self.event_tx,
+                PiMsg::EnqueuePendingInput(PendingInput::Continue),
+            )
+            .await;
         }
 
         Ok(())
@@ -121,9 +127,11 @@ impl ExtensionHostActions for InteractiveExtensionHostActions {
             return Ok(());
         }
 
-        let _ = self
-            .event_tx
-            .try_send(PiMsg::EnqueuePendingInput(PendingInput::Text(message.text)));
+        let _ = send_pi_msg_with_backpressure(
+            &self.event_tx,
+            PiMsg::EnqueuePendingInput(PendingInput::Text(message.text)),
+        )
+        .await;
         Ok(())
     }
 }
@@ -131,10 +139,74 @@ impl ExtensionHostActions for InteractiveExtensionHostActions {
 pub(super) struct InteractiveExtensionSession {
     pub(super) session: Arc<Mutex<Session>>,
     pub(super) model_entry: Arc<StdMutex<ModelEntry>>,
+    pub(super) available_models: Arc<StdMutex<Vec<ModelEntry>>>,
+    pub(super) agent: Arc<Mutex<Agent>>,
+    pub(super) event_tx: mpsc::Sender<PiMsg>,
     pub(super) is_streaming: Arc<AtomicBool>,
     pub(super) is_compacting: Arc<AtomicBool>,
+    pub(super) extensions: Option<ExtensionManager>,
     pub(super) config: Config,
     pub(super) save_enabled: bool,
+}
+
+impl InteractiveExtensionSession {
+    fn preferred_model_entry(&self) -> ModelEntry {
+        self.model_entry
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    fn candidate_model_entries(&self) -> Vec<ModelEntry> {
+        let preferred = self.preferred_model_entry();
+        let available_models = self
+            .available_models
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        super::collect_interactive_model_candidates(
+            &available_models,
+            Some(&preferred),
+            self.extensions.as_ref(),
+        )
+    }
+
+    fn resolve_model_entry(
+        &self,
+        provider: &str,
+        model_id: &str,
+    ) -> crate::error::Result<ModelEntry> {
+        let preferred = self.preferred_model_entry();
+        super::resolve_session_model_entry(
+            &self.candidate_model_entries(),
+            Some(&preferred),
+            provider,
+            model_id,
+        )
+        .or_else(|| crate::models::ad_hoc_model_entry(provider, model_id))
+        .ok_or_else(|| {
+            crate::error::Error::validation(format!("Unknown model {provider}/{model_id}"))
+        })
+    }
+
+    fn current_model_entry(
+        &self,
+        provider: Option<&str>,
+        model_id: Option<&str>,
+    ) -> Option<ModelEntry> {
+        let preferred = self.preferred_model_entry();
+        match (provider, model_id) {
+            (Some(provider), Some(model_id)) => super::resolve_session_model_entry(
+                &self.candidate_model_entries(),
+                Some(&preferred),
+                provider,
+                model_id,
+            )
+            .or_else(|| crate::models::ad_hoc_model_entry(provider, model_id))
+            .or(Some(preferred)),
+            _ => Some(preferred),
+        }
+    }
 }
 
 #[async_trait]
@@ -338,16 +410,80 @@ impl ExtensionSession for InteractiveExtensionSession {
     }
 
     async fn set_model(&self, provider: String, model_id: String) -> crate::error::Result<()> {
+        let provider = provider.trim().to_string();
+        let model_id = model_id.trim().to_string();
+        if provider.is_empty() || model_id.is_empty() {
+            return Err(crate::error::Error::validation(
+                "provider and model_id must not be empty",
+            ));
+        }
+
+        let next = self.resolve_model_entry(&provider, &model_id)?;
+        let resolved_key_opt = super::commands::resolve_model_key_from_default_auth(&next);
+        if crate::models::model_requires_configured_credential(&next) && resolved_key_opt.is_none()
+        {
+            return Err(crate::error::Error::auth(format!(
+                "Missing credentials for {}/{}",
+                next.model.provider, next.model.id
+            )));
+        }
+        let provider_impl = providers::create_provider(&next, self.extensions.as_ref())?;
         let cx = Cx::for_request();
-        let mut guard =
-            self.session.lock(&cx).await.map_err(|err| {
+        let previous_thinking = {
+            let guard = self.session.lock(&cx).await.map_err(|err| {
                 crate::error::Error::session(format!("session lock failed: {err}"))
             })?;
-        guard.append_model_change(provider.clone(), model_id.clone());
-        guard.set_model_header(Some(provider), Some(model_id), None);
-        if self.save_enabled {
-            guard.save().await?;
+            guard
+                .header
+                .thinking_level
+                .as_deref()
+                .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok())
+        };
+        let current_thinking = previous_thinking.unwrap_or_else(|| {
+            self.agent
+                .try_lock()
+                .ok()
+                .and_then(|guard| guard.stream_options().thinking_level)
+                .unwrap_or_default()
+        });
+        let next_thinking = next.clamp_thinking_level(current_thinking);
+
+        {
+            let mut agent_guard =
+                self.agent.lock(&cx).await.map_err(|err| {
+                    crate::error::Error::session(format!("agent lock failed: {err}"))
+                })?;
+            agent_guard.set_provider(provider_impl);
+            let stream_options = agent_guard.stream_options_mut();
+            stream_options.api_key = resolved_key_opt;
+            stream_options.headers.clone_from(&next.headers);
+            stream_options.thinking_level = Some(next_thinking);
         }
+
+        {
+            let mut guard = self.session.lock(&cx).await.map_err(|err| {
+                crate::error::Error::session(format!("session lock failed: {err}"))
+            })?;
+            guard.append_model_change(next.model.provider.clone(), next.model.id.clone());
+            guard.set_model_header(
+                Some(next.model.provider.clone()),
+                Some(next.model.id.clone()),
+                Some(next_thinking.to_string()),
+            );
+            if previous_thinking != Some(next_thinking) {
+                guard.append_thinking_level_change(next_thinking.to_string());
+            }
+            if self.save_enabled {
+                guard.save().await?;
+            }
+        }
+
+        if let Ok(mut guard) = self.model_entry.lock() {
+            *guard = next.clone();
+        }
+        let _ =
+            send_pi_msg_with_backpressure(&self.event_tx, PiMsg::SyncModelState(Box::new(next)))
+                .await;
         Ok(())
     }
 
@@ -360,15 +496,50 @@ impl ExtensionSession for InteractiveExtensionSession {
     }
 
     async fn set_thinking_level(&self, level: String) -> crate::error::Result<()> {
+        let level = level.trim().to_string();
+        let requested_level = level
+            .parse::<crate::model::ThinkingLevel>()
+            .map_err(crate::error::Error::validation)?;
         let cx = Cx::for_request();
-        let mut guard =
-            self.session.lock(&cx).await.map_err(|err| {
+        let (provider, model_id, previous_thinking) = {
+            let guard = self.session.lock(&cx).await.map_err(|err| {
                 crate::error::Error::session(format!("session lock failed: {err}"))
             })?;
-        guard.append_thinking_level_change(level.clone());
-        guard.set_model_header(None, None, Some(level));
-        if self.save_enabled {
-            guard.save().await?;
+            (
+                guard.header.provider.clone(),
+                guard.header.model_id.clone(),
+                guard
+                    .header
+                    .thinking_level
+                    .as_deref()
+                    .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok()),
+            )
+        };
+        let next_level = self
+            .current_model_entry(provider.as_deref(), model_id.as_deref())
+            .map_or(requested_level, |entry| {
+                entry.clamp_thinking_level(requested_level)
+            });
+
+        {
+            let mut guard = self.session.lock(&cx).await.map_err(|err| {
+                crate::error::Error::session(format!("session lock failed: {err}"))
+            })?;
+            if previous_thinking != Some(next_level) {
+                guard.append_thinking_level_change(next_level.to_string());
+            }
+            guard.set_model_header(None, None, Some(next_level.to_string()));
+            if self.save_enabled {
+                guard.save().await?;
+            }
+        }
+
+        {
+            let mut agent_guard =
+                self.agent.lock(&cx).await.map_err(|err| {
+                    crate::error::Error::session(format!("agent lock failed: {err}"))
+                })?;
+            agent_guard.stream_options_mut().thinking_level = Some(next_level);
         }
         Ok(())
     }
@@ -565,10 +736,10 @@ mod tests {
 
     use crate::agent::{Agent, AgentConfig};
     use crate::config::Config;
-    use crate::model::StreamEvent;
+    use crate::model::{StreamEvent, ThinkingLevel};
     use crate::models::ModelEntry;
     use crate::provider::{Context, InputType, Model, ModelCost, Provider, StreamOptions};
-    use crate::session::{Session, SessionMessage};
+    use crate::session::{Session, SessionEntry, SessionMessage};
     use crate::tools::ToolRegistry;
     use asupersync::runtime::RuntimeBuilder;
     use async_trait::async_trait;
@@ -643,14 +814,30 @@ mod tests {
     }
 
     fn dummy_model_entry() -> ModelEntry {
+        test_model_entry(
+            "noop",
+            "noop-model",
+            "noop",
+            "https://example.invalid",
+            false,
+        )
+    }
+
+    fn test_model_entry(
+        provider: &str,
+        model_id: &str,
+        api: &str,
+        base_url: &str,
+        reasoning: bool,
+    ) -> ModelEntry {
         ModelEntry {
             model: Model {
-                id: "noop-model".to_string(),
-                name: "Noop Model".to_string(),
-                api: "noop".to_string(),
-                provider: "noop".to_string(),
-                base_url: "https://example.invalid".to_string(),
-                reasoning: false,
+                id: model_id.to_string(),
+                name: model_id.to_string(),
+                api: api.to_string(),
+                provider: provider.to_string(),
+                base_url: base_url.to_string(),
+                reasoning,
                 input: vec![InputType::Text],
                 cost: ModelCost {
                     input: 0.0,
@@ -668,6 +855,48 @@ mod tests {
             compat: None,
             oauth_config: None,
         }
+    }
+
+    type ExtensionSessionHarness = (
+        InteractiveExtensionSession,
+        mpsc::Receiver<PiMsg>,
+        Arc<Mutex<Session>>,
+        Arc<Mutex<Agent>>,
+        Arc<StdMutex<ModelEntry>>,
+    );
+
+    fn build_extension_session(
+        current_entry: ModelEntry,
+        available_models: Vec<ModelEntry>,
+    ) -> ExtensionSessionHarness {
+        let session = Arc::new(Mutex::new(Session::in_memory()));
+        let provider =
+            providers::create_provider(&current_entry, None).expect("create current provider");
+        let agent = Arc::new(Mutex::new(Agent::new(
+            provider,
+            ToolRegistry::new(&[], Path::new("."), None),
+            AgentConfig::default(),
+        )));
+        let model_entry = Arc::new(StdMutex::new(current_entry));
+        let (event_tx, event_rx) = mpsc::channel(8);
+        (
+            InteractiveExtensionSession {
+                session: Arc::clone(&session),
+                model_entry: Arc::clone(&model_entry),
+                available_models: Arc::new(StdMutex::new(available_models)),
+                agent: Arc::clone(&agent),
+                event_tx,
+                is_streaming: Arc::new(AtomicBool::new(false)),
+                is_compacting: Arc::new(AtomicBool::new(false)),
+                extensions: None,
+                config: Config::default(),
+                save_enabled: false,
+            },
+            event_rx,
+            session,
+            agent,
+            model_entry,
+        )
     }
 
     #[test]
@@ -693,8 +922,16 @@ mod tests {
             let ext_session = InteractiveExtensionSession {
                 session,
                 model_entry: Arc::new(StdMutex::new(dummy_model_entry())),
+                available_models: Arc::new(StdMutex::new(vec![dummy_model_entry()])),
+                agent: Arc::new(Mutex::new(Agent::new(
+                    Arc::new(NoopProvider),
+                    ToolRegistry::new(&[], Path::new("."), None),
+                    AgentConfig::default(),
+                ))),
+                event_tx: mpsc::channel(1).0,
                 is_streaming: Arc::new(AtomicBool::new(false)),
                 is_compacting: Arc::new(AtomicBool::new(false)),
+                extensions: None,
                 config: Config::default(),
                 save_enabled: false,
             };
@@ -803,6 +1040,181 @@ mod tests {
                 event_rx.try_recv().is_err(),
                 "nextTurn should stay deferred even when triggerTurn is set"
             );
+        });
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn interactive_extension_session_set_model_updates_live_runtime_and_ui_state() {
+        let runtime = RuntimeBuilder::current_thread()
+            .build()
+            .expect("runtime build");
+
+        runtime.block_on(async {
+            let current_entry = test_model_entry(
+                "anthropic",
+                "claude-opus-4",
+                "anthropic-messages",
+                "https://api.anthropic.com",
+                true,
+            );
+            let mut target_entry = test_model_entry(
+                "openai",
+                "plain-model",
+                "openai-responses",
+                "https://api.openai.com/v1",
+                false,
+            );
+            target_entry.api_key = Some("target-key".to_string());
+            target_entry
+                .headers
+                .insert("x-target-header".to_string(), "enabled".to_string());
+
+            let (ext_session, event_rx, session, agent, model_entry) = build_extension_session(
+                current_entry.clone(),
+                vec![current_entry, target_entry.clone()],
+            );
+
+            let cx = Cx::for_request();
+            {
+                let mut session_guard = session.lock(&cx).await.expect("lock session");
+                session_guard.header.provider = Some("anthropic".to_string());
+                session_guard.header.model_id = Some("claude-opus-4".to_string());
+                session_guard.header.thinking_level = Some(ThinkingLevel::High.to_string());
+            }
+            {
+                let mut agent_guard = agent.lock(&cx).await.expect("lock agent");
+                let stream_options = agent_guard.stream_options_mut();
+                stream_options.api_key = Some("current-key".to_string());
+                stream_options.thinking_level = Some(ThinkingLevel::High);
+            }
+
+            ext_session
+                .set_model("openai".to_string(), "plain-model".to_string())
+                .await
+                .expect("set model");
+
+            {
+                let session_guard = session.lock(&cx).await.expect("lock session");
+                assert_eq!(session_guard.header.provider.as_deref(), Some("openai"));
+                assert_eq!(
+                    session_guard.header.model_id.as_deref(),
+                    Some("plain-model")
+                );
+                assert_eq!(
+                    session_guard.header.thinking_level.as_deref(),
+                    Some(ThinkingLevel::Off.to_string().as_str())
+                );
+                assert!(session_guard.entries.iter().any(|entry| {
+                    matches!(
+                        entry,
+                        SessionEntry::ModelChange(change)
+                            if change.provider == "openai" && change.model_id == "plain-model"
+                    )
+                }));
+                assert!(session_guard.entries.iter().any(|entry| {
+                    matches!(
+                        entry,
+                        SessionEntry::ThinkingLevelChange(change)
+                            if change.thinking_level == ThinkingLevel::Off.to_string()
+                    )
+                }));
+            }
+
+            {
+                let agent_guard = agent.lock(&cx).await.expect("lock agent");
+                assert_eq!(agent_guard.provider().name(), "openai");
+                assert_eq!(agent_guard.provider().model_id(), "plain-model");
+                assert!(
+                    agent_guard.stream_options().api_key.as_deref().is_some(),
+                    "expected a resolved API key for the switched model"
+                );
+                assert_eq!(
+                    agent_guard.stream_options().headers.get("x-target-header"),
+                    Some(&"enabled".to_string())
+                );
+                assert_eq!(
+                    agent_guard.stream_options().thinking_level,
+                    Some(ThinkingLevel::Off)
+                );
+            }
+
+            {
+                let shared_entry = model_entry
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                assert_eq!(shared_entry.model.provider, "openai");
+                assert_eq!(shared_entry.model.id, "plain-model");
+                drop(shared_entry);
+            }
+
+            let sync = event_rx.try_recv().expect("sync model state message");
+            match sync {
+                PiMsg::SyncModelState(entry) => {
+                    assert_eq!(entry.model.provider, "openai");
+                    assert_eq!(entry.model.id, "plain-model");
+                }
+                other => panic!("expected SyncModelState, got {other:?}"),
+            }
+        });
+    }
+
+    #[test]
+    fn interactive_extension_session_set_thinking_level_clamps_live_runtime() {
+        let runtime = RuntimeBuilder::current_thread()
+            .build()
+            .expect("runtime build");
+
+        runtime.block_on(async {
+            let current_entry = test_model_entry(
+                "openai",
+                "plain-model",
+                "openai-responses",
+                "https://api.openai.com/v1",
+                false,
+            );
+            let (ext_session, _event_rx, session, agent, _model_entry) =
+                build_extension_session(current_entry.clone(), vec![current_entry]);
+
+            let cx = Cx::for_request();
+            {
+                let mut session_guard = session.lock(&cx).await.expect("lock session");
+                session_guard.header.provider = Some("openai".to_string());
+                session_guard.header.model_id = Some("plain-model".to_string());
+                session_guard.header.thinking_level = Some(ThinkingLevel::Low.to_string());
+            }
+            {
+                let mut agent_guard = agent.lock(&cx).await.expect("lock agent");
+                agent_guard.stream_options_mut().thinking_level = Some(ThinkingLevel::Low);
+            }
+
+            ext_session
+                .set_thinking_level("high".to_string())
+                .await
+                .expect("set thinking level");
+
+            {
+                let session_guard = session.lock(&cx).await.expect("lock session");
+                assert_eq!(
+                    session_guard.header.thinking_level.as_deref(),
+                    Some(ThinkingLevel::Off.to_string().as_str())
+                );
+                assert!(session_guard.entries.iter().any(|entry| {
+                    matches!(
+                        entry,
+                        SessionEntry::ThinkingLevelChange(change)
+                            if change.thinking_level == ThinkingLevel::Off.to_string()
+                    )
+                }));
+            }
+
+            {
+                let agent_guard = agent.lock(&cx).await.expect("lock agent");
+                assert_eq!(
+                    agent_guard.stream_options().thinking_level,
+                    Some(ThinkingLevel::Off)
+                );
+            }
         });
     }
 }

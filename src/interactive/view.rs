@@ -477,6 +477,11 @@ impl PiApp {
             output.push_str(&self.render_settings_ui(settings_ui));
         }
 
+        // Provider setup overlay (if open)
+        if let Some(ref overlay) = self.provider_setup {
+            output.push_str(&self.render_provider_setup(overlay));
+        }
+
         // Theme picker overlay (if open)
         if let Some(ref picker) = self.theme_picker {
             output.push_str(&self.render_theme_picker(picker));
@@ -743,15 +748,34 @@ impl PiApp {
             .git_branch
             .as_ref()
             .map_or_else(String::new, |b| format!("  |  {b}"));
+
+        // Vault "Protected" badge — passive signal when active system has snapshots.
+        let vault_badge = self
+            .config
+            .active_system_id
+            .as_deref()
+            .map_or_else(String::new, |sid| {
+                let vault = crate::vault::VaultManager::new(&self.cwd);
+                let count = vault.list_snapshots(sid).map_or(0, |v| v.len());
+                if count > 0 {
+                    format!(
+                        "  |  Protected ({count} snap{})",
+                        if count == 1 { "" } else { "s" }
+                    )
+                } else {
+                    String::new()
+                }
+            });
+
         let mode_hint = match self.input_mode {
             InputMode::SingleLine => "Shift+Enter: newline  |  Alt+Enter: multi-line",
             InputMode::MultiLine => "Enter: newline  |  Alt+Enter: send  |  Esc: single-line",
         };
         let footer_long = format!(
-            "Tokens: {input} in / {output_tokens} out{cost_str}{branch_str}  |  {persistence_str}  |  {mode_hint}  |  /help  |  Ctrl+C: quit"
+            "Tokens: {input} in / {output_tokens} out{cost_str}{branch_str}{vault_badge}  |  {persistence_str}  |  {mode_hint}  |  /help  |  Ctrl+C: quit"
         );
         let footer_short = format!(
-            "Tokens: {input} in / {output_tokens} out{cost_str}{branch_str}  |  {persistence_str}  |  /help  |  Ctrl+C: quit"
+            "Tokens: {input} in / {output_tokens} out{cost_str}{branch_str}{vault_badge}  |  {persistence_str}  |  /help  |  Ctrl+C: quit"
         );
         let max_width = self.term_width.saturating_sub(2);
         let mut footer = if footer_long.chars().count() <= max_width {
@@ -1290,6 +1314,7 @@ impl PiApp {
                 let prefix = if is_selected { ">" } else { " " };
                 let label = match *entry {
                     SettingsUiEntry::Summary => "Summary".to_string(),
+                    SettingsUiEntry::ProviderSetup => "Provider setup".to_string(),
                     SettingsUiEntry::Theme => "Theme".to_string(),
                     SettingsUiEntry::SteeringMode => format!(
                         "steeringMode: {}",
@@ -1364,6 +1389,62 @@ impl PiApp {
             self.styles
                 .muted_italic
                 .render("↑/↓/j/k: navigate  Enter: select  Esc/q: cancel")
+        );
+
+        output
+    }
+
+    pub(super) fn render_provider_setup(&self, overlay: &ProviderSetupOverlay) -> String {
+        let mut output = String::new();
+
+        let _ = writeln!(
+            output,
+            "\n  {}\n",
+            self.styles.title.render("Provider Setup")
+        );
+        let _ = writeln!(
+            output,
+            "  {}",
+            self.styles.muted.render(
+                "Configure provider, model, API URL, and API key for third-party or self-hosted endpoints.",
+            )
+        );
+        let _ = writeln!(
+            output,
+            "  {}",
+            self.styles
+                .muted
+                .render("Use openai + your custom API URL for OpenAI-compatible operators.")
+        );
+        output.push('\n');
+
+        for field in ProviderSetupField::ALL {
+            let is_selected = field == overlay.selected_field();
+            let prefix = if is_selected { ">" } else { " " };
+            let row = format!(" {:<10} {}", field.label(), overlay.display_value(field));
+            let rendered = if is_selected {
+                self.styles.selection.render(&row)
+            } else {
+                row
+            };
+            let _ = writeln!(output, "{prefix} {rendered}");
+        }
+
+        output.push('\n');
+        let helper = overlay.selected_field().helper();
+        let current = overlay.active_value();
+        let cursor_hint = if current.is_empty() { "" } else { "  editing" };
+        let _ = writeln!(
+            output,
+            "  {}",
+            self.styles.muted.render(&format!("{helper}{cursor_hint}"))
+        );
+        let _ = writeln!(
+            output,
+            "  {}",
+            self.styles
+                .muted_italic
+                .render("Tab/↑/↓: move  Type/Backspace: edit  Ctrl+U: clear field  Ctrl+S or Enter on API key: save  Esc/q: cancel")
         );
 
         output

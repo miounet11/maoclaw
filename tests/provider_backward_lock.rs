@@ -371,9 +371,10 @@ fn openai_responses_request_shape_minimal() {
         v["input"].is_array(),
         "Responses API uses 'input' not 'messages'"
     );
-    // System prompt as first input item
-    assert_eq!(v["input"][0]["role"], "system");
-    assert_eq!(v["input"][0]["content"], "You are helpful.");
+    // Locked: system prompt is sent via top-level `instructions`.
+    assert_eq!(v["instructions"], "You are helpful.");
+    // Locked: first conversational item remains the user message.
+    assert_eq!(v["input"][0]["role"], "user");
 }
 
 #[test]

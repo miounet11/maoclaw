@@ -1304,16 +1304,39 @@ fn session_clean_after_provider_failure() {
             ctx.push(("message_count".into(), messages.len().to_string()));
         });
 
-    // Session should either be empty or have the failed user message
-    // but no corrupted assistant messages
-    let has_corrupted_assistant = messages.iter().any(|m| match m {
-        Message::Assistant(a) => a.error_message.is_some(),
-        _ => false,
-    });
+    // Provider failures are persisted as a structured assistant error turn, but
+    // the session must not contain half-baked assistant content.
+    let assistant_messages = messages
+        .iter()
+        .filter_map(|message| match message {
+            Message::Assistant(assistant) => Some(assistant),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
     assert!(
-        !has_corrupted_assistant,
-        "No corrupted assistant messages after failure"
+        assistant_messages.len() <= 1,
+        "provider failure should not fan out into multiple assistant entries"
     );
+
+    if let Some(assistant) = assistant_messages.first() {
+        assert_eq!(
+            assistant.stop_reason,
+            StopReason::Error,
+            "persisted failure assistant should be marked as an error"
+        );
+        assert!(
+            assistant_text(assistant).is_empty(),
+            "provider failure should not persist partial assistant text"
+        );
+        assert!(
+            assistant
+                .error_message
+                .as_ref()
+                .is_some_and(|msg| msg.contains("401 Unauthorized")),
+            "persisted failure assistant should retain the provider error"
+        );
+    }
 
     write_jsonl_artifacts(&harness, test_name);
 }

@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 #[cfg(test)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -54,6 +54,42 @@ fn finish_jsonl_worker_result<E>(
     cancelled_message: &'static str,
 ) -> Result<()> {
     finish_worker_result(handle, recv_result, cancelled_message)
+}
+
+fn lock_jsonl_append_file(file: &std::fs::File, path: &Path, timeout: Duration) -> Result<()> {
+    let start = Instant::now();
+    let mut attempt: u32 = 0;
+
+    loop {
+        match FileExt::try_lock_exclusive(file) {
+            Ok(true) => return Ok(()),
+            Ok(false) => {}
+            Err(err) => {
+                return Err(Error::session(format!(
+                    "Failed to lock session file {}: {err}",
+                    path.display()
+                )));
+            }
+        }
+
+        if start.elapsed() >= timeout {
+            return Err(Error::session(format!(
+                "Timed out waiting for session file lock: {}",
+                path.display()
+            )));
+        }
+
+        let base_ms: u64 = 10;
+        let cap_ms: u64 = 500;
+        let sleep_ms = base_ms
+            .checked_shl(attempt.min(5))
+            .unwrap_or(cap_ms)
+            .min(cap_ms);
+        let jitter = u64::from(start.elapsed().subsec_nanos()) % (sleep_ms / 2 + 1);
+        let delay = sleep_ms / 2 + jitter;
+        std::thread::sleep(Duration::from_millis(delay));
+        attempt = attempt.saturating_add(1);
+    }
 }
 
 /// Handle to a thread-safe shared session.
@@ -809,9 +845,11 @@ impl Session {
             config.session_durability.as_deref(),
             std::env::var("PI_SESSION_DURABILITY_MODE").ok().as_deref(),
         );
+        let initial_agent_profile = initial_session_agent_profile(config);
         if cli.no_session {
             let mut session = Self::in_memory();
             session.set_autosave_durability_mode(durability_mode);
+            session.set_agent_profile(initial_agent_profile);
             return Ok(session);
         }
 
@@ -845,6 +883,7 @@ impl Session {
         let store_kind = SessionStoreKind::from_config(config);
         let mut session = Self::create_with_dir_and_store(session_dir, store_kind);
         session.set_autosave_durability_mode(durability_mode);
+        session.set_agent_profile(initial_agent_profile);
 
         // Create a new session
         Ok(session)
@@ -900,7 +939,7 @@ impl Session {
 
         let scanned = scan_sessions_on_disk(&project_session_dir, entries.clone()).await?;
         let mut by_path: HashMap<PathBuf, SessionPickEntry> = HashMap::new();
-        for entry in entries.into_iter().chain(scanned.into_iter()) {
+        for entry in entries.into_iter().chain(scanned) {
             by_path
                 .entry(entry.path.clone())
                 .and_modify(|existing| {
@@ -1347,7 +1386,7 @@ impl Session {
         let scanned = scan_sessions_on_disk(&project_session_dir, indexed_sessions.clone()).await?;
 
         let mut by_path: HashMap<PathBuf, SessionPickEntry> = HashMap::new();
-        for entry in indexed_sessions.into_iter().chain(scanned.into_iter()) {
+        for entry in indexed_sessions.into_iter().chain(scanned) {
             by_path
                 .entry(entry.path.clone())
                 .and_modify(|existing| {
@@ -1428,6 +1467,10 @@ impl Session {
 
     pub const fn autosave_durability_mode(&self) -> AutosaveDurabilityMode {
         self.autosave_durability
+    }
+
+    pub const fn store_kind(&self) -> SessionStoreKind {
+        self.store_kind
     }
 
     pub const fn set_autosave_durability_mode(&mut self, mode: AutosaveDurabilityMode) {
@@ -1723,7 +1766,11 @@ impl Session {
                                     .open(&path_for_thread)
                                     .map_err(|e| crate::Error::Io(Box::new(e)))?;
 
-                                file.lock_exclusive()?;
+                                lock_jsonl_append_file(
+                                    &file,
+                                    &path_for_thread,
+                                    Duration::from_secs(5),
+                                )?;
                                 file.write_all(&serialized_buf)?;
                                 FileExt::unlock(&file)?;
 
@@ -2062,6 +2109,19 @@ impl Session {
 
     pub fn set_branched_from(&mut self, path: Option<String>) {
         self.header.parent_session = path;
+        self.header_dirty = true;
+        self.enqueue_autosave_mutation(AutosaveMutationKind::Metadata);
+    }
+
+    pub fn set_agent_profile(&mut self, agent_profile: Option<String>) {
+        let normalized = agent_profile.and_then(|value| {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        });
+        if self.header.agent_profile == normalized {
+            return;
+        }
+        self.header.agent_profile = normalized;
         self.header_dirty = true;
         self.enqueue_autosave_mutation(AutosaveMutationKind::Metadata);
     }
@@ -2814,14 +2874,14 @@ fn load_session_meta_jsonl(path: &Path) -> Result<SessionPickEntry> {
     let mut message_count = 0u64;
     let mut name = None;
 
-    for line_content in lines.map_while(std::result::Result::ok) {
+    for line_content in lines {
+        let line_content = line_content
+            .map_err(|e| Error::session(format!("Failed to read session entry: {e}")))?;
         if let Ok(entry) = serde_json::from_str::<PartialEntry>(&line_content) {
             match entry.r#type.as_str() {
                 "message" => message_count += 1,
-                "session_info" => {
-                    if entry.name.is_some() {
-                        name = entry.name;
-                    }
+                "session_info" if entry.name.is_some() => {
+                    name = entry.name;
                 }
                 _ => {}
             }
@@ -2881,6 +2941,8 @@ pub struct SessionHeader {
     pub model_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking_level: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "agentProfile")]
+    pub agent_profile: Option<String>,
     #[serde(
         skip_serializing_if = "Option::is_none",
         rename = "branchedFrom",
@@ -2903,6 +2965,7 @@ impl SessionHeader {
             provider: None,
             model_id: None,
             thinking_level: None,
+            agent_profile: None,
             parent_session: None,
         }
     }
@@ -2912,6 +2975,17 @@ impl Default for SessionHeader {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn initial_session_agent_profile(config: &Config) -> Option<String> {
+    std::env::var("PI_ACTIVE_AGENT_PROFILE")
+        .ok()
+        .or_else(|| config.active_agent_profile.clone())
+        .or_else(|| config.starter_agent.clone())
+        .and_then(|value| {
+            let trimmed = value.trim();
+            (!trimmed.is_empty()).then(|| trimmed.to_string())
+        })
 }
 
 // ============================================================================
@@ -3586,10 +3660,8 @@ fn session_entry_stats(entries: &[SessionEntry]) -> (u64, Option<String>) {
     for entry in entries {
         match entry {
             SessionEntry::Message(_) => message_count += 1,
-            SessionEntry::SessionInfo(info) => {
-                if info.name.is_some() {
-                    name.clone_from(&info.name);
-                }
+            SessionEntry::SessionInfo(info) if info.name.is_some() => {
+                name.clone_from(&info.name);
             }
             _ => {}
         }
@@ -4400,10 +4472,8 @@ fn finalize_loaded_entries(entries: &mut [SessionEntry]) -> LoadFinalization {
         // Stats.
         match entry {
             SessionEntry::Message(_) => message_count += 1,
-            SessionEntry::SessionInfo(info) => {
-                if info.name.is_some() {
-                    name.clone_from(&info.name);
-                }
+            SessionEntry::SessionInfo(info) if info.name.is_some() => {
+                name.clone_from(&info.name);
             }
             _ => {}
         }
@@ -5310,6 +5380,7 @@ mod tests {
         assert!(header.provider.is_none());
         assert!(header.model_id.is_none());
         assert!(header.thinking_level.is_none());
+        assert!(header.agent_profile.is_none());
         assert!(header.parent_session.is_none());
     }
 
@@ -5744,6 +5815,7 @@ mod tests {
         session.header.provider = Some("anthropic".to_string());
         session.header.model_id = Some("claude-opus".to_string());
         session.header.thinking_level = Some("high".to_string());
+        session.header.agent_profile = Some("architect".to_string());
         session.header.parent_session = Some("/old/session.jsonl".to_string());
 
         session.append_message(make_test_message("Hello"));
@@ -5756,6 +5828,7 @@ mod tests {
         assert_eq!(loaded.header.provider.as_deref(), Some("anthropic"));
         assert_eq!(loaded.header.model_id.as_deref(), Some("claude-opus"));
         assert_eq!(loaded.header.thinking_level.as_deref(), Some("high"));
+        assert_eq!(loaded.header.agent_profile.as_deref(), Some("architect"));
         assert_eq!(
             loaded.header.parent_session.as_deref(),
             Some("/old/session.jsonl")
@@ -6474,6 +6547,30 @@ mod tests {
         let path = std::path::Path::new("/a/b/c/d/e/f");
         let encoded = encode_cwd(path);
         assert_eq!(encoded, "--a-b-c-d-e-f--");
+    }
+
+    #[test]
+    fn load_session_meta_jsonl_errors_on_invalid_utf8_entry_line() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("invalid-entry.jsonl");
+        let header = serde_json::json!({
+            "type": "session",
+            "version": SESSION_VERSION,
+            "id": "sess_invalid_utf8",
+            "timestamp": "2026-03-13T00:00:00.000Z",
+            "cwd": "/tmp/test"
+        });
+        let mut bytes = serde_json::to_vec(&header).expect("serialize header");
+        bytes.push(b'\n');
+        bytes.extend_from_slice(b"{\"type\":\"message\"}\n");
+        bytes.extend_from_slice(&[0xFF, 0xFE, b'\n']);
+        std::fs::write(&path, bytes).expect("write session file");
+
+        let err = load_session_meta_jsonl(&path).expect_err("invalid utf-8 entry should fail");
+        assert!(
+            err.to_string().contains("Failed to read session entry"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

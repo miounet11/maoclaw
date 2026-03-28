@@ -1,6 +1,159 @@
 use super::share::{parse_gist_url_and_id, parse_share_is_public, share_gist_description};
 use super::*;
+use crate::agent::AgentConfig;
+use crate::auth::{AuthCredential, AuthStorage};
+use crate::extensions::ExtensionManager;
+use crate::provider::{Context, InputType, Model, ModelCost, Provider, StreamEvent, StreamOptions};
+use crate::tools::ToolRegistry;
 use serde_json::json;
+use std::collections::HashMap;
+use std::pin::Pin;
+use std::sync::{Arc, OnceLock};
+
+use futures::stream;
+
+struct InteractiveTestProvider;
+
+#[async_trait::async_trait]
+impl Provider for InteractiveTestProvider {
+    fn name(&self) -> &'static str {
+        "interactive-test"
+    }
+
+    fn api(&self) -> &'static str {
+        "interactive-test"
+    }
+
+    fn model_id(&self) -> &'static str {
+        "interactive-test-model"
+    }
+
+    async fn stream(
+        &self,
+        _context: &Context<'_>,
+        _options: &StreamOptions,
+    ) -> crate::error::Result<
+        Pin<Box<dyn futures::Stream<Item = crate::error::Result<StreamEvent>> + Send>>,
+    > {
+        Ok(Box::pin(stream::empty()))
+    }
+}
+
+fn interactive_test_runtime_handle() -> RuntimeHandle {
+    static RT: OnceLock<asupersync::runtime::Runtime> = OnceLock::new();
+    RT.get_or_init(|| {
+        asupersync::runtime::RuntimeBuilder::current_thread()
+            .build()
+            .expect("build asupersync runtime")
+    })
+    .handle()
+}
+
+fn interactive_test_model_entry(provider: &str, id: &str) -> ModelEntry {
+    ModelEntry {
+        model: Model {
+            id: id.to_string(),
+            name: id.to_string(),
+            api: "openai-responses".to_string(),
+            provider: provider.to_string(),
+            base_url: "https://example.test/v1".to_string(),
+            reasoning: false,
+            input: vec![InputType::Text],
+            cost: ModelCost {
+                input: 0.0,
+                output: 0.0,
+                cache_read: 0.0,
+                cache_write: 0.0,
+            },
+            context_window: 128_000,
+            max_tokens: 8_192,
+            headers: HashMap::new(),
+        },
+        api_key: Some("inline-key".to_string()),
+        headers: HashMap::new(),
+        auth_header: false,
+        compat: None,
+        oauth_config: None,
+    }
+}
+
+fn build_interactive_test_app(model_entry: &ModelEntry, session: Session) -> PiApp {
+    let cwd = std::env::temp_dir();
+    let config = Config::default();
+    let tools = ToolRegistry::new(&[], &cwd, Some(&config));
+    let provider: Arc<dyn Provider> = Arc::new(InteractiveTestProvider);
+    let agent = Agent::new(provider, tools, AgentConfig::default());
+    let resources = ResourceLoader::empty(config.enable_skill_commands());
+    let resource_cli = ResourceCliOptions {
+        no_skills: false,
+        no_prompt_templates: false,
+        no_extensions: false,
+        no_themes: false,
+        skill_paths: Vec::new(),
+        prompt_paths: Vec::new(),
+        extension_paths: Vec::new(),
+        theme_paths: Vec::new(),
+    };
+    let available_models = vec![model_entry.clone()];
+    let (event_tx, _event_rx) = mpsc::channel(16);
+    let session = Arc::new(Mutex::new(session));
+
+    let mut app = PiApp::new(
+        agent,
+        session,
+        config,
+        resources,
+        resource_cli,
+        cwd,
+        model_entry.clone(),
+        available_models.clone(),
+        available_models,
+        Vec::new(),
+        event_tx,
+        interactive_test_runtime_handle(),
+        false,
+        None,
+        Some(KeyBindings::new()),
+        Vec::new(),
+        Usage::default(),
+    );
+    app.set_terminal_size(80, 24);
+    app
+}
+
+#[test]
+fn send_pi_msg_with_backpressure_waits_for_capacity() {
+    let (tx, rx) = mpsc::channel(1);
+    tx.try_send(PiMsg::System("occupied".to_string()))
+        .expect("seed channel");
+
+    let send_thread = std::thread::spawn(move || {
+        send_pi_msg_with_backpressure_blocking(&tx, PiMsg::System("later".to_string()))
+    });
+
+    std::thread::sleep(std::time::Duration::from_millis(30));
+
+    let cx = Cx::for_request();
+    let first = futures::executor::block_on(rx.recv(&cx)).expect("receive first message");
+    assert!(matches!(first, PiMsg::System(text) if text == "occupied"));
+
+    assert!(send_thread.join().expect("join sender"));
+
+    let cx = Cx::for_request();
+    let second = futures::executor::block_on(rx.recv(&cx)).expect("receive second message");
+    assert!(matches!(second, PiMsg::System(text) if text == "later"));
+}
+
+#[test]
+fn send_pi_msg_with_backpressure_reports_disconnect() {
+    let (tx, rx) = mpsc::channel(1);
+    drop(rx);
+
+    assert!(!send_pi_msg_with_backpressure_blocking(
+        &tx,
+        PiMsg::System("dropped".to_string())
+    ));
+}
 
 #[test]
 fn format_count_suffixes() {
@@ -11,6 +164,175 @@ fn format_count_suffixes() {
     assert_eq!(format_count(42_000), "42.0K");
     assert_eq!(format_count(1_000_000), "1.0M");
     assert_eq!(format_count(2_500_000), "2.5M");
+}
+
+#[test]
+fn switch_active_model_same_target_updates_runtime_without_duplicate_session_entries() {
+    let current = interactive_test_model_entry("openai", "gpt-4o-mini");
+    let mut session = Session::in_memory();
+    session.header.provider = Some(current.model.provider.clone());
+    session.header.model_id = Some(current.model.id.clone());
+    session.header.thinking_level = Some(ThinkingLevel::Off.to_string());
+
+    let mut app = build_interactive_test_app(&current, session);
+
+    let mut next = interactive_test_model_entry("openai", "gpt-4o-mini");
+    next.headers
+        .insert("x-test-header".to_string(), "updated".to_string());
+
+    let result = app.switch_active_model(
+        &next,
+        Arc::new(InteractiveTestProvider),
+        Some("updated-api-key"),
+    );
+    assert!(
+        result.is_ok(),
+        "same-model switch should succeed: {result:?}"
+    );
+
+    let session_handle = app.session_handle();
+    let session_guard = session_handle.try_lock().expect("session lock");
+    assert_eq!(session_guard.header.provider.as_deref(), Some("openai"));
+    assert_eq!(
+        session_guard.header.model_id.as_deref(),
+        Some("gpt-4o-mini")
+    );
+    assert_eq!(
+        session_guard
+            .entries
+            .iter()
+            .filter(|entry| matches!(entry, SessionEntry::ModelChange(_)))
+            .count(),
+        0,
+        "same-model refresh should not append duplicate model-change entries"
+    );
+    assert_eq!(
+        session_guard
+            .entries
+            .iter()
+            .filter(|entry| matches!(entry, SessionEntry::ThinkingLevelChange(_)))
+            .count(),
+        0,
+        "same-model refresh should not append duplicate thinking-level entries"
+    );
+    drop(session_guard);
+
+    let agent_guard = app.agent.try_lock().expect("agent lock");
+    let stream_options = agent_guard.stream_options();
+    assert_eq!(stream_options.api_key.as_deref(), Some("updated-api-key"));
+    assert_eq!(
+        stream_options
+            .headers
+            .get("x-test-header")
+            .map(String::as_str),
+        Some("updated")
+    );
+    assert_eq!(stream_options.thinking_level, Some(ThinkingLevel::Off));
+}
+
+#[test]
+fn refresh_provider_auth_state_from_auth_updates_ad_hoc_active_model_and_catalog() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut auth = AuthStorage::load(dir.path().join("auth.json")).expect("load auth");
+    auth.set(
+        "openai",
+        AuthCredential::ApiKey {
+            key: "fresh-openai-key".to_string(),
+        },
+    );
+
+    let current =
+        crate::models::ad_hoc_model_entry("openai", "gpt-4o-mini").expect("ad-hoc openai model");
+    let mut app = build_interactive_test_app(&current, Session::in_memory());
+
+    assert_eq!(app.model_entry.api_key, None);
+    assert_eq!(app.available_models.len(), 1);
+
+    let diagnostic = app.refresh_provider_auth_state_from_auth(&auth, "openai");
+    assert!(
+        diagnostic.is_none(),
+        "unexpected diagnostic: {diagnostic:?}"
+    );
+    assert_eq!(app.model_entry.api_key.as_deref(), Some("fresh-openai-key"));
+
+    let active_catalog_entry = app
+        .available_models
+        .iter()
+        .find(|entry| {
+            entry.model.provider.eq_ignore_ascii_case("openai")
+                && entry.model.id.eq_ignore_ascii_case("gpt-4o-mini")
+        })
+        .expect("updated active model entry in catalog");
+    assert_eq!(
+        active_catalog_entry.api_key.as_deref(),
+        Some("fresh-openai-key")
+    );
+    assert!(
+        app.available_models
+            .iter()
+            .any(|entry| entry.model.provider.eq_ignore_ascii_case("openai")),
+        "expected openai entries after auth refresh"
+    );
+
+    let agent_guard = app.agent.try_lock().expect("agent lock");
+    assert_eq!(
+        agent_guard.stream_options().api_key.as_deref(),
+        Some("fresh-openai-key")
+    );
+}
+
+#[test]
+fn slash_login_uses_extension_registry_for_pre_auth_oauth_provider_lookup() {
+    let current = interactive_test_model_entry("openai", "gpt-4o-mini");
+    let mut app = build_interactive_test_app(&current, Session::in_memory());
+
+    let manager = ExtensionManager::new();
+    manager.register_provider(json!({
+        "id": "oauth-provider",
+        "name": "OAuth Provider",
+        "api": "openai-completions",
+        "baseUrl": "https://api.oauthprovider.test/v1",
+        "oauth": {
+            "authUrl": "https://oauthprovider.test/authorize",
+            "tokenUrl": "https://oauthprovider.test/token",
+            "clientId": "oauth-client-id",
+            "scopes": ["scope.read"],
+            "redirectUri": "http://localhost:47831/callback"
+        },
+        "models": [{
+            "id": "oauth-model",
+            "name": "OAuth Model"
+        }]
+    }));
+    app.extensions = Some(manager);
+
+    let result = app.handle_slash_login("oauth-provider");
+    assert!(result.is_none(), "login should not emit follow-up cmd");
+    assert!(
+        app.status_message.is_none(),
+        "unexpected status message: {:?}",
+        app.status_message
+    );
+
+    let pending = app.pending_oauth.as_ref().expect("pending oauth flow");
+    assert_eq!(pending.provider, "oauth-provider");
+    assert_eq!(pending.kind, PendingLoginKind::OAuth);
+    let oauth_config = pending
+        .oauth_config
+        .as_ref()
+        .expect("extension oauth config should be preserved");
+    assert_eq!(oauth_config.client_id, "oauth-client-id");
+    assert_eq!(oauth_config.scopes, vec!["scope.read".to_string()]);
+    assert_eq!(
+        oauth_config.redirect_uri.as_deref(),
+        Some("http://localhost:47831/callback")
+    );
+    assert!(
+        app.messages
+            .last()
+            .is_some_and(|message| message.content.contains("OAuth login: oauth-provider")),
+        "expected login instructions for extension provider"
+    );
 }
 
 #[test]
@@ -1066,6 +1388,9 @@ fn api_key_login_prompt_supports_openai_and_google() {
 fn slash_help_mentions_generic_login_flow() {
     let help = SlashCommand::help_text();
     assert!(help.contains(
+        "/setup [provider]  - Open provider setup panel for provider/model/API URL/API key"
+    ));
+    assert!(help.contains(
         "/login [provider]  - Login/setup credentials; without provider shows status table"
     ));
     assert!(help.contains("/logout [provider] - Remove stored credentials"));
@@ -1182,6 +1507,8 @@ fn slash_command_all_variants_parse() {
     // Verify all main slash commands parse correctly
     let cases = vec![
         ("/login", SlashCommand::Login),
+        ("/setup", SlashCommand::Setup),
+        ("/provider", SlashCommand::Setup),
         ("/logout", SlashCommand::Logout),
         ("/settings", SlashCommand::Settings),
         ("/history", SlashCommand::History),
@@ -1220,6 +1547,36 @@ fn slash_command_empty_and_whitespace() {
     assert!(SlashCommand::parse("").is_none());
     assert!(SlashCommand::parse("  ").is_none());
     assert!(SlashCommand::parse("/").is_none());
+}
+
+#[test]
+fn provider_setup_validates_http_urls_only() {
+    assert_eq!(
+        validate_provider_base_url("https://example.invalid/v1").expect("https url"),
+        Some("https://example.invalid/v1".to_string())
+    );
+    assert!(validate_provider_base_url("ftp://example.invalid").is_err());
+}
+
+#[test]
+fn provider_setup_base_url_override_round_trips() {
+    let dir = tempfile::tempdir().expect("tmpdir");
+    let models_path = dir.path().join("models.json");
+
+    save_provider_base_url_override(
+        &models_path,
+        "openai",
+        Some("https://gateway.example.invalid/v1"),
+    )
+    .expect("save base url");
+
+    assert_eq!(
+        load_provider_base_url_override(&models_path, "openai").as_deref(),
+        Some("https://gateway.example.invalid/v1")
+    );
+
+    save_provider_base_url_override(&models_path, "openai", None).expect("clear base url");
+    assert!(load_provider_base_url_override(&models_path, "openai").is_none());
 }
 
 // --- ConversationMessage collapse boundary ---

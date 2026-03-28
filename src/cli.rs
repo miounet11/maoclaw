@@ -1,8 +1,10 @@
 //! CLI argument parsing using Clap.
 
 use clap::error::ErrorKind;
-use clap::{Parser, Subcommand};
-use std::collections::HashSet;
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
+use std::collections::{HashMap, HashSet};
+use std::path::Path;
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtensionCliFlag {
@@ -28,63 +30,50 @@ struct LongOptionSpec {
     optional_value: bool,
 }
 
-const ROOT_SUBCOMMANDS: &[&str] = &[
-    "install",
-    "remove",
-    "update",
-    "update-index",
-    "search",
-    "info",
-    "list",
-    "config",
-    "doctor",
-    "migrate",
-];
-
 fn known_long_option(name: &str) -> Option<LongOptionSpec> {
-    let (takes_value, optional_value) = match name {
-        "version"
-        | "continue"
-        | "resume"
-        | "no-session"
-        | "no-migrations"
-        | "print"
-        | "verbose"
-        | "no-tools"
-        | "no-extensions"
-        | "explain-extension-policy"
-        | "explain-repair-policy"
-        | "no-skills"
-        | "no-prompt-templates"
-        | "no-themes"
-        | "list-providers"
-        | "hide-cwd-in-prompt" => (false, false),
-        "provider"
-        | "model"
-        | "api-key"
-        | "models"
-        | "thinking"
-        | "system-prompt"
-        | "append-system-prompt"
-        | "session"
-        | "session-dir"
-        | "session-durability"
-        | "mode"
-        | "tools"
-        | "extension"
-        | "extension-policy"
-        | "repair-policy"
-        | "skill"
-        | "prompt-template"
-        | "theme"
-        | "theme-path"
-        | "export" => (true, false),
-        "list-models" => (true, true),
-        _ => return None,
-    };
-    Some(LongOptionSpec {
-        takes_value,
-        optional_value,
+    static LONG_OPTIONS: OnceLock<HashMap<String, LongOptionSpec>> = OnceLock::new();
+    LONG_OPTIONS
+        .get_or_init(|| {
+            Cli::command()
+                .get_arguments()
+                .filter_map(|arg| {
+                    let long = arg.get_long()?;
+                    let num_args = arg.get_num_args().unwrap_or_else(|| 1.into());
+                    let takes_value = num_args.takes_values();
+                    let optional_value = num_args.takes_values()
+                        && num_args.min_values() == 0
+                        && num_args.max_values() == 1;
+                    Some((
+                        long.to_string(),
+                        LongOptionSpec {
+                            takes_value,
+                            optional_value,
+                        },
+                    ))
+                })
+                .collect()
+        })
+        .get(name)
+        .copied()
+}
+
+fn known_short_flags() -> &'static HashSet<char> {
+    static SHORT_FLAGS: OnceLock<HashSet<char>> = OnceLock::new();
+    SHORT_FLAGS.get_or_init(|| {
+        Cli::command()
+            .get_arguments()
+            .filter_map(clap::Arg::get_short)
+            .collect()
+    })
+}
+
+fn root_subcommands() -> &'static HashSet<String> {
+    static ROOT_SUBCOMMANDS: OnceLock<HashSet<String>> = OnceLock::new();
+    ROOT_SUBCOMMANDS.get_or_init(|| {
+        Cli::command()
+            .get_subcommands()
+            .map(|command| command.get_name().to_string())
+            .collect()
     })
 }
 
@@ -96,8 +85,8 @@ fn is_known_short_flag(token: &str) -> bool {
     if body.is_empty() {
         return false;
     }
-    body.chars()
-        .all(|ch| matches!(ch, 'v' | 'c' | 'r' | 'p' | 'e'))
+    let known = known_short_flags();
+    body.chars().all(|ch| known.contains(&ch))
 }
 
 fn short_flag_expects_value(token: &str) -> bool {
@@ -114,6 +103,36 @@ fn is_negative_numeric_token(token: &str) -> bool {
         return false;
     }
     token.parse::<i64>().is_ok() || token.parse::<f64>().is_ok_and(f64::is_finite)
+}
+
+fn cli_program_name_from_raw_args(raw_args: &[String]) -> String {
+    raw_args
+        .first()
+        .map(String::as_str)
+        .and_then(|arg0| Path::new(arg0).file_stem())
+        .and_then(|stem| stem.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("pi")
+        .to_string()
+}
+
+fn cli_after_help(program_name: &str) -> String {
+    format!(
+        "Examples:\n  {program_name} \"explain this code\"              Start new session with message\n  {program_name} @file.rs \"review this\"           Include file in context\n  {program_name} -c                                Continue previous session\n  {program_name} -r                                Resume from session picker\n  {program_name} -p \"what is 2+2\"                 Print mode (non-interactive)\n  {program_name} --model claude-opus-4 \"help\"     Use specific model\n"
+    )
+}
+
+fn cli_command_for_program(program_name: &str) -> clap::Command {
+    let mut command = Cli::command();
+    command = command.name(program_name.to_string());
+    command.after_help(cli_after_help(program_name))
+}
+
+fn parse_runtime_cli(raw_args: Vec<String>) -> Result<Cli, clap::Error> {
+    let program_name = cli_program_name_from_raw_args(&raw_args);
+    let mut command = cli_command_for_program(&program_name);
+    let mut matches = command.try_get_matches_from_mut(raw_args)?;
+    Cli::from_arg_matches_mut(&mut matches)
 }
 
 #[allow(clippy::too_many_lines)] // Argument normalization needs single-pass stateful parsing.
@@ -211,7 +230,7 @@ fn preprocess_extension_flags(raw_args: &[String]) -> (Vec<String>, Vec<Extensio
             index += 1;
             continue;
         }
-        if ROOT_SUBCOMMANDS.contains(&token.as_str()) {
+        if root_subcommands().contains(token) {
             in_subcommand = true;
         } else {
             in_message_args = true;
@@ -224,14 +243,14 @@ fn preprocess_extension_flags(raw_args: &[String]) -> (Vec<String>, Vec<Extensio
 
 pub fn parse_with_extension_flags(raw_args: Vec<String>) -> Result<ParsedCli, clap::Error> {
     if raw_args.is_empty() {
-        let cli = Cli::try_parse_from(["pi"])?;
+        let cli = parse_runtime_cli(vec!["pi".to_string()])?;
         return Ok(ParsedCli {
             cli,
             extension_flags: Vec::new(),
         });
     }
 
-    match Cli::try_parse_from(raw_args.clone()) {
+    match parse_runtime_cli(raw_args.clone()) {
         Ok(cli) => {
             return Ok(ParsedCli {
                 cli,
@@ -250,14 +269,14 @@ pub fn parse_with_extension_flags(raw_args: Vec<String>) -> Result<ParsedCli, cl
 
     let (filtered_args, extension_flags) = preprocess_extension_flags(&raw_args);
     if extension_flags.is_empty() {
-        let cli = Cli::try_parse_from(raw_args)?;
+        let cli = parse_runtime_cli(raw_args)?;
         return Ok(ParsedCli {
             cli,
             extension_flags: Vec::new(),
         });
     }
 
-    let cli = Cli::try_parse_from(filtered_args)?;
+    let cli = parse_runtime_cli(filtered_args)?;
     Ok(ParsedCli {
         cli,
         extension_flags,
@@ -314,6 +333,47 @@ pub struct Cli {
     #[arg(long)]
     pub append_system_prompt: Option<String>,
 
+    // === Goal Contract ===
+    /// Title for an explicit outcome contract
+    #[arg(long)]
+    pub goal_title: Option<String>,
+
+    /// Primary goal for an explicit outcome contract
+    #[arg(long)]
+    pub goal: Option<String>,
+
+    /// Load the primary goal from a file
+    #[arg(long)]
+    pub goal_file: Option<String>,
+
+    /// Success criterion for the active goal contract (repeatable)
+    #[arg(long = "criterion", action = clap::ArgAction::Append)]
+    pub criterion: Vec<String>,
+
+    /// Load success criteria from a file (repeatable)
+    #[arg(long = "criteria-file", action = clap::ArgAction::Append)]
+    pub criteria_file: Vec<String>,
+
+    /// Bind the goal contract to a specific system id
+    #[arg(long = "goal-system")]
+    pub goal_system: Option<String>,
+
+    /// Expected output artifact type for the goal
+    #[arg(long = "goal-artifact-type")]
+    pub goal_artifact_type: Option<String>,
+
+    /// Watchdog heartbeat target in seconds
+    #[arg(long = "goal-heartbeat-seconds")]
+    pub goal_heartbeat_seconds: Option<u64>,
+
+    /// Inactivity timeout in seconds
+    #[arg(long = "goal-inactivity-seconds")]
+    pub goal_inactivity_seconds: Option<u64>,
+
+    /// Maximum restart attempts before the goal is considered blocked
+    #[arg(long = "goal-max-restarts")]
+    pub goal_max_restarts: Option<u32>,
+
     // === Session Management ===
     /// Continue previous session
     #[arg(short = 'c', long)]
@@ -347,8 +407,8 @@ pub struct Cli {
     pub no_migrations: bool,
 
     // === Mode & Output ===
-    /// Output mode for print mode (text, json, rpc)
-    #[arg(long, value_parser = ["text", "json", "rpc"])]
+    /// Output/runtime mode (text, json, rpc, bridge)
+    #[arg(long, value_parser = ["text", "json", "rpc", "bridge"])]
     pub mode: Option<String>,
 
     /// Non-interactive mode (process & exit)
@@ -365,7 +425,10 @@ pub struct Cli {
     pub no_tools: bool,
 
     /// Specific tools to enable (comma-separated: read,bash,edit,write,grep,find,ls,hashline_edit)
-    #[arg(long, default_value = "read,bash,edit,write,hashline_edit")]
+    #[arg(
+        long,
+        default_value = "read,bash,edit,write,grep,find,ls,hashline_edit"
+    )]
     pub tools: String,
 
     // === Extensions ===
@@ -456,7 +519,7 @@ pub struct Cli {
 
 #[cfg(test)]
 mod tests {
-    use super::{Cli, Commands, ROOT_SUBCOMMANDS, parse_with_extension_flags};
+    use super::{Cli, Commands, parse_with_extension_flags, root_subcommands};
     use clap::{CommandFactory, Parser};
 
     // ── 1. Basic flag parsing ────────────────────────────────────────
@@ -490,6 +553,12 @@ mod tests {
         assert_eq!(cli.theme.as_deref(), Some("dark"));
         assert_eq!(cli.theme_path, vec!["dark.ini".to_string()]);
         assert!(cli.no_themes);
+    }
+
+    #[test]
+    fn parse_bridge_mode() {
+        let cli = Cli::parse_from(["pi", "--mode", "bridge"]);
+        assert_eq!(cli.mode.as_deref(), Some("bridge"));
     }
 
     #[test]
@@ -594,6 +663,16 @@ mod tests {
     }
 
     #[test]
+    fn parse_with_extension_flags_help_uses_runtime_program_name() {
+        let err = parse_with_extension_flags(vec!["maoclaw".into(), "--help".into()])
+            .expect_err("`--help` should stay a clap help path");
+        assert!(matches!(err.kind(), clap::error::ErrorKind::DisplayHelp));
+        let rendered = err.to_string();
+        assert!(rendered.contains("Usage: maoclaw"));
+        assert!(rendered.contains("maoclaw \"explain this code\""));
+    }
+
+    #[test]
     fn parse_verbose_flag() {
         let cli = Cli::parse_from(["pi", "--verbose"]);
         assert!(cli.verbose);
@@ -610,6 +689,48 @@ mod tests {
         ]);
         assert_eq!(cli.system_prompt.as_deref(), Some("You are a helper"));
         assert_eq!(cli.append_system_prompt.as_deref(), Some("Be concise"));
+    }
+
+    #[test]
+    fn parse_goal_contract_flags() {
+        let cli = Cli::parse_from([
+            "pi",
+            "--goal-title",
+            "Ship release",
+            "--goal",
+            "Ship a verified release package",
+            "--criterion",
+            "all tests pass",
+            "--criterion",
+            "release notes are updated",
+            "--criteria-file",
+            "criteria.md",
+            "--goal-system",
+            "sys_release",
+            "--goal-artifact-type",
+            "release_package",
+            "--goal-heartbeat-seconds",
+            "120",
+            "--goal-inactivity-seconds",
+            "900",
+            "--goal-max-restarts",
+            "4",
+        ]);
+        assert_eq!(cli.goal_title.as_deref(), Some("Ship release"));
+        assert_eq!(cli.goal.as_deref(), Some("Ship a verified release package"));
+        assert_eq!(
+            cli.criterion,
+            vec![
+                "all tests pass".to_string(),
+                "release notes are updated".to_string()
+            ]
+        );
+        assert_eq!(cli.criteria_file, vec!["criteria.md".to_string()]);
+        assert_eq!(cli.goal_system.as_deref(), Some("sys_release"));
+        assert_eq!(cli.goal_artifact_type.as_deref(), Some("release_package"));
+        assert_eq!(cli.goal_heartbeat_seconds, Some(120));
+        assert_eq!(cli.goal_inactivity_seconds, Some(900));
+        assert_eq!(cli.goal_max_restarts, Some(4));
     }
 
     #[test]
@@ -872,7 +993,16 @@ mod tests {
         let cli = Cli::parse_from(["pi"]);
         assert_eq!(
             cli.enabled_tools(),
-            vec!["read", "bash", "edit", "write", "hashline_edit"]
+            vec![
+                "read",
+                "bash",
+                "edit",
+                "write",
+                "grep",
+                "find",
+                "ls",
+                "hashline_edit"
+            ]
         );
     }
 
@@ -966,6 +1096,29 @@ mod tests {
     }
 
     #[test]
+    fn extension_flags_after_value_taking_builtin_are_extracted() {
+        let parsed = parse_with_extension_flags(vec![
+            "pi".to_string(),
+            "--model".to_string(),
+            "gpt-4o".to_string(),
+            "--plan".to_string(),
+            "ship-it".to_string(),
+            "--dry-run".to_string(),
+            "--print".to_string(),
+            "hello".to_string(),
+        ])
+        .expect("parse extension flags after builtin value arg");
+
+        assert_eq!(parsed.cli.model.as_deref(), Some("gpt-4o"));
+        assert!(parsed.cli.print);
+        assert_eq!(parsed.extension_flags.len(), 2);
+        assert_eq!(parsed.extension_flags[0].name, "plan");
+        assert_eq!(parsed.extension_flags[0].value.as_deref(), Some("ship-it"));
+        assert_eq!(parsed.extension_flags[1].name, "dry-run");
+        assert!(parsed.extension_flags[1].value.is_none());
+    }
+
+    #[test]
     fn extension_flag_accepts_negative_integer_value() {
         let parsed = parse_with_extension_flags(vec![
             "pi".to_string(),
@@ -1054,10 +1207,7 @@ mod tests {
             .collect::<Vec<_>>();
         actual.sort();
 
-        let mut expected = ROOT_SUBCOMMANDS
-            .iter()
-            .map(|name| (*name).to_string())
-            .collect::<Vec<_>>();
+        let mut expected = root_subcommands().iter().cloned().collect::<Vec<_>>();
         expected.sort();
 
         assert_eq!(expected, actual);
@@ -1159,7 +1309,7 @@ mod tests {
         assert!(cli.list_models.is_none());
         assert!(cli.command.is_none());
         assert!(cli.args.is_empty());
-        assert_eq!(cli.tools, "read,bash,edit,write,hashline_edit");
+        assert_eq!(cli.tools, "read,bash,edit,write,grep,find,ls,hashline_edit");
     }
 
     // ── 11. Combined flags ───────────────────────────────────────────
@@ -1373,8 +1523,8 @@ mod tests {
 
     mod proptest_cli {
         use crate::cli::{
-            ExtensionCliFlag, ROOT_SUBCOMMANDS, is_known_short_flag, is_negative_numeric_token,
-            known_long_option, preprocess_extension_flags, short_flag_expects_value,
+            ExtensionCliFlag, is_known_short_flag, is_negative_numeric_token, known_long_option,
+            preprocess_extension_flags, root_subcommands, short_flag_expects_value,
         };
         use proptest::prelude::*;
 
@@ -1524,7 +1674,7 @@ mod tests {
                 name in "[a-z]{3,10}".prop_filter(
                     "must not be a known option",
                     |n| known_long_option(n).is_none()
-                        && !ROOT_SUBCOMMANDS.contains(&n.as_str()),
+                        && !root_subcommands().contains(n),
                 ),
             ) {
                 let flag = format!("--{name}");
@@ -1667,6 +1817,9 @@ pub enum Commands {
         json: bool,
     },
 
+    /// Run the guided first-time setup flow
+    Setup,
+
     /// Diagnose environment health and extension compatibility
     Doctor {
         /// Extension path to check (omit to run all environment checks)
@@ -1727,5 +1880,18 @@ impl Cli {
                 .filter(|name| seen.insert(*name))
                 .collect()
         }
+    }
+
+    pub fn has_goal_contract(&self) -> bool {
+        self.goal_title.is_some()
+            || self.goal.is_some()
+            || self.goal_file.is_some()
+            || !self.criterion.is_empty()
+            || !self.criteria_file.is_empty()
+            || self.goal_system.is_some()
+            || self.goal_artifact_type.is_some()
+            || self.goal_heartbeat_seconds.is_some()
+            || self.goal_inactivity_seconds.is_some()
+            || self.goal_max_restarts.is_some()
     }
 }

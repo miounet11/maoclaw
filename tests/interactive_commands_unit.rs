@@ -527,7 +527,16 @@ fn help_text_contains_all_commands() {
     assert!(help.contains("/hotkeys"), "help text missing /hotkeys");
     assert!(help.contains("/tree"), "help text missing /tree");
     assert!(help.contains("/compact"), "help text missing /compact");
+    assert!(help.contains("/reload"), "help text missing /reload");
     assert!(help.contains("/share"), "help text missing /share");
+}
+
+#[test]
+fn help_text_describes_reload_scope_honestly() {
+    let help = SlashCommand::help_text();
+    assert!(help.contains(
+        "/reload            - Reload skills/prompts/themes, refresh model catalog, and hot-reload JS/native extensions"
+    ));
 }
 
 // ============================================================================

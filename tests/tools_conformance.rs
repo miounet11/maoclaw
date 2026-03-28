@@ -505,14 +505,16 @@ mod bash_tool {
                 "timeout": 1
             });
 
-            let err = tool
+            let output = tool
                 .execute("test-id", input, None)
                 .await
-                .expect_err("should timeout");
-            let message = err.to_string();
+                .expect("timeout should return a tool result");
+            let message = get_text_content(&output.content);
             harness.log().info_ctx("verify", "timeout message", |ctx| {
                 ctx.push(("message".into(), message.clone()));
+                ctx.push(("is_error".into(), output.is_error.to_string()));
             });
+            assert!(output.is_error, "timeout must set is_error");
             assert!(message.contains("Command timed out after 1 seconds"));
         });
     }
@@ -549,11 +551,13 @@ mod bash_tool {
                 "command": "exit 42"
             });
 
-            let err = tool
+            let output = tool
                 .execute("test-id", input, None)
                 .await
-                .expect_err("should error");
-            assert!(err.to_string().contains("Command exited with code 42"));
+                .expect("non-zero exit should return a tool result");
+            let message = get_text_content(&output.content);
+            assert!(output.is_error, "non-zero exit must set is_error");
+            assert!(message.contains("Command exited with code 42"));
         });
     }
 
@@ -1642,9 +1646,9 @@ mod e2e_bash {
                 execute_tool_with_diagnostics(&harness, &tool, "bash", "bash-003", input.clone())
                     .await;
 
-            // Should error with non-zero exit code (127 = command not found)
-            assert!(result.is_err(), "nonexistent command should fail");
-            let message = result.unwrap_err().to_string();
+            let output = result.expect("nonexistent command should return a tool result");
+            let message = get_text_content(&output.content);
+            assert!(output.is_error, "nonexistent command must set is_error");
             assert!(
                 message.contains("127") || message.contains("not found"),
                 "expected exit code 127 or 'not found' in: {message}"
@@ -1666,8 +1670,9 @@ mod e2e_bash {
                 execute_tool_with_diagnostics(&harness, &tool, "bash", "bash-004", input.clone())
                     .await;
 
-            assert!(result.is_err());
-            let message = result.unwrap_err().to_string();
+            let output = result.expect("timeout should return a tool result");
+            let message = get_text_content(&output.content);
+            assert!(output.is_error, "timeout must set is_error");
             assert!(message.contains("timed out"));
         });
     }
@@ -2179,14 +2184,20 @@ mod security_path_traversal {
                 "content": "ESCAPED_CONTENT"
             });
             let result = tool.execute("sec-write-01", input, None).await;
-            result.expect("write with ../ should succeed (by design)");
-
-            let written = std::fs::read_to_string(parent.path().join("escaped.txt")).unwrap();
-            assert_eq!(written, "ESCAPED_CONTENT");
+            let err = result.expect_err("write with ../ should be rejected");
+            assert!(
+                err.to_string()
+                    .contains("Cannot write outside the working directory"),
+                "unexpected error: {err}"
+            );
+            assert!(
+                !parent.path().join("escaped.txt").exists(),
+                "write traversal must not create escaped file"
+            );
         });
     }
 
-    /// Edit tool operates on files outside CWD via `../` – by design.
+    /// Edit tool rejects traversal outside the working directory.
     #[test]
     fn edit_parent_dir_traversal() {
         asupersync::test_utils::run_test(|| async {
@@ -2204,10 +2215,15 @@ mod security_path_traversal {
                 "newText": "MODIFIED_CONTENT"
             });
             let result = tool.execute("sec-edit-01", input, None).await;
-            result.expect("edit with ../ should succeed (by design)");
+            let err = result.expect_err("edit with ../ should be rejected");
+            assert!(
+                err.to_string()
+                    .contains("Cannot edit outside the working directory"),
+                "unexpected error: {err}"
+            );
 
             let content = std::fs::read_to_string(&target).unwrap();
-            assert_eq!(content, "MODIFIED_CONTENT");
+            assert_eq!(content, "ORIGINAL_CONTENT");
         });
     }
 
@@ -2255,8 +2271,7 @@ mod security_path_traversal {
         });
     }
 
-    /// Write tool replaces symlinks with regular files (atomic rename).
-    /// This prevents symlink-following attacks: the original target is untouched.
+    /// Write tool rejects symlink paths that resolve outside the working directory.
     #[test]
     #[cfg(unix)]
     fn write_replaces_symlink_with_regular_file() {
@@ -2275,21 +2290,20 @@ mod security_path_traversal {
                 "content": "NEW_CONTENT"
             });
             let result = tool.execute("sec-write-02", input, None).await;
-            result.expect("write at symlink path should succeed");
-
-            // Atomic rename replaces the symlink with a regular file
+            let err = result.expect_err("write at symlink path should be rejected");
             assert!(
-                !link.symlink_metadata().unwrap().file_type().is_symlink(),
-                "symlink should be replaced by a regular file"
+                err.to_string()
+                    .contains("Cannot write outside the working directory"),
+                "unexpected error: {err}"
             );
-            let link_content = std::fs::read_to_string(&link).unwrap();
-            assert_eq!(link_content, "NEW_CONTENT");
-
-            // Original target is untouched (safe against symlink attacks)
+            assert!(
+                link.symlink_metadata().unwrap().file_type().is_symlink(),
+                "rejected write must leave the symlink in place"
+            );
             let target_content = std::fs::read_to_string(&target).unwrap();
             assert_eq!(
                 target_content, "ORIGINAL",
-                "original symlink target should be untouched"
+                "rejected write must leave the original target untouched"
             );
         });
     }

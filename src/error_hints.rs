@@ -162,7 +162,22 @@ fn auth_hints(msg: &str) -> ErrorHint {
 }
 
 fn provider_hints(message: &str) -> ErrorHint {
-    if message.contains("429") || message.contains("rate limit") {
+    let lower = message.to_ascii_lowercase();
+
+    if lower.contains("504")
+        || lower.contains("gateway timeout")
+        || lower.contains("upstream timeout")
+    {
+        return ErrorHint {
+            summary: "Provider gateway timed out",
+            hints: &[
+                "Try again shortly - this is usually transient",
+                "If using a custom base URL or proxy, increase its timeout or bypass it",
+            ],
+            context_fields: &["provider", "status_code", "url"],
+        };
+    }
+    if lower.contains("429") || lower.contains("rate limit") {
         return ErrorHint {
             summary: "Rate limit exceeded",
             hints: &[
@@ -172,7 +187,11 @@ fn provider_hints(message: &str) -> ErrorHint {
             context_fields: &["provider", "retry_after"],
         };
     }
-    if message.contains("500") || message.contains("server error") {
+    if lower.contains("500")
+        || lower.contains("503")
+        || lower.contains("server error")
+        || lower.contains("service unavailable")
+    {
         return ErrorHint {
             summary: "Provider server error",
             hints: &[
@@ -182,7 +201,7 @@ fn provider_hints(message: &str) -> ErrorHint {
             context_fields: &["provider", "status_code"],
         };
     }
-    if message.contains("connection") || message.contains("network") {
+    if lower.contains("connection") || lower.contains("network") {
         return ErrorHint {
             summary: "Network connection error",
             hints: &[
@@ -192,7 +211,7 @@ fn provider_hints(message: &str) -> ErrorHint {
             context_fields: &["provider", "url"],
         };
     }
-    if message.contains("timeout") {
+    if lower.contains("timeout") || lower.contains("timed out") {
         return ErrorHint {
             summary: "Request timed out",
             hints: &[
@@ -202,7 +221,7 @@ fn provider_hints(message: &str) -> ErrorHint {
             context_fields: &["provider", "timeout_seconds"],
         };
     }
-    if message.contains("model") && message.contains("not found") {
+    if lower.contains("model") && lower.contains("not found") {
         return ErrorHint {
             summary: "Model not found or unavailable",
             hints: &[
@@ -777,6 +796,17 @@ mod tests {
         let error = Error::provider("anthropic", "server error: bad gateway");
         let hint = hints_for_error(&error);
         assert!(hint.summary.contains("server error"));
+    }
+
+    #[test]
+    fn test_provider_gateway_timeout_504_hints() {
+        let error = Error::provider(
+            "openai",
+            "OpenAI upstream timeout (HTTP 504): Gateway Timeout",
+        );
+        let hint = hints_for_error(&error);
+        assert_eq!(hint.summary, "Provider gateway timed out");
+        assert!(hint.hints.iter().any(|value| value.contains("proxy")));
     }
 
     #[test]

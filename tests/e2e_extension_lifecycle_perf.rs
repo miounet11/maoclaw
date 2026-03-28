@@ -1304,6 +1304,7 @@ fn per_extension_tool_isolation() {
 #[test]
 fn interference_scaling_by_count() {
     let iterations = 20;
+    let measurement_rounds = 3;
     let mut all_specs: Vec<JsExtensionLoadSpec> = Vec::new();
     let mut all_names: Vec<&str> = Vec::new();
 
@@ -1330,7 +1331,13 @@ fn interference_scaling_by_count() {
         let harness = common::TestHarness::new(format!("scaling_{count}ext"));
         let manager = setup_composed_manager(&harness, subset);
 
-        let samples = measure_event_latencies(&manager, iterations);
+        // Aggregate several passes so one scheduler spike does not dominate
+        // the median and produce a false super-linear regression in CI.
+        let mut samples = Vec::with_capacity(iterations * measurement_rounds);
+        for _ in 0..measurement_rounds {
+            samples.extend(measure_event_latencies(&manager, iterations));
+        }
+        samples.sort_by(f64::total_cmp);
         let rec = samples_to_record(&label, &samples);
 
         let scaling_ratio = if prev_p50 > 0.0 {
@@ -1348,7 +1355,8 @@ fn interference_scaling_by_count() {
             "schema": "pi.ext.scaling.v1",
             "extension_count": count,
             "extensions": &all_names[..count],
-            "iterations": iterations,
+            "iterations": samples.len(),
+            "measurement_rounds": measurement_rounds,
             "p50_us": rec.p50_us,
             "p95_us": rec.p95_us,
             "p99_us": rec.p99_us,

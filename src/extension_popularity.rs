@@ -99,7 +99,7 @@ pub struct PopularityEvidence {
     pub npm_last_publish: Option<String>,
     pub npm_dependents: Option<u64>,
 
-    // Marketplace (OpenClaw / ClawHub) - not currently populated by the candidate pool.
+    // Marketplace metadata - not currently populated by the candidate pool.
     pub marketplace_rank: Option<u32>,
     pub marketplace_installs_monthly: Option<u64>,
     pub marketplace_featured: Option<bool>,

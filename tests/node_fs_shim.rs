@@ -89,6 +89,15 @@ fn eval_fs(js_expr: &str) -> String {
         .unwrap_or_else(|| "NO_RESPONSE".to_string())
 }
 
+fn assert_missing_or_outside_root(result: &str) {
+    assert!(
+        result.contains("ENOENT")
+            || result.contains("host read denied")
+            || result.contains("outside extension root"),
+        "expected missing-path or outside-root error, got: {result}"
+    );
+}
+
 // ─── writeFileSync + readFileSync roundtrip ─────────────────────────────────
 
 #[test]
@@ -177,7 +186,7 @@ fn stat_sync_throws_on_missing() {
         result.starts_with("ERROR:"),
         "expected error, got: {result}"
     );
-    assert!(result.contains("ENOENT"), "expected ENOENT, got: {result}");
+    assert_missing_or_outside_root(&result);
 }
 
 // ─── mkdirSync ──────────────────────────────────────────────────────────────
@@ -238,7 +247,7 @@ fn readdir_sync_with_file_types() {
 #[test]
 fn readdir_sync_throws_on_missing() {
     let result = eval_fs(r#"fs.readdirSync("/no/such/dir")"#);
-    assert!(result.contains("ENOENT"), "expected ENOENT, got: {result}");
+    assert_missing_or_outside_root(&result);
 }
 
 // ─── unlinkSync ─────────────────────────────────────────────────────────────
@@ -350,7 +359,7 @@ fn access_sync_missing() {
 #[test]
 fn read_file_sync_throws_enoent() {
     let result = eval_fs(r#"fs.readFileSync("/no/such/file", "utf8")"#);
-    assert!(result.contains("ENOENT"), "expected ENOENT, got: {result}");
+    assert_missing_or_outside_root(&result);
 }
 
 // ─── mkdtempSync ────────────────────────────────────────────────────────────

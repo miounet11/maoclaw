@@ -7,9 +7,10 @@
 mod common;
 
 use common::{TestHarness, run_async};
-use pi::agent::{AbortHandle, AgentEvent};
+use pi::agent::{AbortHandle, AgentEvent, QueueMode};
 use pi::model::{
-    AssistantMessage, ContentBlock, StopReason, StreamEvent, TextContent, ThinkingLevel, Usage,
+    AssistantMessage, ContentBlock, StopReason, StreamEvent, TextContent, ThinkingContent,
+    ThinkingLevel, Usage,
 };
 use pi::sdk::{
     AgentSessionHandle, AgentSessionState, EventListeners, RpcBashResult, RpcCancelledResult,
@@ -211,11 +212,18 @@ fn transport_session_transport_state_variants() {
 
     let in_process = SessionTransportState::InProcess(AgentSessionState {
         session_id: Some("s1".to_string()),
+        session_file: None,
+        session_name: None,
         provider: "anthropic".to_string(),
         model_id: "claude-sonnet-4-20250514".to_string(),
         thinking_level: None,
+        is_streaming: false,
+        steering_mode: QueueMode::All,
+        follow_up_mode: QueueMode::OneAtATime,
+        auto_compaction_enabled: true,
         save_enabled: false,
         message_count: 0,
+        pending_message_count: 0,
     });
 
     let rpc = SessionTransportState::Rpc(Box::new(RpcSessionState {
@@ -231,6 +239,8 @@ fn transport_session_transport_state_variants() {
         auto_compaction_enabled: true,
         message_count: 0,
         pending_message_count: 0,
+        goal_contract: None,
+        goal_run: None,
     }));
 
     // Debug and Clone
@@ -299,7 +309,7 @@ fn lifecycle_state_after_model_switch() {
         Ok::<_, pi::error::Error>((state_before, state_after))
     })
     .expect("state transitions");
-    assert_eq!(state_before.provider, "anthropic");
+    assert_eq!(state_before.provider, "openai-codex");
 
     assert_eq!(state_after.provider, "openai");
     assert_eq!(state_after.model_id, "gpt-4o");
@@ -425,11 +435,18 @@ fn lifecycle_agent_session_state_equality() {
 
     let state1 = AgentSessionState {
         session_id: Some("s1".to_string()),
+        session_file: None,
+        session_name: Some("demo".to_string()),
         provider: "anthropic".to_string(),
         model_id: "claude-sonnet-4-20250514".to_string(),
         thinking_level: Some(ThinkingLevel::High),
+        is_streaming: false,
+        steering_mode: QueueMode::All,
+        follow_up_mode: QueueMode::OneAtATime,
+        auto_compaction_enabled: true,
         save_enabled: false,
         message_count: 5,
+        pending_message_count: 1,
     };
     let state2 = state1.clone();
     assert_eq!(state1, state2, "cloned states should be equal");
@@ -447,6 +464,125 @@ fn lifecycle_agent_session_state_equality() {
         ctx.push(("equal".to_string(), "true".to_string()));
         ctx.push(("not_equal".to_string(), "true".to_string()));
     });
+}
+
+#[test]
+fn lifecycle_state_reports_queue_modes_and_pending_messages() {
+    let harness = TestHarness::new("lifecycle_state_reports_queue_modes_and_pending_messages");
+    let options = SessionOptions {
+        working_directory: Some(harness.temp_dir().to_path_buf()),
+        no_session: true,
+        ..SessionOptions::default()
+    };
+
+    let mut handle = run_async(create_agent_session(options)).expect("create session");
+    handle.set_queue_modes(QueueMode::All, QueueMode::OneAtATime);
+    let _seq = handle.queue_follow_up("queued follow-up");
+    let expected_auto_compaction = handle.session().compaction_enabled();
+
+    let state = run_async(async move { handle.state().await }).expect("state");
+    assert_eq!(state.steering_mode, QueueMode::All);
+    assert_eq!(state.follow_up_mode, QueueMode::OneAtATime);
+    assert_eq!(state.pending_message_count, 1);
+    assert!(!state.is_streaming);
+    assert_eq!(state.auto_compaction_enabled, expected_auto_compaction);
+
+    harness
+        .log()
+        .info_ctx("sdk", "queue state reflected in snapshot", |ctx| {
+            ctx.push((
+                "pending".to_string(),
+                state.pending_message_count.to_string(),
+            ));
+            ctx.push((
+                "steering_mode".to_string(),
+                state.steering_mode.as_str().to_string(),
+            ));
+            ctx.push((
+                "follow_up_mode".to_string(),
+                state.follow_up_mode.as_str().to_string(),
+            ));
+        });
+}
+
+#[test]
+fn lifecycle_new_session_resets_name_and_pending_queue() {
+    let harness = TestHarness::new("lifecycle_new_session_resets_name_and_pending_queue");
+    let session_dir = harness.temp_dir().join("sessions");
+    std::fs::create_dir_all(&session_dir).expect("create session dir");
+
+    let options = SessionOptions {
+        working_directory: Some(harness.temp_dir().to_path_buf()),
+        no_session: false,
+        session_dir: Some(session_dir),
+        ..SessionOptions::default()
+    };
+
+    let mut handle = run_async(create_agent_session(options)).expect("create session");
+    let (before, result, after) = run_async(async move {
+        handle.set_session_name("named session").await?;
+        let before = handle.state().await?;
+        let _seq = handle.queue_follow_up("queued follow-up");
+        let result = handle.new_session(None).await?;
+        let after = handle.state().await?;
+        Ok::<_, pi::error::Error>((before, result, after))
+    })
+    .expect("new session flow");
+
+    assert_eq!(before.session_name.as_deref(), Some("named session"));
+    assert!(
+        before.session_file.is_some(),
+        "renamed session should persist"
+    );
+    assert!(!result.cancelled);
+    assert_ne!(before.session_id, after.session_id);
+    assert_eq!(after.session_name, None);
+    assert_eq!(after.pending_message_count, 0);
+    assert_eq!(after.message_count, 0);
+    assert_eq!(after.provider, before.provider);
+    assert_eq!(after.model_id, before.model_id);
+
+    harness
+        .log()
+        .info_ctx("sdk", "new session reset lifecycle ok", |ctx| {
+            ctx.push((
+                "before_session".to_string(),
+                before.session_id.unwrap_or_default(),
+            ));
+            ctx.push((
+                "after_session".to_string(),
+                after.session_id.unwrap_or_default(),
+            ));
+        });
+}
+
+#[test]
+fn lifecycle_prompt_with_content_rejects_non_user_blocks() {
+    let harness = TestHarness::new("lifecycle_prompt_with_content_rejects_non_user_blocks");
+    let options = SessionOptions {
+        working_directory: Some(harness.temp_dir().to_path_buf()),
+        no_session: true,
+        ..SessionOptions::default()
+    };
+
+    let mut handle = run_async(create_agent_session(options)).expect("create session");
+    let err = run_async(async move {
+        handle
+            .prompt_with_content(
+                vec![ContentBlock::Thinking(ThinkingContent {
+                    thinking: "internal".to_string(),
+                    thinking_signature: None,
+                })],
+                |_| {},
+            )
+            .await
+    })
+    .expect_err("thinking blocks should be rejected");
+
+    assert!(
+        err.to_string().contains("text and image blocks"),
+        "unexpected error: {err}"
+    );
 }
 
 // ============================================================================
@@ -1347,7 +1483,7 @@ fn session_options_with_custom_system_prompt() {
     let handle = run_async(create_agent_session(options)).expect("create session");
     // The system prompt is baked into the agent config; verify session was created.
     let (provider, _model) = handle.model();
-    assert_eq!(provider, "anthropic");
+    assert_eq!(provider, "openai-codex");
 
     harness
         .log()

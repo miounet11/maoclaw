@@ -382,6 +382,12 @@ fn is_curated_tier(tier: &str) -> bool {
     )
 }
 
+fn has_candidate_pool_source(sources: &[String]) -> bool {
+    sources
+        .iter()
+        .any(|source| source.starts_with("candidate_pool:"))
+}
+
 /// Link an npm package to a GitHub repo canonical ID (via repository URL).
 /// Returns the GitHub canonical ID if the npm package's repo URL matches.
 fn npm_to_github_canonical(npm_repo_url: &str) -> Option<String> {
@@ -643,6 +649,11 @@ pub fn run_validation_pipeline(
                 rec.evidence
                     .reason
                     .push_str("vendored artifact (pre-validated)");
+            } else if status == ValidationStatus::Unknown
+                && has_candidate_pool_source(&rec.evidence.sources)
+            {
+                status = ValidationStatus::MentionOnly;
+                rec.evidence.reason = "candidate pool entry (extension candidate)".to_string();
             }
             ValidatedCandidate {
                 canonical_id: rec.canonical_id,
@@ -1089,6 +1100,55 @@ export default (api: ExtensionAPI) => { api.registerCommand({ name: "/test" }); 
         assert_eq!(report.stats.after_dedup, 2);
         assert_eq!(report.stats.true_extension, 1);
         assert_eq!(report.stats.mention_only, 1);
+    }
+
+    #[test]
+    fn candidate_pool_entries_default_to_mention_only() {
+        let pool = CandidatePool {
+            schema: "pi.ext.candidate_pool.v1".to_string(),
+            generated_at: "2026-02-06T00:00:00Z".to_string(),
+            source_inputs: crate::extension_popularity::SourceInputs {
+                artifact_provenance: "test".to_string(),
+                artifact_root: "test".to_string(),
+                extra_npm_packages: Vec::new(),
+            },
+            total_candidates: 1,
+            items: vec![CandidateItem {
+                id: "candidate-only".to_string(),
+                name: "candidate-only".to_string(),
+                source_tier: "community".to_string(),
+                status: "unvendored".to_string(),
+                license: "UNKNOWN".to_string(),
+                retrieved: None,
+                artifact_path: None,
+                checksum: None,
+                source: crate::extension_popularity::CandidateSource::Git {
+                    repo: "https://github.com/example/candidate-only".to_string(),
+                    path: None,
+                },
+                repository_url: Some("https://github.com/example/candidate-only".to_string()),
+                popularity: crate::extension_popularity::PopularityEvidence::default(),
+                aliases: Vec::new(),
+                notes: None,
+            }],
+            alias_notes: Vec::new(),
+        };
+
+        let config = ValidationConfig {
+            task_id: "test".to_string(),
+        };
+        let report = run_validation_pipeline(None, None, None, None, Some(&pool), &config);
+        let candidate = report
+            .candidates
+            .iter()
+            .find(|candidate| candidate.canonical_id == "candidate-only")
+            .expect("candidate-only entry should be present");
+
+        assert_eq!(candidate.status, ValidationStatus::MentionOnly);
+        assert_eq!(
+            candidate.evidence.reason,
+            "candidate pool entry (extension candidate)"
+        );
     }
 
     // ====================================================================

@@ -1,6 +1,6 @@
 # QA Certification Dossier
 
-> Generated: 2026-03-03T22:07:40.218Z
+> Generated: 2026-03-17T01:22:51.595Z
 > Bead: bd-1f42.8.10
 > Verdict: **PASS_WITH_RESIDUALS**
 
@@ -37,7 +37,7 @@ Evidence:
 
 Residuals:
 - 1 waived workflow (live provider parity, requires credentials)
-- 2 CI gate failure (cross_platform), 0 skipped (missing conformance artifacts)
+- 3 CI gate failure (cross_platform), 1 skipped (missing conformance artifacts)
 - Evidence bundle only generated during full E2E runs
 
 ## Suite Classification

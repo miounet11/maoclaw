@@ -140,6 +140,13 @@ impl CompactionWorkerState {
         self.last_start = Some(now);
         self.attempt_count = self.attempt_count.saturating_add(1);
     }
+
+    /// Drop any pending background work and reset per-session quotas.
+    pub fn reset(&mut self) {
+        self.pending = None;
+        self.last_start = None;
+        self.attempt_count = 0;
+    }
 }
 
 #[allow(clippy::needless_pass_by_value)]

@@ -16,13 +16,18 @@ futures = "0.3"
 | --- | --- |
 | `createAgentSession(options)` | `pi::sdk::create_agent_session(SessionOptions)` |
 | `session.prompt(text, onEvent)` | `AgentSessionHandle::prompt(text, on_event)` |
+| `session.prompt(contentBlocks, onEvent)` | `AgentSessionHandle::prompt_with_content(blocks, on_event)` |
 | `session.subscribe(listener)` | `AgentSessionHandle::subscribe(listener)` |
 | `unsubscribe()` | `AgentSessionHandle::unsubscribe(subscription_id)` |
 | `session.setModel(provider, model)` | `AgentSessionHandle::set_model(provider, model)` |
 | `session.setThinkingLevel(level)` | `AgentSessionHandle::set_thinking_level(level)` |
+| `session.setSessionName(name)` | `AgentSessionHandle::set_session_name(name)` |
+| `session.newSession(parentSession?)` | `AgentSessionHandle::new_session(parent_session)` |
+| `session.switchSession(path)` | `AgentSessionHandle::switch_session(path)` |
+| `session.fork(entryId)` | `AgentSessionHandle::fork(entry_id)` |
 | `session.compact()` | `AgentSessionHandle::compact(on_event)` |
 | `session.abort()` | `AgentSessionHandle::new_abort_handle()` + `prompt_with_abort(...)` |
-| `session.steer(...)`, `session.followUp(...)` | `RpcTransportClient::steer(...)`, `RpcTransportClient::follow_up(...)` |
+| `session.steer(...)`, `session.followUp(...)` | `RpcTransportClient::steer(...)`, `RpcTransportClient::follow_up(...)` or in-process `queue_steering(...)` / `queue_follow_up(...)` + `continue_turn(...)` |
 | RPC bridge client | `RpcTransportClient` / `SessionTransport::RpcSubprocess` |
 
 ## Recipe 1: Create In-Process Session and Prompt
@@ -44,6 +49,23 @@ fn main() -> pi::sdk::Result<()> {
         eprintln!("{event:?}");
     }))?;
 
+    println!("{message:#?}");
+    Ok(())
+}
+```
+
+## Recipe 1b: Prompt With Explicit Content Blocks
+
+```rust
+use futures::executor::block_on;
+use pi::model::{ContentBlock, TextContent};
+use pi::sdk::{SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions::default()))?;
+    let blocks = vec![ContentBlock::Text(TextContent::new("Summarize the repo state"))];
+
+    let message = block_on(session.prompt_with_content(blocks, |_event| {}))?;
     println!("{message:#?}");
     Ok(())
 }
@@ -110,6 +132,40 @@ fn main() -> pi::sdk::Result<()> {
 }
 ```
 
+## Recipe 4b: Queue Modes And Pending Messages
+
+```rust
+use futures::executor::block_on;
+use pi::agent::QueueMode;
+use pi::sdk::{SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions::default()))?;
+    session.set_queue_modes(QueueMode::All, QueueMode::OneAtATime);
+    session.queue_follow_up("Run one more pass after the current turn");
+
+    let state = block_on(session.state())?;
+    println!("pending={}", state.pending_message_count);
+    Ok(())
+}
+```
+
+## Recipe 4c: Session Lifecycle Controls
+
+```rust
+use futures::executor::block_on;
+use pi::sdk::{SessionOptions, create_agent_session};
+
+fn main() -> pi::sdk::Result<()> {
+    let mut session = block_on(create_agent_session(SessionOptions::default()))?;
+    block_on(session.set_session_name("demo"))?;
+
+    let _ = block_on(session.new_session(None))?;
+    let _ = block_on(session.fork("entry-id"))?;
+    Ok(())
+}
+```
+
 ## Recipe 5: Load Extensions in SDK Sessions
 
 ```rust
@@ -171,7 +227,9 @@ fn main() -> pi::sdk::Result<()> {
 ## Compatibility Notes for Migrating Integrators
 
 - `SessionOptions::default().no_session` is `true` (ephemeral by default).
-- In-process `AgentSessionHandle` currently exposes prompt/state/model/thinking/compaction flows; queue controls like `steer`/`follow_up` are on `RpcTransportClient`.
+- In-process `AgentSessionHandle` exposes prompt/state/model/thinking/session-lifecycle/compaction flows plus queue inspection/control (`set_session_name`, `new_session`, `switch_session`, `fork`, `queue_steering`, `queue_follow_up`, `set_queue_modes`, `pending_message_count`).
+- `prompt_with_content` accepts user-facing text/image blocks only. Unsupported block kinds fail closed instead of being silently ignored.
+- `SessionTransport` now exposes `prompt_with_content`, `set_thinking_level`, `set_queue_modes`, `set_session_name`, `new_session`, `switch_session`, and `fork` so callers can share more logic between in-process and RPC transports.
 - `SessionTransport::prompt` returns `SessionPromptResult`, which is `InProcess(AssistantMessage)` or `RpcEvents(Vec<Value>)` depending on backend.
 - Extension loading is opt-in via `extension_paths`, with `extension_policy`/`repair_policy` controls.
 

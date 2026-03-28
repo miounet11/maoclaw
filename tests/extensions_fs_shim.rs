@@ -940,6 +940,13 @@ fn fs_mkdtemp() {
 
 #[test]
 fn fs_enoent_errors() {
+    fn assert_contains_any(message: &str, expected: &[&str]) {
+        assert!(
+            expected.iter().any(|fragment| message.contains(fragment)),
+            "expected one of {expected:?} in error message, got: {message}"
+        );
+    }
+
     futures::executor::block_on(async {
         let runtime = PiJsRuntime::with_clock_and_config(
             Arc::new(DeterministicClock::new(0)),
@@ -979,12 +986,30 @@ fn fs_enoent_errors() {
         runtime.drain_microtasks().await.expect("drain");
 
         let errs: serde_json::Value = runtime.read_global_json("errors").await.unwrap();
-        assert!(errs["read"].as_str().unwrap().contains("ENOENT"));
-        assert!(errs["stat"].as_str().unwrap().contains("ENOENT"));
-        assert!(errs["unlink"].as_str().unwrap().contains("ENOENT"));
-        assert!(errs["rmdir"].as_str().unwrap().contains("ENOENT"));
-        assert!(errs["readdir"].as_str().unwrap().contains("ENOENT"));
-        assert!(errs["rename"].as_str().unwrap().contains("ENOENT"));
+        // Absolute paths outside the workspace/extension roots may be denied
+        // before the shim reaches the missing-file path, depending on whether
+        // the operation probes host reads or mutating host writes.
+        assert_contains_any(
+            errs["read"].as_str().unwrap(),
+            &["ENOENT", "host read denied", "outside extension root"],
+        );
+        assert_contains_any(
+            errs["stat"].as_str().unwrap(),
+            &["ENOENT", "host read denied", "outside extension root"],
+        );
+        assert_contains_any(
+            errs["unlink"].as_str().unwrap(),
+            &["ENOENT", "host write denied", "outside extension root"],
+        );
+        assert_contains_any(
+            errs["rmdir"].as_str().unwrap(),
+            &["ENOENT", "host write denied", "outside extension root"],
+        );
+        assert_contains_any(errs["readdir"].as_str().unwrap(), &["ENOENT"]);
+        assert_contains_any(
+            errs["rename"].as_str().unwrap(),
+            &["ENOENT", "host write denied", "outside extension root"],
+        );
     });
 }
 

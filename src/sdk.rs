@@ -354,11 +354,18 @@ pub struct AgentSessionHandle {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentSessionState {
     pub session_id: Option<String>,
+    pub session_file: Option<String>,
+    pub session_name: Option<String>,
     pub provider: String,
     pub model_id: String,
     pub thinking_level: Option<crate::model::ThinkingLevel>,
+    pub is_streaming: bool,
+    pub steering_mode: QueueMode,
+    pub follow_up_mode: QueueMode,
+    pub auto_compaction_enabled: bool,
     pub save_enabled: bool,
     pub message_count: usize,
+    pub pending_message_count: usize,
 }
 
 /// Prompt completion payload returned by `SessionTransport`.
@@ -432,6 +439,95 @@ pub struct RpcSessionState {
     pub message_count: usize,
     #[serde(default)]
     pub pending_message_count: usize,
+    #[serde(default)]
+    pub goal_contract: Option<RpcGoalContract>,
+    #[serde(default)]
+    pub goal_run: Option<RpcGoalRunState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalCriterion {
+    pub id: String,
+    pub description: String,
+    #[serde(default)]
+    pub verification_hint: Option<String>,
+    #[serde(default)]
+    pub required: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalWatchdog {
+    pub heartbeat_seconds: u64,
+    pub inactivity_timeout_seconds: u64,
+    pub max_restarts: u32,
+    pub restart_on_inactive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalContract {
+    pub id: String,
+    pub title: String,
+    pub goal: String,
+    #[serde(default)]
+    pub criteria: Vec<RpcGoalCriterion>,
+    #[serde(default)]
+    pub system_id: Option<String>,
+    #[serde(default)]
+    pub artifact_type: Option<String>,
+    pub watchdog: RpcGoalWatchdog,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalCriterionState {
+    pub criterion_id: String,
+    pub satisfied: bool,
+    #[serde(default)]
+    pub evidence: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalRunState {
+    pub goal_id: String,
+    #[serde(default)]
+    pub session_id: Option<String>,
+    pub status: String,
+    pub restart_count: u32,
+    pub last_progress_at: String,
+    #[serde(default)]
+    pub criteria: Vec<RpcGoalCriterionState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalState {
+    #[serde(default)]
+    pub goal_contract: Option<RpcGoalContract>,
+    #[serde(default)]
+    pub goal_run: Option<RpcGoalRunState>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalRunUpdate {
+    pub action: String,
+    #[serde(default)]
+    pub evidence: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct RpcGoalCriterionUpdate {
+    pub criterion_id: String,
+    pub satisfied: bool,
+    #[serde(default)]
+    pub evidence: Option<String>,
 }
 
 /// Session-level token aggregates returned by RPC `get_session_stats`.
@@ -587,7 +683,7 @@ pub enum SessionTransport {
 
 impl SessionTransport {
     pub async fn in_process(options: SessionOptions) -> Result<Self> {
-        create_agent_session(options)
+        Box::pin(create_agent_session(options))
             .await
             .map(Box::new)
             .map(Self::InProcess)
@@ -644,6 +740,39 @@ impl SessionTransport {
         }
     }
 
+    /// Send one prompt composed of explicit content blocks.
+    ///
+    /// Only text and image blocks are accepted for prompt input.
+    pub async fn prompt_with_content(
+        &mut self,
+        content: Vec<ContentBlock>,
+        on_event: impl Fn(SessionTransportEvent) + Send + Sync + 'static,
+    ) -> Result<SessionPromptResult> {
+        let on_event = Arc::new(on_event);
+        match self {
+            Self::InProcess(handle) => {
+                let on_event = Arc::clone(&on_event);
+                let assistant = handle
+                    .prompt_with_content(content, move |event| {
+                        (on_event)(SessionTransportEvent::InProcess(event));
+                    })
+                    .await?;
+                Ok(SessionPromptResult::InProcess(assistant))
+            }
+            Self::RpcSubprocess(client) => {
+                let (text, images) =
+                    crate::agent::AgentSession::split_content_blocks_for_input(&content)?;
+                let events = client
+                    .prompt_with_options(text, (!images.is_empty()).then_some(images), None)
+                    .await?;
+                for event in events.iter().cloned() {
+                    (on_event)(SessionTransportEvent::Rpc(event));
+                }
+                Ok(SessionPromptResult::RpcEvents(events))
+            }
+        }
+    }
+
     /// Return a state snapshot from the active transport.
     pub async fn state(&mut self) -> Result<SessionTransportState> {
         match self {
@@ -664,6 +793,69 @@ impl SessionTransport {
                 let _ = client.set_model(provider, model_id).await?;
                 Ok(())
             }
+        }
+    }
+
+    /// Update the active thinking level for the current transport.
+    pub async fn set_thinking_level(&mut self, level: crate::model::ThinkingLevel) -> Result<()> {
+        match self {
+            Self::InProcess(handle) => handle.set_thinking_level(level).await,
+            Self::RpcSubprocess(client) => client.set_thinking_level(level).await,
+        }
+    }
+
+    /// Update steering/follow-up queue delivery modes for the current transport.
+    pub async fn set_queue_modes(
+        &mut self,
+        steering: QueueMode,
+        follow_up: QueueMode,
+    ) -> Result<()> {
+        match self {
+            Self::InProcess(handle) => {
+                handle.set_queue_modes(steering, follow_up);
+                Ok(())
+            }
+            Self::RpcSubprocess(client) => {
+                client.set_steering_mode(steering.as_str()).await?;
+                client.set_follow_up_mode(follow_up.as_str()).await
+            }
+        }
+    }
+
+    /// Update the user-visible session name for the current transport.
+    pub async fn set_session_name(&mut self, name: impl Into<String>) -> Result<()> {
+        let name = name.into();
+        match self {
+            Self::InProcess(handle) => handle.set_session_name(name).await,
+            Self::RpcSubprocess(client) => client.set_session_name(name).await,
+        }
+    }
+
+    /// Replace the active session with a fresh one, optionally pointing at a parent.
+    pub async fn new_session(
+        &mut self,
+        parent_session: Option<&Path>,
+    ) -> Result<RpcCancelledResult> {
+        match self {
+            Self::InProcess(handle) => handle.new_session(parent_session).await,
+            Self::RpcSubprocess(client) => client.new_session(parent_session).await,
+        }
+    }
+
+    /// Load an existing saved session into the current transport.
+    pub async fn switch_session(&mut self, session_path: &Path) -> Result<RpcCancelledResult> {
+        match self {
+            Self::InProcess(handle) => handle.switch_session(session_path).await,
+            Self::RpcSubprocess(client) => client.switch_session(session_path).await,
+        }
+    }
+
+    /// Fork the current session at a user-message entry ID.
+    pub async fn fork(&mut self, entry_id: impl Into<String>) -> Result<RpcForkResult> {
+        let entry_id = entry_id.into();
+        match self {
+            Self::InProcess(handle) => handle.fork(entry_id).await,
+            Self::RpcSubprocess(client) => client.fork(entry_id).await,
         }
     }
 
@@ -776,6 +968,51 @@ impl RpcTransportClient {
 
     pub async fn get_state(&mut self) -> Result<RpcSessionState> {
         self.request_typed("get_state", Map::new()).await
+    }
+
+    pub async fn get_goal_contract(&mut self) -> Result<RpcGoalState> {
+        self.request_typed("get_goal_contract", Map::new()).await
+    }
+
+    pub async fn set_goal_contract(
+        &mut self,
+        goal_contract: &RpcGoalContract,
+    ) -> Result<RpcGoalState> {
+        let mut payload = Map::new();
+        payload.insert(
+            "goalContract".to_string(),
+            serde_json::to_value(goal_contract)
+                .map_err(|err| Error::validation(format!("serialize goal contract: {err}")))?,
+        );
+        self.request_typed("set_goal_contract", payload).await
+    }
+
+    pub async fn update_goal_run(&mut self, goal_run: &RpcGoalRunUpdate) -> Result<RpcGoalState> {
+        let mut payload = Map::new();
+        payload.insert(
+            "goalRun".to_string(),
+            serde_json::to_value(goal_run)
+                .map_err(|err| Error::validation(format!("serialize goal run update: {err}")))?,
+        );
+        self.request_typed("update_goal_run", payload).await
+    }
+
+    pub async fn update_goal_criterion(
+        &mut self,
+        goal_criterion: &RpcGoalCriterionUpdate,
+    ) -> Result<RpcGoalState> {
+        let mut payload = Map::new();
+        payload.insert(
+            "goalCriterion".to_string(),
+            serde_json::to_value(goal_criterion).map_err(|err| {
+                Error::validation(format!("serialize goal criterion update: {err}"))
+            })?,
+        );
+        self.request_typed("update_goal_criterion", payload).await
+    }
+
+    pub async fn clear_goal_contract(&mut self) -> Result<RpcGoalState> {
+        self.request_typed("clear_goal_contract", Map::new()).await
     }
 
     pub async fn get_session_stats(&mut self) -> Result<RpcSessionStats> {
@@ -1156,6 +1393,31 @@ impl AgentSessionHandle {
             .await
     }
 
+    /// Send one prompt composed of explicit content blocks.
+    ///
+    /// Only text and image blocks are accepted for prompt input.
+    pub async fn prompt_with_content(
+        &mut self,
+        content: Vec<ContentBlock>,
+        on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
+    ) -> Result<AssistantMessage> {
+        let combined = self.make_combined_callback(on_event);
+        self.session.run_with_content(content, combined).await
+    }
+
+    /// Send one content-block prompt with an explicit abort signal.
+    pub async fn prompt_with_content_with_abort(
+        &mut self,
+        content: Vec<ContentBlock>,
+        abort_signal: AbortSignal,
+        on_event: impl Fn(AgentEvent) + Send + Sync + 'static,
+    ) -> Result<AssistantMessage> {
+        let combined = self.make_combined_callback(on_event);
+        self.session
+            .run_with_content_with_abort(content, Some(abort_signal), combined)
+            .await
+    }
+
     /// Continue the current agent loop without adding a new user prompt.
     ///
     /// This is useful for retry/continuation flows where session history or
@@ -1290,6 +1552,73 @@ impl AgentSessionHandle {
         self.session.persist_session().await
     }
 
+    /// Queue a steering message for the next agent continuation boundary.
+    pub fn queue_steering(&mut self, input: impl Into<String>) -> u64 {
+        self.session
+            .agent
+            .queue_steering(Message::User(UserMessage {
+                content: UserContent::Text(input.into()),
+                timestamp: chrono::Utc::now().timestamp_millis(),
+            }))
+    }
+
+    /// Queue a follow-up message for the next idle boundary.
+    pub fn queue_follow_up(&mut self, input: impl Into<String>) -> u64 {
+        self.session
+            .agent
+            .queue_follow_up(Message::User(UserMessage {
+                content: UserContent::Text(input.into()),
+                timestamp: chrono::Utc::now().timestamp_millis(),
+            }))
+    }
+
+    /// Update in-process steering/follow-up queue delivery modes.
+    pub const fn set_queue_modes(&mut self, steering: QueueMode, follow_up: QueueMode) {
+        self.session.agent.set_queue_modes(steering, follow_up);
+    }
+
+    /// Return the current in-process queue delivery modes.
+    pub const fn queue_modes(&self) -> (QueueMode, QueueMode) {
+        self.session.agent.queue_modes()
+    }
+
+    /// Return the number of queued steering/follow-up messages.
+    pub fn pending_message_count(&self) -> usize {
+        self.session.agent.queued_message_count()
+    }
+
+    /// Persist a user-visible session name to metadata/storage.
+    pub async fn set_session_name(&mut self, name: impl Into<String>) -> Result<()> {
+        let name = name.into();
+        self.session.set_session_name(&name).await
+    }
+
+    /// Replace the active session with a fresh one, preserving model metadata.
+    pub async fn new_session(
+        &mut self,
+        parent_session: Option<&Path>,
+    ) -> Result<RpcCancelledResult> {
+        let parent_session = parent_session.map(|path| path.display().to_string());
+        let _ = self.session.new_session(parent_session).await?;
+        Ok(RpcCancelledResult { cancelled: false })
+    }
+
+    /// Load an existing session file into this handle.
+    pub async fn switch_session(&mut self, session_path: &Path) -> Result<RpcCancelledResult> {
+        let _ = self.session.switch_session(session_path).await?;
+        Ok(RpcCancelledResult { cancelled: false })
+    }
+
+    /// Fork the session from a user-message entry.
+    pub async fn fork(&mut self, entry_id: impl Into<String>) -> Result<RpcForkResult> {
+        let entry_id = entry_id.into();
+        let result = self.session.fork_session(&entry_id).await?;
+        Ok(RpcForkResult {
+            text: result.selected_text,
+            cancelled: false,
+        })
+    }
+
     /// Return all model messages for the current session path.
     pub async fn messages(&self) -> Result<Vec<Message>> {
         let cx = crate::agent_cx::AgentCx::for_request();
@@ -1304,8 +1633,10 @@ impl AgentSessionHandle {
 
     /// Return a lightweight state snapshot.
     pub async fn state(&self) -> Result<AgentSessionState> {
-        let (provider, model_id) = self.model();
-        let thinking_level = self.thinking_level();
+        let is_streaming = self.session.is_streaming();
+        let (steering_mode, follow_up_mode) = self.queue_modes();
+        let pending_message_count = self.pending_message_count();
+        let auto_compaction_enabled = self.session.compaction_enabled();
         let save_enabled = self.session.save_enabled();
         let cx = crate::agent_cx::AgentCx::for_request();
         let guard = self
@@ -1315,15 +1646,40 @@ impl AgentSessionHandle {
             .await
             .map_err(|e| Error::session(e.to_string()))?;
         let session_id = Some(guard.header.id.clone());
+        let session_file = guard.path.as_ref().map(|path| path.display().to_string());
+        let session_name = guard.get_name();
+        let provider = guard
+            .header
+            .provider
+            .clone()
+            .unwrap_or_else(|| self.session.agent.provider().name().to_string());
+        let model_id = guard
+            .header
+            .model_id
+            .clone()
+            .unwrap_or_else(|| self.session.agent.provider().model_id().to_string());
+        let thinking_level = guard
+            .header
+            .thinking_level
+            .as_deref()
+            .and_then(|value| value.parse::<crate::model::ThinkingLevel>().ok())
+            .or_else(|| self.session.agent.stream_options().thinking_level);
         let message_count = guard.to_messages_for_current_path().len();
 
         Ok(AgentSessionState {
             session_id,
+            session_file,
+            session_name,
             provider,
             model_id,
             thinking_level,
+            is_streaming,
+            steering_mode,
+            follow_up_mode,
+            auto_compaction_enabled,
             save_enabled,
             message_count,
+            pending_message_count,
         })
     }
 
@@ -1483,6 +1839,35 @@ fn resolve_path_for_cwd(path: &Path, cwd: &Path) -> PathBuf {
     }
 }
 
+#[derive(Clone)]
+struct SessionRuntimeContext {
+    process_cwd: PathBuf,
+    config: Config,
+    global_dir: PathBuf,
+    package_dir: PathBuf,
+    auth_path: PathBuf,
+}
+
+impl SessionRuntimeContext {
+    fn load_for_process() -> Result<Self> {
+        let process_cwd = std::env::current_dir()
+            .map_err(|e| Error::config(format!("cwd lookup failed: {e}")))?;
+        let config_path = Config::config_path_override_from_env(&process_cwd);
+        let global_dir = Config::global_dir();
+        let config = Config::load_with_roots(config_path.as_deref(), &global_dir, &process_cwd)?;
+        let package_dir = Config::package_dir();
+        let auth_path = Config::auth_path();
+
+        Ok(Self {
+            process_cwd,
+            config,
+            global_dir,
+            package_dir,
+            auth_path,
+        })
+    }
+}
+
 fn build_stream_options_with_optional_key(
     config: &Config,
     api_key: Option<String>,
@@ -1515,10 +1900,16 @@ fn build_stream_options_with_optional_key(
 ///
 /// This is the programmatic entrypoint for non-CLI consumers that want to run
 /// Pi sessions in-process.
-#[allow(clippy::too_many_lines)]
 pub async fn create_agent_session(options: SessionOptions) -> Result<AgentSessionHandle> {
-    let process_cwd =
-        std::env::current_dir().map_err(|e| Error::config(format!("cwd lookup failed: {e}")))?;
+    create_agent_session_with_runtime(options, SessionRuntimeContext::load_for_process()?).await
+}
+
+#[allow(clippy::too_many_lines)]
+async fn create_agent_session_with_runtime(
+    options: SessionOptions,
+    runtime: SessionRuntimeContext,
+) -> Result<AgentSessionHandle> {
+    let process_cwd = runtime.process_cwd;
     let cwd = options.working_directory.as_deref().map_or_else(
         || process_cwd.clone(),
         |path| resolve_path_for_cwd(path, &process_cwd),
@@ -1529,6 +1920,12 @@ pub async fn create_agent_session(options: SessionOptions) -> Result<AgentSessio
     cli.no_session = options.no_session;
     cli.provider = options.provider.clone();
     cli.model = options.model.clone();
+    if cli.provider.is_none() && cli.model.is_none() {
+        // Keep the SDK default deterministic for embedded consumers instead of
+        // inheriting whichever provider happens to have credentials on the host.
+        cli.provider = Some("openai-codex".to_string());
+        cli.model = Some("gpt-5.4".to_string());
+    }
     cli.api_key = options.api_key.clone();
     cli.system_prompt = options.system_prompt.clone();
     cli.append_system_prompt = options.append_system_prompt.clone();
@@ -1550,17 +1947,19 @@ pub async fn create_agent_session(options: SessionOptions) -> Result<AgentSessio
         }
     }
 
-    let config = Config::load()?;
+    let config = runtime.config;
 
-    let mut auth = AuthStorage::load_async(Config::auth_path()).await?;
+    let mut auth = AuthStorage::load_async(runtime.auth_path).await?;
     auth.refresh_expired_oauth_tokens().await?;
 
-    let global_dir = Config::global_dir();
-    let package_dir = Config::package_dir();
+    let global_dir = runtime.global_dir;
+    let package_dir = runtime.package_dir;
     let models_path = default_models_path(&global_dir);
     let model_registry = ModelRegistry::load(&auth, Some(models_path));
 
     let mut session = Session::new(&cli, &config).await?;
+    let active_goal = crate::goals::latest_goal_contract(&session);
+    let active_goal_run = crate::goals::latest_goal_run_state(&session);
     let scoped_patterns = if let Some(models_arg) = &cli.models {
         app::parse_models_arg(models_arg)
     } else {
@@ -1593,15 +1992,32 @@ pub async fn create_agent_session(options: SessionOptions) -> Result<AgentSessio
         .map(String::as_str)
         .collect::<Vec<_>>();
 
-    let system_prompt = app::build_system_prompt(
+    let base_system_prompt = app::build_system_prompt(
         &cli,
         &cwd,
         &enabled_tools,
+        None,
         None,
         &global_dir,
         &package_dir,
         std::env::var_os("PI_TEST_MODE").is_some(),
         !cli.hide_cwd_in_prompt,
+    );
+    let system_prompt = active_goal.as_ref().map_or_else(
+        || base_system_prompt.clone(),
+        |goal| {
+            app::build_system_prompt(
+                &cli,
+                &cwd,
+                &enabled_tools,
+                None,
+                Some(goal),
+                &global_dir,
+                &package_dir,
+                std::env::var_os("PI_TEST_MODE").is_some(),
+                !cli.hide_cwd_in_prompt,
+            )
+        },
     );
 
     let provider = providers::create_provider(&selection.model_entry, None)
@@ -1644,6 +2060,11 @@ pub async fn create_agent_session(options: SessionOptions) -> Result<AgentSessio
         Arc::clone(&session_arc),
         !cli.no_session,
         compaction_settings,
+    );
+    agent_session.configure_goal_contract_context(
+        Some(base_system_prompt),
+        active_goal,
+        active_goal_run,
     );
 
     if !options.extension_paths.is_empty() {
@@ -1719,6 +2140,24 @@ mod tests {
         runtime.block_on(future)
     }
 
+    fn test_runtime(root: &Path) -> SessionRuntimeContext {
+        let global_dir = root.join(".sdk-test-global");
+        std::fs::create_dir_all(&global_dir).expect("create test global dir");
+        std::fs::write(
+            global_dir.join("auth.json"),
+            r#"{ "openai": { "type": "api_key", "key": "test-openai-key" } }"#,
+        )
+        .expect("write test auth");
+        let config = Config::load_with_roots(None, &global_dir, root).expect("load test config");
+        SessionRuntimeContext {
+            process_cwd: root.to_path_buf(),
+            config,
+            package_dir: global_dir.join("packages"),
+            auth_path: global_dir.join("auth.json"),
+            global_dir,
+        }
+    }
+
     #[test]
     fn create_agent_session_default_succeeds() {
         let tmp = tempdir().expect("tempdir");
@@ -1728,7 +2167,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         let provider = handle.session().agent.provider();
         assert_eq!(provider.name(), "openai-codex");
         assert_eq!(provider.model_id(), "gpt-5.4");
@@ -1746,7 +2189,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         let provider = handle.session().agent.provider();
         assert_eq!(provider.name(), "openai");
         assert_eq!(provider.model_id(), "gpt-4o");
@@ -1765,7 +2212,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         assert!(!handle.session().save_enabled());
 
         let path_is_none = run_async(async {
@@ -1790,7 +2241,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let mut handle = run_async(create_agent_session(options)).expect("create session");
+        let mut handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         run_async(handle.set_model("openai", "gpt-4o")).expect("set model");
         let provider = handle.session().agent.provider();
         assert_eq!(provider.name(), "openai");
@@ -1806,7 +2261,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let mut handle = run_async(create_agent_session(options)).expect("create session");
+        let mut handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         let events = Arc::new(Mutex::new(Vec::new()));
         let events_for_callback = Arc::clone(&events);
         run_async(handle.compact(move |event| {
@@ -2015,7 +2474,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         // Verify the listener was registered
         let count = handle
             .listeners()
@@ -2038,7 +2501,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         let id = handle.subscribe(|_event| {});
         assert_eq!(
             handle
@@ -2137,7 +2604,11 @@ mod tests {
             ..SessionOptions::default()
         };
 
-        let handle = run_async(create_agent_session(options)).expect("create session");
+        let handle = run_async(create_agent_session_with_runtime(
+            options,
+            test_runtime(tmp.path()),
+        ))
+        .expect("create session");
         assert!(
             !handle.has_extensions(),
             "session without extension_paths should have no extensions"
