@@ -284,12 +284,12 @@ jobs:
           if (Test-Path "LICENSE") { Copy-Item "LICENSE" "$stageDir/" }
           if (Test-Path "README.md") { Copy-Item "README.md" "$stageDir/" }
           @'
-maoclaw Windows desktop package
+          maoclaw Windows desktop package
 
-- Run pi_desktop.exe for the native desktop UI.
-- Run maoclaw.exe for the branded CLI.
-- Run pi.exe for the compatibility CLI.
-'@ | Out-File -Encoding utf8 "$stageDir/WINDOWS-DESKTOP-README.txt"
+          - Run pi_desktop.exe for the native desktop UI.
+          - Run maoclaw.exe for the branded CLI.
+          - Run pi.exe for the compatibility CLI.
+          '@ | Out-File -Encoding utf8 "$stageDir/WINDOWS-DESKTOP-README.txt"
 
           Compress-Archive -Path "$stageDir" -DestinationPath "dist/maoclaw-windows-amd64-$version-portable.zip"
           Remove-Item -Recurse -Force $stageDir
