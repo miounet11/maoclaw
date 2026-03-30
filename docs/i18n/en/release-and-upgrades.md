@@ -11,9 +11,20 @@ This page explains where to track public releases, current build upgrades, and d
 
 ## 2. Current Public Release Line
 
-### March 28, 2026: `v0.1.12`
+### March 30, 2026: `v0.1.13`
 
 Current latest formal release in the repository changelog.
+
+Main focus:
+
+- multi-agent terminal mesh coordination on the shared runtime
+- hardened release evidence and claim-integrity contracts
+- release gating aligned to the supported official-tier conformance oracle
+- extension conformance fixture hardening for verified-corpus stability
+
+### March 28, 2026: `v0.1.12`
+
+Previous formal release in the repository changelog.
 
 Main focus:
 
@@ -51,7 +62,7 @@ These items may exist in the current build before they are cut into the next tag
 Current active track:
 
 - deeper onboarding and zero-config automation refinement
-- agent-management and runtime-governance surface upgrades
+- agent-management, runtime-governance, and mesh orchestration surface upgrades
 - broader Windows packaging polish beyond the current portable desktop archive
 
 Treat these as current build improvements unless and until a tagged release lands.

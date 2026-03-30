@@ -3,10 +3,9 @@
  */
 
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import type { Message } from "@mariozechner/pi-ai";
-import type { AsyncStatus, DisplayItem, ErrorInfo } from "./types.js";
+import { RUNTIME_DIR, type AsyncStatus, type DisplayItem, type ErrorInfo } from "./types.js";
 
 // ============================================================================
 // File System Utilities
@@ -142,7 +141,9 @@ export function findLatestSessionFile(sessionDir: string): string | null {
  * Write a prompt to a temporary file
  */
 export function writePrompt(agent: string, prompt: string): { dir: string; path: string } {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+	const promptRoot = path.join(RUNTIME_DIR, "prompt-tmp");
+	fs.mkdirSync(promptRoot, { recursive: true });
+	const dir = fs.mkdtempSync(path.join(promptRoot, "pi-subagent-"));
 	const p = path.join(dir, `${agent.replace(/[^\w.-]/g, "_")}.md`);
 	fs.writeFileSync(p, prompt, { mode: 0o600 });
 	return { dir, path: p };

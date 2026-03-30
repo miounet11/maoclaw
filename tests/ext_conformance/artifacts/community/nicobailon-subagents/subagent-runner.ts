@@ -10,6 +10,7 @@ import {
 	type ArtifactPaths,
 	DEFAULT_MAX_OUTPUT,
 	type MaxOutputConfig,
+	RUNTIME_DIR,
 	truncateOutput,
 } from "./types.js";
 
@@ -350,7 +351,9 @@ async function runSubagent(config: SubagentRunConfig): Promise<void> {
 
 		let tmpDir: string | null = null;
 		if (step.systemPrompt) {
-			tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-"));
+			const tempRoot = path.join(RUNTIME_DIR, "runner-tmp");
+			fs.mkdirSync(tempRoot, { recursive: true });
+			tmpDir = fs.mkdtempSync(path.join(tempRoot, "pi-subagent-"));
 			const promptPath = path.join(tmpDir, "prompt.md");
 			fs.writeFileSync(promptPath, step.systemPrompt);
 			args.push("--append-system-prompt", promptPath);

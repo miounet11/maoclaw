@@ -8,7 +8,18 @@ Pre-release migration notes and transition-era launch materials are not treated 
 
 Highlights:
 
-- Continue tightening onboarding, agent-management ergonomics, and post-release packaging polish on top of the new `v0.1.12` desktop distribution baseline.
+- Continue tightening onboarding, agent-management ergonomics, and post-release packaging polish on top of the new `v0.1.13` desktop distribution baseline.
+
+## 0.1.13 - Multi-Agent Mesh And Release Evidence Hardening
+
+Released: 2026-03-30
+
+Highlights:
+
+- Hardened the release evidence path by fixing the kernel-boundary drift report contract so claim-integrity and evidence-contract gating agree on one schema and verdict shape.
+- Brought the release gate, regression checks, and focused readiness flow into alignment with the official-tier conformance oracle instead of failing on unsupported whole-corpus N/A accounting.
+- Fixed the `community/nicobailon-subagents` conformance fixture to stay inside the extension-root write sandbox, restoring full generated conformance pass coverage for the verified corpus.
+- Continued expanding the local agent-mesh and bridge surfaces so shared terminal coordination across maoclaw, Claude Code, and Codex can be managed as one runtime system instead of separate manual workflows.
 
 ## 0.1.12 - Native Desktop Security And Public Distribution
 

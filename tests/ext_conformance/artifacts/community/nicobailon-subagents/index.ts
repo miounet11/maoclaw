@@ -37,6 +37,7 @@ import {
 	MAX_PARALLEL,
 	POLL_INTERVAL_MS,
 	RESULTS_DIR,
+	RUNTIME_DIR,
 	WIDGET_KEY,
 } from "./types.js";
 import { formatDuration } from "./formatters.js";
@@ -175,7 +176,11 @@ Example: { chain: [{agent:"scout", task:"Analyze {task}"}, {agent:"planner", tas
 			const sessionRoot = sessionEnabled
 				? params.sessionDir
 					? path.resolve(params.sessionDir)
-					: fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-session-"))
+					: (() => {
+						const sessionRootDir = path.join(RUNTIME_DIR, "sessions");
+						fs.mkdirSync(sessionRootDir, { recursive: true });
+						return fs.mkdtempSync(path.join(sessionRootDir, "pi-subagent-session-"));
+					})()
 				: undefined;
 			if (sessionRoot) {
 				try {
@@ -532,7 +537,9 @@ Example: { chain: [{agent:"scout", task:"Analyze {task}"}, {agent:"planner", tas
 				// Compute output path at runtime (uses effectiveOutput which may be TUI-modified)
 				let outputPath: string | undefined;
 				if (typeof effectiveOutput === 'string' && effectiveOutput) {
-					const outputDir = `/tmp/pi-${agentConfig.name}-${runId}`;
+					const outputRoot = path.join(RUNTIME_DIR, "outputs");
+					fs.mkdirSync(outputRoot, { recursive: true });
+					const outputDir = path.join(outputRoot, `pi-${agentConfig.name}-${runId}`);
 					fs.mkdirSync(outputDir, { recursive: true });
 					outputPath = `${outputDir}/${effectiveOutput}`;
 

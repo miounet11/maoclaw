@@ -168,7 +168,7 @@ struct LegacyGeneratedModel {
 }
 
 const LEGACY_MODELS_GENERATED_TS: &str =
-    include_str!("../legacy_pi_mono_code/pi-mono/packages/ai/src/models.generated.ts");
+    include_str!(concat!(env!("OUT_DIR"), "/legacy_models_generated.ts"));
 const UPSTREAM_PROVIDER_MODEL_IDS_JSON: &str =
     include_str!("../docs/provider-upstream-model-ids-snapshot.json");
 const CODEX_RESPONSES_API_URL: &str = "https://chatgpt.com/backend-api/codex/responses";

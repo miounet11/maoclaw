@@ -1,43 +1,53 @@
 {
-  "schema": "pi.frankennode.kernel_boundary_drift_report.v1",
-  "bead_id": "bd-3ar8v.7.2",
-  "support_bead_ids": ["bd-3ar8v.7.2.5"],
-  "generated_at": "2026-02-17T08:30:00Z",
-  "manifest_path": "docs/franken-node-kernel-extraction-boundary-manifest.json",
+  "schema": "pi.franken_node.kernel_boundary_drift_report.v1",
+  "generated_at": "2026-03-30T05:50:42.717635+00:00",
+  "run_id": "20260330T053955Z-unsharded",
+  "correlation_id": "20260330T053955Z-unsharded",
+  "manifest": {
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust/docs/franken-node-kernel-extraction-boundary-manifest.json",
+    "schema": "pi.frankennode.kernel_extraction_boundary_manifest.v1",
+    "contract_version": "1.1.0",
+    "support_bead_ids": [
+      "bd-3ar8v.7.2.1",
+      "bd-3ar8v.7.2.3"
+    ]
+  },
   "checks": [
     {
       "check_id": "kernel_boundary.all_modules_mapped_or_deferred",
       "status": "pass",
-      "detail": "All source modules in boundary_domains and deferred_modules cover the kernel extraction scope."
+      "reason": "declared in drift_detection_contract.required_checks"
     },
     {
       "check_id": "kernel_boundary.no_duplicate_domain_ownership",
       "status": "pass",
-      "detail": "No module appears in more than one boundary domain."
+      "reason": "declared in drift_detection_contract.required_checks"
     },
     {
       "check_id": "kernel_boundary.banned_cross_boundary_pairs_absent",
       "status": "pass",
-      "detail": "Banned cross-boundary import pairs not detected in codebase."
+      "reason": "declared in drift_detection_contract.required_checks"
     },
     {
       "check_id": "kernel_boundary.reintegration_target_list_complete",
       "status": "pass",
-      "detail": "All reintegration_linkage.replacement_targets have corresponding boundary domain entries."
+      "reason": "declared in drift_detection_contract.required_checks"
     },
     {
       "check_id": "kernel_boundary.reintegration_module_mappings_complete",
       "status": "pass",
-      "detail": "All module_mappings in reintegration_linkage have valid source_module, target_crate, and replacement_target entries."
+      "reason": "declared in drift_detection_contract.required_checks"
     }
   ],
   "summary": {
-    "total_checks": 5,
+    "required_checks_count": 5,
+    "passing_checks": 5,
+    "failing_checks": 0,
     "pass_count": 5,
     "fail_count": 0,
+    "replacement_targets_count": 7,
+    "module_mappings_count": 7,
     "verdict": "pass",
-    "boundary_domains_count": 7,
-    "deferred_modules_count": 2,
-    "reintegration_mappings_count": 7
+    "overall_status": "pass"
   }
 }

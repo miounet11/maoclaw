@@ -1,6 +1,18 @@
+use std::{env, fs, path::PathBuf};
+
 use vergen_gix::{BuildBuilder, CargoBuilder, Emitter, GixBuilder, RustcBuilder};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+    let legacy_models_source =
+        PathBuf::from("legacy_pi_mono_code/pi-mono/packages/ai/src/models.generated.ts");
+    let legacy_models_out = out_dir.join("legacy_models_generated.ts");
+    let legacy_models =
+        fs::read_to_string(&legacy_models_source).unwrap_or_else(|_| String::from("// stub\n"));
+    fs::write(&legacy_models_out, legacy_models)?;
+
+    println!("cargo:rerun-if-changed={}", legacy_models_source.display());
+
     let build = BuildBuilder::default().build_timestamp(true).build()?;
     let cargo = CargoBuilder::default().target_triple(true).build()?;
     let gix = GixBuilder::default().sha(true).dirty(true).build()?;

@@ -1,8 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ArtifactPaths } from "./types.js";
-
-const TEMP_ARTIFACTS_DIR = "/tmp/pi-subagent-artifacts";
+import { TEMP_ARTIFACTS_DIR, type ArtifactPaths } from "./types.js";
 const CLEANUP_MARKER_FILE = ".last-cleanup";
 
 export function getArtifactsDir(sessionFile: string | null): string {

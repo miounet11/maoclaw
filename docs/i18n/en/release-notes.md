@@ -1,28 +1,32 @@
 # Release Notes
 
-`Maozhua v0.1` is the first public trial release.
+The current public release line has two checkpoints users should recognize immediately:
 
-## What This Release Focuses On
+- `v0.1.13` on March 30, 2026: latest formal public release
+- `v0.1.12` on March 28, 2026: previous formal public release
+- `v0.1.11` on March 16, 2026: latest formal public release
+- `v0.1.9` on March 15, 2026: first official `maoclaw` open-source release
 
-- terminal-first AI coding workflows
-- real install, configuration, session, and baseline integration paths
-- a multilingual GitHub documentation system
-- macOS-oriented desktop distribution
+## What The Current Release Line Focuses On
 
-## Who It Is For
+- terminal-first AI coding workflows on one shared runtime
+- real install, configuration, session, and integration paths
+- terminal-mesh coordination for multi-agent local workflows
+- native desktop security posture and readiness visibility on the same runtime
+- macOS desktop distribution plus a Windows portable desktop package
+- explicit release boundaries instead of inflated compatibility claims
 
-- developers evaluating AI coding agents
-- teams assessing local-first workflow tools
-- integrators building on RPC or desktop shells
+## What Is In The Current Build Track
 
-## Current Boundaries
+- deeper onboarding and zero-config automation refinement
+- broader agent-management, runtime-governance, and mesh orchestration work
+- additional Windows packaging polish beyond the current portable desktop archive
 
-- do not overclaim stability across every scenario
-- do not promise direct reuse of every third-party ecosystem
-- do not treat internal engineering documents as end-user docs
+Those build-track items are real, but they should not be described as separately tagged releases unless they land in `CHANGELOG.md`.
 
 Continue with:
 
 - [Support Scope](support-scope.md)
 - [Known Limitations](known-limitations.md)
 - [Changelog](changelog.md)
+- [Release And Upgrade Guide](release-and-upgrades.md)

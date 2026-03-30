@@ -4,7 +4,6 @@
 
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
-import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -17,6 +16,7 @@ import {
 	type Details,
 	type MaxOutputConfig,
 	ASYNC_DIR,
+	RUNTIME_DIR,
 	RESULTS_DIR,
 } from "./types.js";
 
@@ -80,8 +80,10 @@ export function isAsyncAvailable(): boolean {
  */
 function spawnRunner(cfg: object, suffix: string, cwd: string): number | undefined {
 	if (!jitiCliPath) return undefined;
-	
-	const cfgPath = path.join(os.tmpdir(), `pi-async-cfg-${suffix}.json`);
+
+	const cfgDir = path.join(RUNTIME_DIR, "async-config");
+	fs.mkdirSync(cfgDir, { recursive: true });
+	const cfgPath = path.join(cfgDir, `pi-async-cfg-${suffix}.json`);
 	fs.writeFileSync(cfgPath, JSON.stringify(cfg));
 	const runner = path.join(path.dirname(fileURLToPath(import.meta.url)), "subagent-runner.ts");
 	

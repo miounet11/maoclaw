@@ -6,8 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentConfig } from "./agents.js";
 import { normalizeSkillInput } from "./skills.js";
-
-const CHAIN_RUNS_DIR = "/tmp/pi-chain-runs";
+import { CHAIN_RUNS_DIR } from "./types.js";
 const CHAIN_DIR_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // =============================================================================
@@ -366,4 +365,3 @@ export function aggregateParallelOutputs(results: ParallelTaskResult[]): string 
 		})
 		.join("\n\n");
 }
-

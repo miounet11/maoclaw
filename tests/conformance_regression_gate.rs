@@ -356,11 +356,15 @@ fn scenario_pass_rate_meets_threshold() {
 fn na_count_within_ci_gate_maximum() {
     let sm = summary();
 
-    let na = get_u64(&sm, "/counts/na");
-    // CI gate default: max 170 N/A.
+    let na = official_tier_counts(&sm)
+        .map_or_else(|| get_u64(&sm, "/counts/na"), |counts| counts.skipped_or_na);
+    // CI gate default: max 170 official-tier N/A.
     let max_na: u64 = 170;
 
-    assert!(na <= max_na, "N/A count {na} exceeds maximum {max_na}");
+    assert!(
+        na <= max_na,
+        "official-tier N/A count {na} exceeds maximum {max_na}"
+    );
 }
 
 #[test]

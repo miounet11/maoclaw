@@ -11,9 +11,20 @@
 
 ## 2. 当前正式公开发布线
 
-### 2026 年 3 月 28 日：`v0.1.12`
+### 2026 年 3 月 30 日：`v0.1.13`
 
 这是当前仓库 `CHANGELOG.md` 里的最新正式发布。
+
+主要内容：
+
+- 共享运行时上的多 Agent terminal mesh 协同
+- 更坚实的 release evidence 与 claim-integrity 合同
+- 对齐到受支持 official-tier conformance oracle 的发布 gate
+- 面向已验证语料稳定性的 extension conformance fixture 加固
+
+### 2026 年 3 月 28 日：`v0.1.12`
+
+这是当前仓库 `CHANGELOG.md` 里的上一正式发布。
 
 主要内容：
 
@@ -51,7 +62,7 @@
 当前活跃升级方向：
 
 - 继续打磨 onboarding 与 zero-config 自动化路径
-- 继续升级 agent 管理与 runtime 治理表面
+- 继续升级 agent 管理、runtime 治理与 mesh orchestration 表面
 - 在当前 Windows 可携式桌面包之外，继续完善更完整的分发体验
 
 这些应被视为“当前构建升级”，除非后续明确进入正式 tag。

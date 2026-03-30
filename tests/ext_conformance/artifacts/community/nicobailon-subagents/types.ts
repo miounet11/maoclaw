@@ -2,6 +2,9 @@
  * Type definitions for the subagent extension
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Message } from "@mariozechner/pi-ai";
 
 // ============================================================================
@@ -235,10 +238,17 @@ export const DEFAULT_ARTIFACT_CONFIG: ArtifactConfig = {
 	cleanupDays: 7,
 };
 
+const EXTENSION_ROOT = path.dirname(fileURLToPath(import.meta.url));
+export const RUNTIME_DIR = path.join(EXTENSION_ROOT, ".runtime");
+export const RESULTS_DIR = path.join(RUNTIME_DIR, "async-results");
+export const ASYNC_DIR = path.join(RUNTIME_DIR, "async-runs");
+export const TEMP_ARTIFACTS_DIR = path.join(RUNTIME_DIR, "artifacts");
+export const CHAIN_RUNS_DIR = path.join(RUNTIME_DIR, "chain-runs");
+
+fs.mkdirSync(RUNTIME_DIR, { recursive: true });
+
 export const MAX_PARALLEL = 8;
 export const MAX_CONCURRENCY = 4;
-export const RESULTS_DIR = "/tmp/pi-async-subagent-results";
-export const ASYNC_DIR = "/tmp/pi-async-subagent-runs";
 export const WIDGET_KEY = "subagent-async";
 export const POLL_INTERVAL_MS = 250;
 export const MAX_WIDGET_JOBS = 4;
