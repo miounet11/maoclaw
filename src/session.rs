@@ -1683,9 +1683,9 @@ impl Session {
 
         match store_kind {
             SessionStoreKind::Jsonl => {
-        if let Some(parent) = path.parent() {
-            asupersync::fs::create_dir_all(parent).await?;
-        }
+                if let Some(parent) = path.parent() {
+                    asupersync::fs::create_dir_all(parent).await?;
+                }
                 let sessions_root = session_dir_clone.unwrap_or_else(Config::sessions_dir);
 
                 if self.should_full_rewrite() {
