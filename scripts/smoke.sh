@@ -30,7 +30,14 @@
 #
 # See docs/testing-policy.md "Fast Local Smoke Suite" for design rationale.
 
-set -euo pipefail
+set -eo pipefail
+
+# Bash 3.2 (the stock shell on macOS) treats empty-array expansions as
+# unbound variables under `set -u`, which breaks this runner because it relies
+# on arrays that may legitimately be empty at different phases.
+if [[ ${BASH_VERSINFO[0]:-0} -ge 4 ]]; then
+    set -u
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -53,6 +60,53 @@ SMOKE_LINT_PROFILE="${SMOKE_LINT_PROFILE:-fast}" # fast | full
 SMOKE_CONTINUE_AFTER_LINT_FAIL="${SMOKE_CONTINUE_AFTER_LINT_FAIL:-0}" # 0 | 1
 SEEN_NO_RCH=false
 SEEN_REQUIRE_RCH=false
+
+run_with_timeout() {
+    local timeout_seconds="$1"
+    shift
+
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "${timeout_seconds}s" "$@"
+        return $?
+    fi
+
+    if command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "${timeout_seconds}s" "$@"
+        return $?
+    fi
+
+    local python_cmd=""
+    if command -v python3 >/dev/null 2>&1; then
+        python_cmd="python3"
+    elif command -v python >/dev/null 2>&1; then
+        python_cmd="python"
+    fi
+
+    if [[ -n "$python_cmd" ]]; then
+        "$python_cmd" - "$timeout_seconds" "$@" <<'PY'
+import subprocess
+import sys
+
+timeout = float(sys.argv[1])
+command = sys.argv[2:]
+
+if not command:
+    print("run_with_timeout received no command", file=sys.stderr)
+    raise SystemExit(2)
+
+try:
+    completed = subprocess.run(command, timeout=timeout)
+except subprocess.TimeoutExpired:
+    raise SystemExit(124)
+
+raise SystemExit(completed.returncode)
+PY
+        return $?
+    fi
+
+    echo "No timeout implementation available (expected timeout, gtimeout, python3, or python)." >&2
+    return 127
+}
 
 # ─── Smoke Target Selection ──────────────────────────────────────────────────
 #
@@ -461,10 +515,10 @@ else
         # Run with timeout.
         set +e
         if [[ "$VERBOSE" == true ]]; then
-            timeout "${TIMEOUT}s" "${CARGO_RUNNER_ARGS[@]}" test --test "$target" -- --test-threads=1 2>&1 | tee "$output_file"
+            run_with_timeout "$TIMEOUT" "${CARGO_RUNNER_ARGS[@]}" test --test "$target" -- --test-threads=1 2>&1 | tee "$output_file"
             exit_code=${PIPESTATUS[0]}
         else
-            timeout "${TIMEOUT}s" "${CARGO_RUNNER_ARGS[@]}" test --test "$target" -- --test-threads=1 > "$output_file" 2>&1
+            run_with_timeout "$TIMEOUT" "${CARGO_RUNNER_ARGS[@]}" test --test "$target" -- --test-threads=1 > "$output_file" 2>&1
             exit_code=$?
         fi
         set -e

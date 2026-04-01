@@ -1,6 +1,6 @@
 {
   "schema": "pi.ext.provenance_verification.v1",
-  "generated_at": "2026-03-17T01:36:07.696036+00:00",
+  "generated_at": "2026-04-01T17:24:43.770077+00:00",
   "summary": {
     "total_artifacts": 208,
     "verified_ok": 208,
@@ -646,9 +646,9 @@
         "directory_exists": true,
         "id_naming_valid": true,
         "directory_layout_valid": true,
-        "on_disk_checksum": "c8f3d576d60ceaf872244112551e83850f9170a52b90f96a9e3d315deb342ef1",
-        "master_catalog_checksum": "c8f3d576d60ceaf872244112551e83850f9170a52b90f96a9e3d315deb342ef1",
-        "provenance_checksum": "c8f3d576d60ceaf872244112551e83850f9170a52b90f96a9e3d315deb342ef1",
+        "on_disk_checksum": "c52c4d254b42205e52cf88e12cd38efc2d0942883462c899be752e45d9d34746",
+        "master_catalog_checksum": "c52c4d254b42205e52cf88e12cd38efc2d0942883462c899be752e45d9d34746",
+        "provenance_checksum": "c52c4d254b42205e52cf88e12cd38efc2d0942883462c899be752e45d9d34746",
         "checksums_consistent": true,
         "has_source_url": true,
         "has_license": true

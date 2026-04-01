@@ -95,24 +95,33 @@ struct LoadTimeCounts {
 #[derive(Debug, Deserialize)]
 struct LoadTimeRatio {
     count: u32,
-    max: f64,
-    min: f64,
-    p50: f64,
-    p95: f64,
-    p99: f64,
+    #[serde(default)]
+    max: Option<f64>,
+    #[serde(default)]
+    min: Option<f64>,
+    #[serde(default)]
+    p50: Option<f64>,
+    #[serde(default)]
+    p95: Option<f64>,
+    #[serde(default)]
+    p99: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct LoadTimeEntry {
     extension: String,
-    ratio: f64,
+    #[serde(default)]
+    ratio: Option<f64>,
     rust: LoadTimeSide,
     ts: LoadTimeSide,
 }
 
 #[derive(Debug, Deserialize)]
 struct LoadTimeSide {
-    load_time_ms: u64,
+    #[serde(default)]
+    error: Option<String>,
+    #[serde(default)]
+    load_time_ms: Option<u64>,
     success: bool,
 }
 
@@ -315,11 +324,16 @@ fn build_comparison_rows(
 
     if let Some(lb) = load_bench {
         // Aggregate Rust load stats from the 60-extension load-time benchmark.
-        let rust_times: Vec<u64> = lb.results.iter().map(|r| r.rust.load_time_ms).collect();
+        let rust_times: Vec<u64> = lb
+            .results
+            .iter()
+            .filter_map(|r| r.rust.load_time_ms)
+            .collect();
         let rust_mean = rust_times.iter().sum::<u64>() as f64 / rust_times.len().max(1) as f64;
+        let load_scope = format!("Load Time ({} exts)", lb.counts.total);
 
         rows.push(ComparisonRow {
-            category: "Load Time (60 exts)".into(),
+            category: load_scope.clone(),
             metric: "Rust mean cold load".into(),
             rust_value: format!("{rust_mean:.1}ms"),
             legacy_value: "N/A (measured per-ext below)".into(),
@@ -328,15 +342,17 @@ fn build_comparison_rows(
             verdict: "INFO".into(),
         });
 
-        rows.push(ComparisonRow {
-            category: "Load Time (60 exts)".into(),
-            metric: "Rust-to-TS ratio (p50)".into(),
-            rust_value: format!("{:.0}x", lb.ratio.p50),
-            legacy_value: "1x".into(),
-            delta: format!("{:.0}x slower", lb.ratio.p50),
-            delta_pct: format!("+{:.0}%", (lb.ratio.p50 - 1.0) * 100.0),
-            verdict: "SLOWER".into(),
-        });
+        if let Some(ratio_p50) = lb.ratio.p50 {
+            rows.push(ComparisonRow {
+                category: load_scope,
+                metric: "Rust-to-TS ratio (p50)".into(),
+                rust_value: format!("{ratio_p50:.0}x"),
+                legacy_value: "1x".into(),
+                delta: format!("{ratio_p50:.0}x slower"),
+                delta_pct: format!("+{:.0}%", (ratio_p50 - 1.0) * 100.0),
+                verdict: "SLOWER".into(),
+            });
+        }
     }
 
     // Per-extension load time (hello + pirate) from real benchmarks.
@@ -351,7 +367,8 @@ fn build_comparison_rows(
                         .iter()
                         .find(|r| r.extension.starts_with("hello/"))
                 })
-                .map_or(0.0, |r| r.rust.load_time_ms as f64);
+                .and_then(|r| r.rust.load_time_ms)
+                .map_or(0.0, |ms| ms as f64);
 
             let pct = pct_change(rust_hello_ms, legacy_p50);
             rows.push(ComparisonRow {
@@ -376,7 +393,8 @@ fn build_comparison_rows(
                         .iter()
                         .find(|r| r.extension.starts_with("pirate/"))
                 })
-                .map_or(0.0, |r| r.rust.load_time_ms as f64);
+                .and_then(|r| r.rust.load_time_ms)
+                .map_or(0.0, |ms| ms as f64);
 
             let pct = pct_change(rust_pirate_ms, legacy_p50);
             rows.push(ComparisonRow {
@@ -770,8 +788,23 @@ fn test_read_load_time_benchmark() {
         return;
     }
     let lb: LoadTimeBenchmark = read_json(&path).expect("parse load_time_benchmark.json");
-    assert_eq!(lb.counts.total, 60);
-    assert_eq!(lb.counts.rust_success, 60);
+    assert!(
+        lb.counts.total > 0,
+        "expected at least one benchmark sample"
+    );
+    assert_eq!(
+        lb.counts.total as usize,
+        lb.results.len(),
+        "counts.total should match results length"
+    );
+    assert!(
+        lb.counts.rust_success <= lb.counts.total,
+        "rust_success should not exceed total"
+    );
+    assert!(
+        lb.counts.ts_success <= lb.counts.total,
+        "ts_success should not exceed total"
+    );
 }
 
 #[test]

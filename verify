@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Top-level verification entrypoint.
-# Delegates to scripts/e2e/run_all.sh with all arguments forwarded.
+# Delegates to scripts/e2e/run_all.sh by default, or to scripts/smoke.sh for
+# the dedicated smoke profile.
 #
 # Quick reference:
 #   ./verify                    # full verification (lint + lib + all tests + E2E)
+#   ./verify --profile smoke    # lowest-latency curated smoke suite
 #   ./verify --profile quick    # fast: lint + lib + unit suite only
 #   ./verify --profile ci       # CI: lint + lib + all non-E2E + 1 E2E
 #   ./verify --help             # show all options
@@ -12,4 +14,293 @@
 #   When CODEX_THREAD_ID is set and CARGO_TARGET_DIR is unset, run_all.sh
 #   defaults CARGO_TARGET_DIR to target/agents/<CODEX_THREAD_ID> to avoid
 #   shared target/ contention.
-exec "$(dirname "$0")/scripts/e2e/run_all.sh" "$@"
+
+set -eo pipefail
+
+# Bash 3.2 (the stock shell on macOS) treats empty-array expansions as
+# unbound variables under `set -u`, which breaks this wrapper when forwarding
+# optional arguments to profile-specific runners.
+if [[ ${BASH_VERSINFO[0]:-0} -ge 4 ]]; then
+    set -u
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+print_help() {
+    cat <<'EOF'
+Top-level verification entrypoint.
+
+Usage:
+  ./verify                         Full verification (lint + lib + all tests + E2E)
+  ./verify --profile smoke        Lowest-latency curated smoke suite
+  ./verify --profile smoke-extended  Broader smoke suite before quick/full
+  ./verify --profile quick        Fast local loop (lint + lib + unit suite only)
+  ./verify --profile ci           CI-style verification
+  ./verify --profile full         Full verification via unified runner
+  ./verify --list-profiles        Show available verification profiles
+  ./verify --recommend-profile    Suggest a verification depth from current git changes
+  ./verify --recommend-profile --json  Same recommendation in machine-readable JSON
+  ./verify --help                 Show this help
+
+Profiles:
+  smoke    Delegates to scripts/smoke.sh
+  smoke-extended  Delegates to scripts/smoke.sh with SMOKE_TARGET_PROFILE=extended
+  quick    Delegates to scripts/e2e/run_all.sh --profile quick
+  focused  Delegates to scripts/e2e/run_all.sh --profile focused
+  ci       Delegates to scripts/e2e/run_all.sh --profile ci
+  full     Delegates to scripts/e2e/run_all.sh --profile full
+
+Notes:
+  - `smoke` is the fastest curated regression pass.
+  - `smoke-extended` keeps the smoke workflow but uses the broader target set.
+  - Run `./scripts/smoke.sh --help` to inspect the exact core/extended target lists.
+  - `quick` is the normal development loop.
+  - `full` is the checkpoint pass before landing broader changes.
+
+Decision guide:
+  - docs or shell wrapper only: use the narrowest meaningful check
+  - one Rust module, low-risk change: ./verify --profile smoke
+  - one Rust module, but you want broader smoke confidence: ./verify --profile smoke-extended
+  - multiple Rust modules, non-E2E change: ./verify --profile quick
+  - sessions/extensions/TUI/RPC/runtime wiring: ./verify
+EOF
+}
+
+print_profiles() {
+    cat <<'EOF'
+Available verification profiles:
+  smoke    Lowest-latency curated smoke suite
+  smoke-extended  Broader smoke suite before quick/full
+  quick    Lint + lib inline tests + unit suite only
+  focused  Lint + lib + selected integration targets + 2 E2E suites
+  ci       Lint + lib + all non-E2E targets + 1 E2E suite
+  full     Lint + lib + all targets
+EOF
+}
+
+recommend_profile() {
+    if ! command -v git >/dev/null 2>&1; then
+        echo "git is not available; cannot recommend a verification profile." >&2
+        exit 2
+    fi
+
+    local json_mode=0
+    if [[ "${1:-}" == "--json" ]]; then
+        json_mode=1
+    fi
+
+    changed=()
+    while IFS= read -r -d '' record; do
+        path="${record:3}"
+        if [[ "$path" == *" -> "* ]]; then
+            path="${path##* -> }"
+        fi
+        changed+=("$path")
+    done < <(git status --porcelain -z)
+
+    if [[ ${#changed[@]} -eq 0 ]]; then
+        cat <<'EOF'
+Recommended profile: smoke
+Reason: no local changes detected; use the fastest curated regression pass.
+EOF
+        return 0
+    fi
+
+    rust_files=0
+    runtime_risk=0
+    docs_only=1
+    shell_only=1
+    runtime_files=()
+    rust_changed_files=()
+    shell_changed_files=()
+    other_changed_files=()
+
+    for path in "${changed[@]}"; do
+        case "$path" in
+            *.rs)
+                rust_files=$((rust_files + 1))
+                docs_only=0
+                shell_only=0
+                rust_changed_files+=("$path")
+                case "$path" in
+                    src/main.rs|src/rpc.rs|src/session.rs|src/extensions.rs|src/extensions_js.rs|src/interactive.rs|src/agent.rs)
+                        runtime_risk=1
+                        runtime_files+=("$path")
+                        ;;
+                esac
+                ;;
+            *.md|docs/*|README.md|CONTRIBUTING.md|CHANGELOG.md|STATUS.md)
+                shell_only=0
+                ;;
+            verify|scripts/*.sh)
+                docs_only=0
+                shell_changed_files+=("$path")
+                ;;
+            *)
+                docs_only=0
+                shell_only=0
+                other_changed_files+=("$path")
+                ;;
+        esac
+    done
+
+    print_trigger_files() {
+        local label="$1"
+        shift
+        local files=("$@")
+        local max=6
+        local count=${#files[@]}
+
+        if [[ $count -eq 0 ]]; then
+            return 0
+        fi
+
+        echo "$label:"
+        local index=0
+        while [[ $index -lt $count && $index -lt $max ]]; do
+            echo "  - ${files[$index]}"
+            index=$((index + 1))
+        done
+        if [[ $count -gt $max ]]; then
+            echo "  - ... and $((count - max)) more"
+        fi
+    }
+
+    emit_recommendation() {
+        local profile="$1"
+        local reason="$2"
+        shift 2
+        local trigger_files=("$@")
+
+        if [[ $json_mode -eq 1 ]]; then
+            python3 - "$profile" "$reason" "${trigger_files[@]}" <<'PY'
+import json
+import sys
+
+profile = sys.argv[1]
+reason = sys.argv[2]
+trigger_files = sys.argv[3:]
+
+print(json.dumps({
+    "schema": "pi.verify.recommendation.v1",
+    "profile": profile,
+    "reason": reason,
+    "trigger_files": trigger_files,
+}, ensure_ascii=False, indent=2))
+PY
+            return 0
+        fi
+
+        echo "Recommended profile: $profile"
+        echo "Reason: $reason"
+        if [[ ${#trigger_files[@]} -gt 0 ]]; then
+            print_trigger_files "Trigger files" "${trigger_files[@]}"
+        fi
+    }
+
+    if [[ $docs_only -eq 1 ]]; then
+        emit_recommendation \
+            "narrowest-meaningful-check" \
+            "only documentation changes detected; full verification is usually unnecessary." \
+            "${changed[@]}"
+        return 0
+    fi
+
+    if [[ $shell_only -eq 1 && $rust_files -eq 0 ]]; then
+        emit_recommendation \
+            "smoke" \
+            "shell/wrapper changes detected; start with the fastest curated workflow validation." \
+            "${shell_changed_files[@]}"
+        return 0
+    fi
+
+    if [[ $runtime_risk -eq 1 ]]; then
+        emit_recommendation \
+            "full" \
+            "runtime-surface files changed (startup/session/agent/extensions/TUI/RPC); use full checkpoint validation." \
+            "${runtime_files[@]}"
+        return 0
+    fi
+
+    if [[ $rust_files -le 1 ]]; then
+        emit_recommendation \
+            "smoke" \
+            "one non-runtime Rust module changed; start with the lowest-latency curated regression pass." \
+            "${rust_changed_files[@]}"
+        return 0
+    fi
+
+    combined_triggers=("${rust_changed_files[@]}" "${other_changed_files[@]}")
+    emit_recommendation \
+        "quick" \
+        "multiple non-runtime Rust files changed; use the normal development loop before escalating to full." \
+        "${combined_triggers[@]}"
+}
+
+declare -a args=("$@")
+declare -a forwarded=()
+profile=""
+
+index=0
+while [[ $index -lt ${#args[@]} ]]; do
+    arg="${args[$index]}"
+    case "$arg" in
+        --help|-h)
+            print_help
+            exit 0
+            ;;
+        --list-profiles)
+            print_profiles
+            exit 0
+            ;;
+        --recommend-profile)
+            next_index=$((index + 1))
+            if [[ $next_index -lt ${#args[@]} && "${args[$next_index]}" == "--json" ]]; then
+                recommend_profile --json
+                exit 0
+            fi
+            recommend_profile
+            exit 0
+            ;;
+    esac
+    if [[ "$arg" == "--profile" ]]; then
+        next_index=$((index + 1))
+        if [[ $next_index -ge ${#args[@]} ]]; then
+            echo "Missing value for --profile" >&2
+            exit 1
+        fi
+        profile="${args[$next_index]}"
+        if [[ "$profile" != "smoke" ]]; then
+            forwarded+=("$arg" "$profile")
+        fi
+        index=$((index + 2))
+        continue
+    fi
+    forwarded+=("$arg")
+    index=$((index + 1))
+done
+
+exec_with_forwarded_args() {
+    local program="$1"
+    shift || true
+
+    if [[ ${#forwarded[@]} -gt 0 ]]; then
+        exec "$program" "${forwarded[@]}"
+    else
+        exec "$program"
+    fi
+}
+
+if [[ "$profile" == "smoke" ]]; then
+    exec_with_forwarded_args "$SCRIPT_DIR/scripts/smoke.sh"
+fi
+
+if [[ "$profile" == "smoke-extended" ]]; then
+    if [[ ${#forwarded[@]} -gt 0 ]]; then
+        exec env SMOKE_TARGET_PROFILE=extended "$SCRIPT_DIR/scripts/smoke.sh" "${forwarded[@]}"
+    else
+        exec env SMOKE_TARGET_PROFILE=extended "$SCRIPT_DIR/scripts/smoke.sh"
+    fi
+fi
+
+exec_with_forwarded_args "$SCRIPT_DIR/scripts/e2e/run_all.sh"

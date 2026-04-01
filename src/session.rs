@@ -854,8 +854,32 @@ impl Session {
         }
 
         if let Some(path) = &cli.session {
-            let mut session = Self::open(path).await?;
+            let path_buf = PathBuf::from(path);
+            let mut session = if path_buf.exists() {
+                Self::open(path).await?
+            } else {
+                let store_kind = match path_buf.extension().and_then(|ext| ext.to_str()) {
+                    Some("sqlite") => {
+                        #[cfg(feature = "sqlite-sessions")]
+                        {
+                            SessionStoreKind::Sqlite
+                        }
+
+                        #[cfg(not(feature = "sqlite-sessions"))]
+                        {
+                            return Err(Error::session(
+                                "SQLite session files require building with `--features sqlite-sessions`",
+                            ));
+                        }
+                    }
+                    _ => SessionStoreKind::Jsonl,
+                };
+                let mut session = Self::create_with_dir_and_store(None, store_kind);
+                session.path = Some(path_buf);
+                session
+            };
             session.set_autosave_durability_mode(durability_mode);
+            session.set_agent_profile(initial_agent_profile);
             return Ok(session);
         }
 
@@ -1659,6 +1683,9 @@ impl Session {
 
         match store_kind {
             SessionStoreKind::Jsonl => {
+        if let Some(parent) = path.parent() {
+            asupersync::fs::create_dir_all(parent).await?;
+        }
                 let sessions_root = session_dir_clone.unwrap_or_else(Config::sessions_dir);
 
                 if self.should_full_rewrite() {
@@ -8185,17 +8212,11 @@ mod tests {
     fn crash_shutdown_strict_propagates_error() {
         let temp_dir = tempfile::tempdir().unwrap();
         let mut session = Session::create();
-        session.path = Some(
-            temp_dir
-                .path()
-                .join("nonexistent_dir")
-                .join("session.jsonl"),
-        );
+        // A directory path remains an actual write failure even though saves now
+        // create missing parent directories for explicit `--session` paths.
+        session.path = Some(temp_dir.path().to_path_buf());
         session.set_autosave_durability_for_test(AutosaveDurabilityMode::Strict);
         session.append_message(make_test_message("must save"));
-        session
-            .autosave_queue
-            .enqueue_mutation(AutosaveMutationKind::Message);
 
         let result = run_async(async { session.flush_autosave_on_shutdown().await });
         assert!(result.is_err(), "strict mode propagates errors");
@@ -8205,17 +8226,9 @@ mod tests {
     fn crash_shutdown_balanced_swallows_error() {
         let temp_dir = tempfile::tempdir().unwrap();
         let mut session = Session::create();
-        session.path = Some(
-            temp_dir
-                .path()
-                .join("nonexistent_dir")
-                .join("session.jsonl"),
-        );
+        session.path = Some(temp_dir.path().to_path_buf());
         session.set_autosave_durability_for_test(AutosaveDurabilityMode::Balanced);
         session.append_message(make_test_message("best effort"));
-        session
-            .autosave_queue
-            .enqueue_mutation(AutosaveMutationKind::Message);
 
         let result = run_async(async { session.flush_autosave_on_shutdown().await });
         assert!(result.is_ok(), "balanced mode swallows errors");
@@ -8225,17 +8238,9 @@ mod tests {
     fn crash_shutdown_throughput_skips_flush() {
         let temp_dir = tempfile::tempdir().unwrap();
         let mut session = Session::create();
-        session.path = Some(
-            temp_dir
-                .path()
-                .join("nonexistent_dir")
-                .join("session.jsonl"),
-        );
+        session.path = Some(temp_dir.path().to_path_buf());
         session.set_autosave_durability_for_test(AutosaveDurabilityMode::Throughput);
         session.append_message(make_test_message("no flush"));
-        session
-            .autosave_queue
-            .enqueue_mutation(AutosaveMutationKind::Message);
 
         let result = run_async(async { session.flush_autosave_on_shutdown().await });
         assert!(result.is_ok());

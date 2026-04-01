@@ -335,8 +335,9 @@ fn crash_no_op_save_after_reload_is_idempotent() {
 fn crash_shutdown_strict_propagates_save_error() {
     let temp_dir = tempfile::tempdir().unwrap();
     let mut session = Session::create();
-    // Point at non-existent directory to force IO failure.
-    session.path = Some(temp_dir.path().join("nodir").join("session.jsonl"));
+    // Use a directory path so save still fails even though explicit session
+    // creation now materializes missing parent directories.
+    session.path = Some(temp_dir.path().to_path_buf());
     session.set_autosave_durability_mode(pi::session::AutosaveDurabilityMode::Strict);
     session.append_message(make_test_message("must save"));
 
@@ -344,7 +345,7 @@ fn crash_shutdown_strict_propagates_save_error() {
     let result = run_async(async { session.save().await });
     assert!(
         result.is_err(),
-        "strict: save to non-existent dir should fail"
+        "strict: save to directory path should fail"
     );
 }
 
@@ -352,16 +353,13 @@ fn crash_shutdown_strict_propagates_save_error() {
 fn crash_shutdown_balanced_swallows_via_shutdown_api() {
     let temp_dir = tempfile::tempdir().unwrap();
     let mut session = Session::create();
-    session.path = Some(temp_dir.path().join("nodir").join("session.jsonl"));
+    session.path = Some(temp_dir.path().to_path_buf());
     session.set_autosave_durability_mode(pi::session::AutosaveDurabilityMode::Balanced);
     session.append_message(make_test_message("best effort"));
 
-    // flush_autosave_on_shutdown is best-effort in balanced mode.
+    // flush_autosave_on_shutdown is best-effort in balanced mode, even when
+    // the save target is invalid.
     let result = run_async(async { session.flush_autosave_on_shutdown().await });
-    // Balanced swallows errors — but only if there are pending mutations.
-    // Since we used append_message without going through the autosave queue enqueue,
-    // flush_autosave_on_shutdown won't attempt the save (no pending mutations).
-    // This test verifies the shutdown path doesn't panic.
     assert!(result.is_ok(), "balanced shutdown should not fail");
 }
 
@@ -369,7 +367,7 @@ fn crash_shutdown_balanced_swallows_via_shutdown_api() {
 fn crash_shutdown_throughput_skips_flush() {
     let temp_dir = tempfile::tempdir().unwrap();
     let mut session = Session::create();
-    session.path = Some(temp_dir.path().join("nodir").join("session.jsonl"));
+    session.path = Some(temp_dir.path().to_path_buf());
     session.set_autosave_durability_mode(pi::session::AutosaveDurabilityMode::Throughput);
     session.append_message(make_test_message("no flush"));
 

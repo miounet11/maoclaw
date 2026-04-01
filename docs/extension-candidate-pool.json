@@ -1443,7 +1443,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/community/nicobailon-subagents",
       "checksum": {
-        "sha256": "c8f3d576d60ceaf872244112551e83850f9170a52b90f96a9e3d315deb342ef1"
+        "sha256": "c52c4d254b42205e52cf88e12cd38efc2d0942883462c899be752e45d9d34746"
       },
       "source": {
         "type": "git",

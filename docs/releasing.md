@@ -38,6 +38,7 @@ Note: dependencies that specify both `version` and `path` are expected to publis
 - build the native desktop release artifacts for macOS Apple Silicon and Windows x86_64
 - attach binaries, per-target build manifests, and `SHA256SUMS` to a GitHub Release
 - mark the GitHub Release as a pre-release if the tag contains `-` (e.g. `-rc.1`)
+- fail the release if `scripts/release_gate.sh` does not pass with a fresh evidence bundle generated within the last 24 hours
 
 Release notes are extracted from `CHANGELOG.md` on a best-effort basis; ensure the changelog contains a `##` heading with the version string for the tag you are cutting.
 The macOS packaging scripts also refuse stale `pi` binaries whose reported version does not match `Cargo.toml`, and reject `pi_desktop` / `.app` artifacts that predate the current manifest version.
@@ -110,6 +111,7 @@ Until then, `0.x` releases may still change behavior to improve correctness/pari
    - `cargo clippy --all-targets -- -D warnings`
    - `cargo test --all-targets`
    - `bash -n scripts/build_macos_app.sh scripts/build_macos_pkg.sh`
+   - `./scripts/e2e/run_all.sh --profile ci` so `tests/e2e_results/<timestamp>/evidence_contract.json` is fresh enough for the release gate
 4) **Update changelog**:
    - `br changelog --since-tag vX.Y.Z` (or use `--since YYYY-MM-DD` if no prior tags)
    - paste the output into `CHANGELOG.md` under a new version heading

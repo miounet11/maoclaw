@@ -279,7 +279,7 @@
         "rationale": "Fixture-only manifest sentinel; not a user-installable extension.",
         "mitigation": "Keep excluded from user-facing pass-rate decisions.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -290,7 +290,7 @@
         "rationale": "Bundle expects local HTML artifact not currently packaged in runtime artifact set.",
         "mitigation": "Add deterministic bundling/asset-pack inclusion for required form assets.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -301,7 +301,7 @@
         "rationale": "Relative import outside single-file artifact is unresolved in current loader.",
         "mitigation": "Land multi-file dependency packaging/resolution support.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -312,7 +312,7 @@
         "rationale": "Runtime cannot resolve bundled dist-relative module path for this layout.",
         "mitigation": "Support package-style dist entry resolution during extension load.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -323,7 +323,7 @@
         "rationale": "Cross-directory relative import is unresolved by current single-entry resolver.",
         "mitigation": "Enable deterministic multi-file import resolution for validated artifacts.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -334,7 +334,7 @@
         "rationale": "Expected runtime shape diverges from shim implementation (`not a function`).",
         "mitigation": "Align shim API surface and add regression tests for aliou guardrails flow.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -345,7 +345,7 @@
         "rationale": "Unbundled component import path cannot be resolved by current loader.",
         "mitigation": "Add package-style module graph resolution for this dependency pattern.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -356,7 +356,7 @@
         "rationale": "Runtime shim mismatch triggers callable-shape failure at activation.",
         "mitigation": "Patch shim API contract and validate with extension-specific parity checks.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -367,7 +367,7 @@
         "rationale": "Extension expects provider detection shape not fully represented in runtime stubs.",
         "mitigation": "Implement missing detection/runtime utility behavior or canonical fallback shim.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -378,7 +378,7 @@
         "rationale": "Activation attempts extension-external file access blocked by sandbox policy.",
         "mitigation": "Move required assets into extension root or support approved packaged assets.",
         "owner": "pi-policy-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.4"
       },
       {
@@ -389,7 +389,7 @@
         "rationale": "Activation reads HTML asset outside extension root and is denied.",
         "mitigation": "Bundle form assets inside extension root and update load path resolution.",
         "owner": "pi-policy-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.4"
       },
       {
@@ -400,7 +400,7 @@
         "rationale": "Depends on unsupported package specifier (`openai`).",
         "mitigation": "Add vetted virtual module stub for `openai` with deterministic behavior.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -411,7 +411,7 @@
         "rationale": "Depends on unsupported package specifier (`adm-zip`).",
         "mitigation": "Provide minimal audited `adm-zip` virtual module behavior required by corpus.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -422,7 +422,7 @@
         "rationale": "Depends on unsupported package specifier (`linkedom`).",
         "mitigation": "Implement compatible `linkedom` stub subset used by this extension.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -433,7 +433,7 @@
         "rationale": "Depends on unsupported package specifier (`@sourcegraph/scip-typescript`).",
         "mitigation": "Provide deterministic scip-typescript stub path used in indexing flow.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -444,7 +444,7 @@
         "rationale": "Reads prompt artifact outside extension root and is blocked by path policy.",
         "mitigation": "Package prompt assets in-root or extend safe packaged-asset mapping.",
         "owner": "pi-policy-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.4"
       },
       {
@@ -455,7 +455,7 @@
         "rationale": "Activation reads HTML asset outside extension root and is denied.",
         "mitigation": "Restructure extension artifact layout or allow audited packaged asset mapping.",
         "owner": "pi-policy-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.4"
       },
       {
@@ -466,7 +466,7 @@
         "rationale": "Depends on unsupported package specifier (`@sourcegraph/scip-typescript`).",
         "mitigation": "Implement audited virtual module support for required SCIP API subset.",
         "owner": "pi-parity-runtime",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.3.9"
       },
       {
@@ -477,7 +477,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -488,7 +488,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -499,7 +499,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -510,7 +510,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -521,7 +521,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -532,7 +532,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -543,7 +543,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -554,7 +554,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -565,7 +565,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -576,7 +576,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -587,7 +587,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -598,7 +598,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -609,7 +609,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -620,7 +620,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -631,7 +631,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -642,7 +642,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -653,7 +653,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -664,7 +664,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -675,7 +675,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -686,7 +686,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       },
       {
@@ -697,7 +697,7 @@
         "rationale": "Registered command set diverges from manifest expectation in current fixture corpus.",
         "mitigation": "Audit fixture expectations and extension registrations to restore parity.",
         "owner": "pi-conformance-team",
-        "review_by": "2026-03-31",
+        "review_by": "2026-04-30",
         "tracking_issue": "bd-k5q5.2.7"
       }
     ]

@@ -3,7 +3,7 @@ name: Release (GitHub binaries)
 on:
   push:
     tags:
-      - 'v[0-9]+.*'
+      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -81,15 +81,17 @@ jobs:
           echo "Version verified: $cargo_version"
 
       - name: Run release gate
-        continue-on-error: true
+        env:
+          RELEASE_GATE_MAX_EVIDENCE_AGE_HOURS: "24"
         run: |
           set -euxo pipefail
           chmod +x scripts/release_gate.sh
           ./scripts/release_gate.sh --no-rch --report | tee release_gate_report.json
           VERDICT=$(python3 -c "import json; print(json.load(open('release_gate_report.json')).get('verdict','unknown'))")
           echo "Release gate verdict: $VERDICT"
-          if [ "$VERDICT" = "fail" ]; then
-            echo "::warning::Release gate reported FAIL — proceeding anyway (early development)"
+          if [ "$VERDICT" != "pass" ]; then
+            echo "::error::Release gate must pass before release artifacts are built"
+            exit 1
           fi
 
       - name: Upload release gate report

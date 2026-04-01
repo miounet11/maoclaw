@@ -19,6 +19,7 @@
 #   RELEASE_GATE_REQUIRE_DROPIN_CERTIFIED  Set to 1 to require CERTIFIED drop-in verdict
 #   RELEASE_GATE_REQUIRE_PREFLIGHT Set to 1 to require preflight analyzer (default: 0)
 #   RELEASE_GATE_REQUIRE_QUALITY   Set to 1 to require quality pipeline pass (default: 0)
+#   RELEASE_GATE_MAX_EVIDENCE_AGE_HOURS  Max age for evidence_contract.json (default: 24, 0 disables)
 #   RELEASE_GATE_CARGO_RUNNER      Cargo runner mode: rch | auto | local (default: rch)
 
 set -euo pipefail
@@ -34,6 +35,7 @@ MAX_NA_COUNT="${RELEASE_GATE_MAX_NA_COUNT:-170}"
 REQUIRE_DROPIN_CERTIFIED="${RELEASE_GATE_REQUIRE_DROPIN_CERTIFIED:-0}"
 REQUIRE_PREFLIGHT="${RELEASE_GATE_REQUIRE_PREFLIGHT:-0}"
 REQUIRE_QUALITY="${RELEASE_GATE_REQUIRE_QUALITY:-0}"
+MAX_EVIDENCE_AGE_HOURS="${RELEASE_GATE_MAX_EVIDENCE_AGE_HOURS:-24}"
 CARGO_RUNNER_REQUEST="${RELEASE_GATE_CARGO_RUNNER:-rch}" # rch | auto | local
 CARGO_RUNNER_MODE="local"
 declare -a CARGO_RUNNER_ARGS=("cargo")
@@ -201,8 +203,78 @@ else
     check_pass "evidence_dir" "Found: $EVIDENCE_DIR"
 fi
 
-# Gate 2: Evidence contract
+# Gate 1b: Evidence freshness
 EVIDENCE_CONTRACT="$EVIDENCE_DIR/evidence_contract.json"
+if [[ -n "$EVIDENCE_DIR" ]] && [[ -f "$EVIDENCE_CONTRACT" ]]; then
+    FRESHNESS_CHECK=$(python3 - "$EVIDENCE_CONTRACT" "$MAX_EVIDENCE_AGE_HOURS" <<'PY'
+import datetime as dt
+import json
+import os
+import sys
+from pathlib import Path
+
+contract_path = Path(sys.argv[1])
+max_age_hours = float(sys.argv[2])
+
+if max_age_hours <= 0:
+    print("pass|freshness disabled")
+    raise SystemExit(0)
+
+try:
+    payload = json.loads(contract_path.read_text(encoding="utf-8"))
+except Exception as exc:  # noqa: BLE001
+    print(f"fail|could not parse evidence contract for freshness check: {exc}")
+    raise SystemExit(0)
+
+generated_raw = payload.get("generated_at") or payload.get("generated_at_utc")
+if generated_raw:
+    normalized = str(generated_raw).replace("Z", "+00:00")
+    try:
+        generated_at = dt.datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        print(f"fail|invalid evidence timestamp '{generated_raw}': {exc}")
+        raise SystemExit(0)
+else:
+    generated_at = dt.datetime.fromtimestamp(
+        os.path.getmtime(contract_path),
+        tz=dt.timezone.utc,
+    )
+
+if generated_at.tzinfo is None:
+    generated_at = generated_at.replace(tzinfo=dt.timezone.utc)
+
+now = dt.datetime.now(dt.timezone.utc)
+age_hours = max((now - generated_at).total_seconds() / 3600.0, 0.0)
+
+if age_hours <= max_age_hours:
+    print(
+        "pass|"
+        f"generated_at={generated_at.isoformat()} age={age_hours:.1f}h <= {max_age_hours:.1f}h"
+    )
+else:
+    print(
+        "fail|"
+        f"generated_at={generated_at.isoformat()} age={age_hours:.1f}h > {max_age_hours:.1f}h"
+    )
+PY
+)
+
+    FRESHNESS_STATUS="${FRESHNESS_CHECK%%|*}"
+    FRESHNESS_DETAIL="${FRESHNESS_CHECK#*|}"
+    case "$FRESHNESS_STATUS" in
+        pass)
+            check_pass "evidence_freshness" "$FRESHNESS_DETAIL"
+            ;;
+        fail)
+            check_fail "evidence_freshness" "$FRESHNESS_DETAIL"
+            ;;
+        *)
+            check_fail "evidence_freshness" "unexpected freshness validation result: $FRESHNESS_CHECK"
+            ;;
+    esac
+fi
+
+# Gate 2: Evidence contract
 if [[ -f "$EVIDENCE_CONTRACT" ]]; then
     CONTRACT_STATUS=$(python3 -c "
 import json

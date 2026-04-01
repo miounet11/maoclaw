@@ -88,10 +88,6 @@ pub fn apply_piped_stdin(cli: &mut cli::Cli, stdin_content: Option<String>) {
 
 #[allow(clippy::missing_const_for_fn)]
 pub fn normalize_cli(cli: &mut cli::Cli) {
-    if cli.print {
-        cli.no_session = true;
-    }
-
     if let Some(provider) = &mut cli.provider {
         *provider = provider.to_ascii_lowercase();
     }
@@ -1289,14 +1285,14 @@ mod tests {
     }
 
     #[test]
-    fn normalize_cli_enables_no_session_for_print_and_lowercases_provider() {
+    fn normalize_cli_lowercases_provider_without_forcing_no_session_for_print() {
         let mut cli = cli::Cli::parse_from(["pi", "--provider", "OpenAI", "--print", "hello"]);
         assert!(!cli.no_session);
         assert_eq!(cli.provider.as_deref(), Some("OpenAI"));
 
         normalize_cli(&mut cli);
 
-        assert!(cli.no_session);
+        assert!(!cli.no_session);
         assert_eq!(cli.provider.as_deref(), Some("openai"));
     }
 
@@ -1868,7 +1864,7 @@ mod tests {
             }
 
             #[test]
-            fn normalize_cli_lowercases_provider_and_applies_print_semantics(
+            fn normalize_cli_lowercases_provider_without_changing_no_session(
                 provider in prop::option::of("[A-Za-z0-9_-]{1,20}"),
                 print in any::<bool>(),
                 initial_no_session in any::<bool>(),
@@ -1881,10 +1877,9 @@ mod tests {
                 normalize_cli(&mut cli);
 
                 let expected_provider = provider.map(|value: String| value.to_ascii_lowercase());
-                let expected_no_session = if print { true } else { initial_no_session };
 
                 prop_assert_eq!(cli.provider, expected_provider);
-                prop_assert_eq!(cli.no_session, expected_no_session);
+                prop_assert_eq!(cli.no_session, initial_no_session);
             }
 
             #[test]

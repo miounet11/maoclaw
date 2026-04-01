@@ -8,7 +8,17 @@ Pre-release migration notes and transition-era launch materials are not treated 
 
 Highlights:
 
-- Continue tightening onboarding, agent-management ergonomics, and post-release packaging polish on top of the new `v0.1.13` desktop distribution baseline.
+- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.14` baseline.
+
+## 0.1.14 - Verification Closure And Release Gate Reliability
+
+Released: 2026-04-01
+
+Highlights:
+
+- Fixed the top-level `./verify --profile smoke` wrapper so the documented smoke path works on macOS Bash 3.2 instead of failing on empty forwarded-argument arrays.
+- Made `scripts/smoke.sh` portable on macOS by falling back to `gtimeout` or Python when GNU `timeout` is unavailable, restoring the fast local regression loop on the primary release platform.
+- Tightened `scripts/release_gate.sh` and the GitHub release workflow so tagged releases now require a passing release gate backed by fresh evidence instead of silently reusing stale historical artifacts.
 
 ## 0.1.13 - Multi-Agent Mesh And Release Evidence Hardening
 
