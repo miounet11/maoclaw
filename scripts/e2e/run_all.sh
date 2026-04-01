@@ -10841,7 +10841,7 @@ if isinstance(franken_node_mission_contract, dict):
         "run_id": run_id,
         "correlation_id": expected_claim_correlation_id,
         "manifest": {
-            "path": str(kernel_boundary_manifest_path),
+            "path": kernel_boundary_manifest_rel_path,
             "schema": kernel_boundary_schema,
             "contract_version": (
                 kernel_boundary_manifest.get("contract_version")

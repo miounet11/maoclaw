@@ -398,7 +398,7 @@ pub(super) fn format_login_provider_listing(
     auth: &crate::auth::AuthStorage,
     extension_models: &[ModelEntry],
 ) -> String {
-    let mut output = String::from("Available login providers:\n\n");
+    let mut output = String::from("Available login providers:\nUsage: /login <provider>\n\n");
 
     let built_in_rows: Vec<(String, String, String)> = BUILTIN_LOGIN_PROVIDERS
         .iter()
@@ -428,7 +428,6 @@ pub(super) fn format_login_provider_listing(
         append_provider_rows(&mut output, "Extension providers", &extension_rows);
     }
 
-    output.push_str("\nUsage: /login <provider>");
     output
 }
 
@@ -1549,7 +1548,7 @@ impl PiApp {
                     thinking: None,
                     collapsed: false,
                 });
-                self.scroll_to_bottom();
+                self.scroll_to_last_match("Session info:");
                 None
             }
             SlashCommand::Settings => {

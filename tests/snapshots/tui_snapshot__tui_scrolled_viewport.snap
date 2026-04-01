@@ -6,9 +6,6 @@ expression: view
   ctrl+l: model  ctrl+p: next  ctrl+shift+p: prev  ctrl+o: tools  ctrl+t: thi...
   resources: 0 skills, 0 prompts, 0 themes, 0 extensions
 
-  Assistant:
-
-    Assistant reply 9
 
 
 
@@ -20,9 +17,12 @@ expression: view
 
 
 
-  [81%] ↑/↓ PgUp/PgDn to scroll
+  You: User message 11
+  [85%] ↑/↓ PgUp/PgDn Shift+Up/Down to scroll
 
   Enter: send  Shift+Enter: newline  Alt+Enter: multi-line  [thinking: off]
   │ > Type a message... (/help, /exit)
   │ >
   │ >
+
+  Tokens: 0 in / 0 out  |  Persist: balanced  |  /help  |  Ctrl+C: quit

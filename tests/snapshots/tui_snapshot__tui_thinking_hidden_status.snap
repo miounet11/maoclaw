@@ -11,8 +11,6 @@ expression: view
 
     Text.
 
-
-
   Thinking hidden
 
   Enter: send  Shift+Enter: newline  Alt+Enter: multi-line  [thinking: off]
@@ -20,4 +18,4 @@ expression: view
   │ >
   │ >
 
-  Tokens: 0 in / 0 out  |  /help  |  Ctrl+C: quit
+  Tokens: 0 in / 0 out  |  Persist: balanced  |  /help  |  Ctrl+C: quit

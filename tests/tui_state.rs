@@ -1097,7 +1097,7 @@ fn assistant_msg(text: &str) -> ConversationMessage {
 fn parse_scroll_percent(view: &str) -> Option<u32> {
     let marker = view
         .lines()
-        .find(|line| line.contains("PgUp/PgDn to scroll"))?;
+        .find(|line| line.contains("PgUp/PgDn") && line.contains("scroll"))?;
     let open = marker.find('[')?;
     let close = marker[open + 1..].find('%')?;
     marker[open + 1..open + 1 + close].parse::<u32>().ok()
@@ -2971,7 +2971,25 @@ fn tui_state_slash_model_no_args_shows_configured_only_message_when_none_availab
     let harness = TestHarness::new(
         "tui_state_slash_model_no_args_shows_configured_only_message_when_none_available",
     );
-    let mut app = build_app(&harness, Vec::new());
+    let mut anthropic = make_model_entry(
+        "anthropic",
+        "claude-a",
+        "https://api.anthropic.com/v1/messages",
+    );
+    anthropic.api_key = None;
+
+    let available_models = vec![anthropic.clone()];
+    let model_scope = Vec::new();
+
+    let mut app = build_app_with_models(
+        &harness,
+        Session::in_memory(),
+        Config::default(),
+        anthropic,
+        model_scope,
+        available_models,
+        KeyBindings::new(),
+    );
     log_initial_state(&harness, &app);
 
     type_text(&harness, &mut app, "/model");
@@ -2979,9 +2997,9 @@ fn tui_state_slash_model_no_args_shows_configured_only_message_when_none_availab
     assert_after_contains(
         &harness,
         &step,
-        "Only showing models that are ready to use (see README for details)",
+        "No models are ready to use. Configure credentials with /login <provider>.",
     );
-    assert_after_contains(&harness, &step, "No matching models.");
+    assert_after_not_contains(&harness, &step, "Select a model");
 }
 
 #[test]
@@ -3383,6 +3401,7 @@ fn tui_state_slash_settings_opens_selector_and_restores_editor() {
 
     // Navigate to Theme and open the picker.
     press_down(&harness, &mut app);
+    press_down(&harness, &mut app);
     let step = press_enter(&harness, &mut app);
     assert_after_contains(&harness, &step, "Select Theme");
     assert_after_contains(&harness, &step, "dark (built-in)");
@@ -3404,6 +3423,7 @@ fn tui_state_slash_settings_opens_selector_and_restores_editor() {
     type_text(&harness, &mut app, "/settings");
     let step = press_enter(&harness, &mut app);
     assert_after_contains(&harness, &step, "steeringMode:");
+    press_down(&harness, &mut app);
     press_down(&harness, &mut app);
     press_down(&harness, &mut app);
     let step = press_enter(&harness, &mut app);
@@ -3436,7 +3456,10 @@ fn tui_state_slash_settings_quiet_startup_persists_and_overrides_global() {
     assert_after_contains(&harness, &step, "quietStartup:");
 
     // Navigate to quietStartup entry:
-    // Summary(0), Theme(1), SteeringMode(2), FollowUpMode(3), QuietStartup(4)
+    // Summary(0), ProviderSetup(1), Theme(2), SteeringMode(3), FollowUpMode(4),
+    // DefaultPermissive(5), QuietStartup(6)
+    press_down(&harness, &mut app);
+    press_down(&harness, &mut app);
     press_down(&harness, &mut app);
     press_down(&harness, &mut app);
     press_down(&harness, &mut app);
@@ -4421,7 +4444,23 @@ export default function init(pi) {
 #[test]
 fn tui_state_slash_thinking_sets_level() {
     let harness = TestHarness::new("tui_state_slash_thinking_sets_level");
-    let mut app = build_app(&harness, Vec::new());
+    let mut model_entry = make_model_entry(
+        "anthropic",
+        "claude-a",
+        "https://api.anthropic.com/v1/messages",
+    );
+    model_entry.model.reasoning = true;
+    let model_scope = vec![model_entry.clone()];
+    let available_models = vec![model_entry.clone()];
+    let mut app = build_app_with_models(
+        &harness,
+        Session::in_memory(),
+        Config::default(),
+        model_entry,
+        model_scope,
+        available_models,
+        KeyBindings::new(),
+    );
     log_initial_state(&harness, &app);
 
     type_text(&harness, &mut app, "/thinking high");
@@ -4448,13 +4487,14 @@ fn tui_state_slash_clear_clears_conversation_and_sets_status() {
     type_text(&harness, &mut app, "/clear");
     let step = press_enter(&harness, &mut app);
     assert_after_contains(&harness, &step, "Conversation cleared");
-    assert_after_contains(&harness, &step, "Welcome to Pi! Type a message to begin");
+    assert_after_contains(&harness, &step, "Welcome to Pi!");
 }
 
 #[test]
 fn tui_state_slash_new_resets_conversation_and_sets_status() {
     let harness = TestHarness::new("tui_state_slash_new_resets_conversation_and_sets_status");
-    let mut app = build_app(&harness, Vec::new());
+    let session = Session::in_memory();
+    let (mut app, event_rx) = build_app_with_session_and_events(&harness, Vec::new(), session);
     log_initial_state(&harness, &app);
 
     apply_pi(
@@ -4470,6 +4510,17 @@ fn tui_state_slash_new_resets_conversation_and_sets_status() {
 
     type_text(&harness, &mut app, "/new");
     let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Starting new session...");
+
+    let events = wait_for_pi_msgs(&event_rx, Duration::from_secs(2), |msgs| {
+        msgs.iter()
+            .any(|msg| matches!(msg, PiMsg::ConversationReset { .. }))
+    });
+    let reset = events
+        .into_iter()
+        .find(|msg| matches!(msg, PiMsg::ConversationReset { .. }))
+        .expect("expected ConversationReset after /new");
+    let step = apply_pi(&harness, &mut app, "PiMsg::ConversationReset", reset);
     assert_after_contains(&harness, &step, "Started new session");
     assert_after_not_contains(&harness, &step, "You: hello");
     assert_after_not_contains(&harness, &step, "world");
@@ -4773,11 +4824,12 @@ fn tui_state_status_message_clears_on_any_keypress() {
     let mut app = build_app(&harness, Vec::new());
     log_initial_state(&harness, &app);
 
-    type_text(&harness, &mut app, "/model");
-    press_enter(&harness, &mut app);
+    type_text(&harness, &mut app, "/thinking");
+    let step = press_enter(&harness, &mut app);
+    assert_after_contains(&harness, &step, "Thinking level: off");
 
     let step = type_text(&harness, &mut app, "x");
-    assert_after_not_contains(&harness, &step, "No matching models.");
+    assert_after_not_contains(&harness, &step, "Thinking level: off");
 }
 
 #[test]
@@ -7128,12 +7180,11 @@ fn tui_state_collapse_changelog_settings_toggle_persists() {
     assert_after_contains(&harness, &step, "collapseChangelog:");
 
     // Navigate to CollapseChangelog entry:
-    // Summary(0), Theme(1), SteeringMode(2), FollowUpMode(3), QuietStartup(4), CollapseChangelog(5)
-    press_down(&harness, &mut app);
-    press_down(&harness, &mut app);
-    press_down(&harness, &mut app);
-    press_down(&harness, &mut app);
-    press_down(&harness, &mut app);
+    // Summary(0), ProviderSetup(1), Theme(2), SteeringMode(3), FollowUpMode(4),
+    // DefaultPermissive(5), QuietStartup(6), CollapseChangelog(7)
+    for _ in 0..7 {
+        press_down(&harness, &mut app);
+    }
     let step = press_enter(&harness, &mut app);
     assert_after_contains(&harness, &step, "Updated collapseChangelog: on");
 
@@ -7153,9 +7204,9 @@ fn tui_state_hide_thinking_block_settings_toggle_persists() {
     assert_after_contains(&harness, &step, "hideThinkingBlock:");
 
     // Navigate to HideThinkingBlock entry:
-    // Summary(0), Theme(1), SteeringMode(2), FollowUpMode(3), QuietStartup(4),
-    // CollapseChangelog(5), HideThinkingBlock(6)
-    for _ in 0..6 {
+    // Summary(0), ProviderSetup(1), Theme(2), SteeringMode(3), FollowUpMode(4),
+    // DefaultPermissive(5), QuietStartup(6), CollapseChangelog(7), HideThinkingBlock(8)
+    for _ in 0..8 {
         press_down(&harness, &mut app);
     }
     let step = press_enter(&harness, &mut app);
@@ -7416,10 +7467,10 @@ fn tui_state_collapse_changelog_toggle_off_then_on() {
         build_app_with_session_and_config(&harness, Vec::new(), Session::in_memory(), config);
     log_initial_state(&harness, &app);
 
-    // Open settings and navigate to CollapseChangelog (entry 5).
+    // Open settings and navigate to CollapseChangelog (entry 7).
     type_text(&harness, &mut app, "/settings");
     press_enter(&harness, &mut app);
-    for _ in 0..5 {
+    for _ in 0..7 {
         press_down(&harness, &mut app);
     }
     // Toggle off.
@@ -7432,7 +7483,7 @@ fn tui_state_collapse_changelog_toggle_off_then_on() {
     // Reopen and toggle back on.
     type_text(&harness, &mut app, "/settings");
     press_enter(&harness, &mut app);
-    for _ in 0..5 {
+    for _ in 0..7 {
         press_down(&harness, &mut app);
     }
     let step = press_enter(&harness, &mut app);

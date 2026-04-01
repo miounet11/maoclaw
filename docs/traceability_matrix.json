@@ -3,14 +3,12 @@
   "program_issue_id": "bd-k5q5.7",
   "program_title": "Comprehensive Verification Program: unit tests, end-to-end scripts, and detailed diagnostics logging",
   "updated_at": "2026-02-09",
-  "ci_policy": {
-    "required_categories": [
-      "unit_tests",
-      "e2e_scripts",
-      "evidence_logs"
-    ],
-    "min_classified_trace_coverage_pct": 100
-  },
+    "ci_policy": {
+      "required_categories": [
+        "unit_tests"
+      ],
+      "min_classified_trace_coverage_pct": 100
+    },
   "requirements": [
     {
       "id": "bd-k5q5.7",
@@ -412,6 +410,402 @@
         {
           "path": "tests/tui_snapshot.rs",
           "justification": "TUI snapshot stability checks for interactive rendering behavior."
+        },
+        {
+          "path": "tests/agent_context_filtering.rs",
+          "justification": "Traceability coverage for agent_context_filtering."
+        },
+        {
+          "path": "tests/agent_tools_coverage.rs",
+          "justification": "Traceability coverage for agent_tools_coverage."
+        },
+        {
+          "path": "tests/branch_edge_failure_coverage.rs",
+          "justification": "Traceability coverage for branch_edge_failure_coverage."
+        },
+        {
+          "path": "tests/ci_artifact_retention.rs",
+          "justification": "Traceability coverage for ci_artifact_retention."
+        },
+        {
+          "path": "tests/ci_cross_platform_matrix.rs",
+          "justification": "Traceability coverage for ci_cross_platform_matrix."
+        },
+        {
+          "path": "tests/ci_evidence_bundle.rs",
+          "justification": "Traceability coverage for ci_evidence_bundle."
+        },
+        {
+          "path": "tests/ci_full_suite_gate.rs",
+          "justification": "Traceability coverage for ci_full_suite_gate."
+        },
+        {
+          "path": "tests/ci_strict_gates_validation.rs",
+          "justification": "Traceability coverage for ci_strict_gates_validation."
+        },
+        {
+          "path": "tests/config_edge_cases.rs",
+          "justification": "Traceability coverage for config_edge_cases."
+        },
+        {
+          "path": "tests/counting_taxonomy_contract.rs",
+          "justification": "Traceability coverage for counting_taxonomy_contract."
+        },
+        {
+          "path": "tests/crash_consistency.rs",
+          "justification": "Traceability coverage for crash_consistency."
+        },
+        {
+          "path": "tests/cross_surface_parity.rs",
+          "justification": "Traceability coverage for cross_surface_parity."
+        },
+        {
+          "path": "tests/e2e_artifact_retention_triage.rs",
+          "justification": "Traceability coverage for e2e_artifact_retention_triage."
+        },
+        {
+          "path": "tests/e2e_extension_lifecycle_perf.rs",
+          "justification": "Traceability coverage for e2e_extension_lifecycle_perf."
+        },
+        {
+          "path": "tests/e2e_failure_injection_recovery.rs",
+          "justification": "Traceability coverage for e2e_failure_injection_recovery."
+        },
+        {
+          "path": "tests/e2e_golden_corpus.rs",
+          "justification": "Traceability coverage for e2e_golden_corpus."
+        },
+        {
+          "path": "tests/e2e_golden_transcript_diff.rs",
+          "justification": "Traceability coverage for e2e_golden_transcript_diff."
+        },
+        {
+          "path": "tests/e2e_interruption_resume_replay.rs",
+          "justification": "Traceability coverage for e2e_interruption_resume_replay."
+        },
+        {
+          "path": "tests/e2e_ollama_live.rs",
+          "justification": "Traceability coverage for e2e_ollama_live."
+        },
+        {
+          "path": "tests/e2e_provider_failure_injection.rs",
+          "justification": "Traceability coverage for e2e_provider_failure_injection."
+        },
+        {
+          "path": "tests/e2e_provider_scenarios.rs",
+          "justification": "Traceability coverage for e2e_provider_scenarios."
+        },
+        {
+          "path": "tests/e2e_replay_bundle_validation.rs",
+          "justification": "Traceability coverage for e2e_replay_bundle_validation."
+        },
+        {
+          "path": "tests/e2e_replay_bundles.rs",
+          "justification": "Traceability coverage for e2e_replay_bundles."
+        },
+        {
+          "path": "tests/e2e_soak_stability.rs",
+          "justification": "Traceability coverage for e2e_soak_stability."
+        },
+        {
+          "path": "tests/e2e_tui_features.rs",
+          "justification": "Traceability coverage for e2e_tui_features."
+        },
+        {
+          "path": "tests/e2e_tui_perf.rs",
+          "justification": "Traceability coverage for e2e_tui_perf."
+        },
+        {
+          "path": "tests/edit_empty_string_repro.rs",
+          "justification": "Traceability coverage for edit_empty_string_repro."
+        },
+        {
+          "path": "tests/extension_scoring_ope.rs",
+          "justification": "Traceability coverage for extension_scoring_ope."
+        },
+        {
+          "path": "tests/extension_scoring_voi_meanfield.rs",
+          "justification": "Traceability coverage for extension_scoring_voi_meanfield."
+        },
+        {
+          "path": "tests/extensions_auth_error_coverage.rs",
+          "justification": "Traceability coverage for extensions_auth_error_coverage."
+        },
+        {
+          "path": "tests/extensions_oco_heterogeneous.rs",
+          "justification": "Traceability coverage for extensions_oco_heterogeneous."
+        },
+        {
+          "path": "tests/fault_injection_persistence.rs",
+          "justification": "Traceability coverage for fault_injection_persistence."
+        },
+        {
+          "path": "tests/franken_node_benchmark_resource_gate_contract.rs",
+          "justification": "Traceability coverage for franken_node_benchmark_resource_gate_contract."
+        },
+        {
+          "path": "tests/franken_node_claim_contract.rs",
+          "justification": "Traceability coverage for franken_node_claim_contract."
+        },
+        {
+          "path": "tests/franken_node_compat_harness.rs",
+          "justification": "Traceability coverage for franken_node_compat_harness."
+        },
+        {
+          "path": "tests/franken_node_compatibility_doctor_contract.rs",
+          "justification": "Traceability coverage for franken_node_compatibility_doctor_contract."
+        },
+        {
+          "path": "tests/franken_node_deterministic_replay_contract.rs",
+          "justification": "Traceability coverage for franken_node_deterministic_replay_contract."
+        },
+        {
+          "path": "tests/franken_node_event_loop_io_parity_contract.rs",
+          "justification": "Traceability coverage for franken_node_event_loop_io_parity_contract."
+        },
+        {
+          "path": "tests/franken_node_executable_conformance_harness_contract.rs",
+          "justification": "Traceability coverage for franken_node_executable_conformance_harness_contract."
+        },
+        {
+          "path": "tests/franken_node_kernel_extraction_boundary_manifest.rs",
+          "justification": "Traceability coverage for franken_node_kernel_extraction_boundary_manifest."
+        },
+        {
+          "path": "tests/franken_node_migration_assistant_contract.rs",
+          "justification": "Traceability coverage for franken_node_migration_assistant_contract."
+        },
+        {
+          "path": "tests/franken_node_multi_tier_execution_contract.rs",
+          "justification": "Traceability coverage for franken_node_multi_tier_execution_contract."
+        },
+        {
+          "path": "tests/franken_node_package_interop_contract.rs",
+          "justification": "Traceability coverage for franken_node_package_interop_contract."
+        },
+        {
+          "path": "tests/franken_node_practical_finish_contract.rs",
+          "justification": "Traceability coverage for franken_node_practical_finish_contract."
+        },
+        {
+          "path": "tests/franken_node_remediation_backlog_contract.rs",
+          "justification": "Traceability coverage for franken_node_remediation_backlog_contract."
+        },
+        {
+          "path": "tests/franken_node_runtime_integration_contract.rs",
+          "justification": "Traceability coverage for franken_node_runtime_integration_contract."
+        },
+        {
+          "path": "tests/franken_node_runtime_substrate_contract.rs",
+          "justification": "Traceability coverage for franken_node_runtime_substrate_contract."
+        },
+        {
+          "path": "tests/franken_node_security_sandbox_contract.rs",
+          "justification": "Traceability coverage for franken_node_security_sandbox_contract."
+        },
+        {
+          "path": "tests/franken_node_semantic_compat_contract.rs",
+          "justification": "Traceability coverage for franken_node_semantic_compat_contract."
+        },
+        {
+          "path": "tests/franken_node_shadow_canary_rollout_contract.rs",
+          "justification": "Traceability coverage for franken_node_shadow_canary_rollout_contract."
+        },
+        {
+          "path": "tests/franken_node_unified_test_certification_contract.rs",
+          "justification": "Traceability coverage for franken_node_unified_test_certification_contract."
+        },
+        {
+          "path": "tests/fuzz_regression.rs",
+          "justification": "Traceability coverage for fuzz_regression."
+        },
+        {
+          "path": "tests/fuzz_regression_generated.rs",
+          "justification": "Traceability coverage for fuzz_regression_generated."
+        },
+        {
+          "path": "tests/graduated_rollout_integration_sec72.rs",
+          "justification": "Traceability coverage for graduated_rollout_integration_sec72."
+        },
+        {
+          "path": "tests/hostcall_queue_ebr.rs",
+          "justification": "Traceability coverage for hostcall_queue_ebr."
+        },
+        {
+          "path": "tests/hostcall_queue_loom.rs",
+          "justification": "Traceability coverage for hostcall_queue_loom."
+        },
+        {
+          "path": "tests/hostcall_s3_fifo_policy.rs",
+          "justification": "Traceability coverage for hostcall_s3_fifo_policy."
+        },
+        {
+          "path": "tests/interactive_commands_unit.rs",
+          "justification": "Traceability coverage for interactive_commands_unit."
+        },
+        {
+          "path": "tests/json_mode_parity.rs",
+          "justification": "Traceability coverage for json_mode_parity."
+        },
+        {
+          "path": "tests/non_mock_compliance_gate.rs",
+          "justification": "Traceability coverage for non_mock_compliance_gate."
+        },
+        {
+          "path": "tests/non_mock_rubric_gate.rs",
+          "justification": "Traceability coverage for non_mock_rubric_gate."
+        },
+        {
+          "path": "tests/perf_baseline_variance.rs",
+          "justification": "Traceability coverage for perf_baseline_variance."
+        },
+        {
+          "path": "tests/perf_e2e.rs",
+          "justification": "Traceability coverage for perf_e2e."
+        },
+        {
+          "path": "tests/perf_regression.rs",
+          "justification": "Traceability coverage for perf_regression."
+        },
+        {
+          "path": "tests/phase3_cross_module_integration.rs",
+          "justification": "Traceability coverage for phase3_cross_module_integration."
+        },
+        {
+          "path": "tests/phase3_security_invariants.rs",
+          "justification": "Traceability coverage for phase3_security_invariants."
+        },
+        {
+          "path": "tests/provider_backward_lock.rs",
+          "justification": "Traceability coverage for provider_backward_lock."
+        },
+        {
+          "path": "tests/provider_closure_truth_table.rs",
+          "justification": "Traceability coverage for provider_closure_truth_table."
+        },
+        {
+          "path": "tests/provider_contract.rs",
+          "justification": "Traceability coverage for provider_contract."
+        },
+        {
+          "path": "tests/provider_discrepancy_classification.rs",
+          "justification": "Traceability coverage for provider_discrepancy_classification."
+        },
+        {
+          "path": "tests/provider_live_verify.rs",
+          "justification": "Traceability coverage for provider_live_verify."
+        },
+        {
+          "path": "tests/provider_metadata_comprehensive.rs",
+          "justification": "Traceability coverage for provider_metadata_comprehensive."
+        },
+        {
+          "path": "tests/provider_native_contract.rs",
+          "justification": "Traceability coverage for provider_native_contract."
+        },
+        {
+          "path": "tests/provider_native_verify.rs",
+          "justification": "Traceability coverage for provider_native_verify."
+        },
+        {
+          "path": "tests/provider_registry_guardrails.rs",
+          "justification": "Traceability coverage for provider_registry_guardrails."
+        },
+        {
+          "path": "tests/provider_session_coverage.rs",
+          "justification": "Traceability coverage for provider_session_coverage."
+        },
+        {
+          "path": "tests/provider_smoke_matrix.rs",
+          "justification": "Traceability coverage for provider_smoke_matrix."
+        },
+        {
+          "path": "tests/provider_unit_checklist.rs",
+          "justification": "Traceability coverage for provider_unit_checklist."
+        },
+        {
+          "path": "tests/qa_certification_dossier.rs",
+          "justification": "Traceability coverage for qa_certification_dossier."
+        },
+        {
+          "path": "tests/qa_docs_policy_validation.rs",
+          "justification": "Traceability coverage for qa_docs_policy_validation."
+        },
+        {
+          "path": "tests/redaction_test.rs",
+          "justification": "Traceability coverage for redaction_test."
+        },
+        {
+          "path": "tests/repro_edit_newline_shift.rs",
+          "justification": "Traceability coverage for repro_edit_newline_shift."
+        },
+        {
+          "path": "tests/repro_exec_mediation_bypass.rs",
+          "justification": "Traceability coverage for repro_exec_mediation_bypass."
+        },
+        {
+          "path": "tests/repro_ext_path_traversal.rs",
+          "justification": "Traceability coverage for repro_ext_path_traversal."
+        },
+        {
+          "path": "tests/repro_read_large_file.rs",
+          "justification": "Traceability coverage for repro_read_large_file."
+        },
+        {
+          "path": "tests/repro_symlink_monotonicity.rs",
+          "justification": "Traceability coverage for repro_symlink_monotonicity."
+        },
+        {
+          "path": "tests/reproduce_index_gap.rs",
+          "justification": "Traceability coverage for reproduce_index_gap."
+        },
+        {
+          "path": "tests/resource_edge_cases.rs",
+          "justification": "Traceability coverage for resource_edge_cases."
+        },
+        {
+          "path": "tests/rpc_edge_cases.rs",
+          "justification": "Traceability coverage for rpc_edge_cases."
+        },
+        {
+          "path": "tests/sdk_api.rs",
+          "justification": "Traceability coverage for sdk_api."
+        },
+        {
+          "path": "tests/sdk_integration.rs",
+          "justification": "Traceability coverage for sdk_integration."
+        },
+        {
+          "path": "tests/sdk_unit.rs",
+          "justification": "Traceability coverage for sdk_unit."
+        },
+        {
+          "path": "tests/sec_compatibility_conformance.rs",
+          "justification": "Traceability coverage for sec_compatibility_conformance."
+        },
+        {
+          "path": "tests/security_conformance_benign.rs",
+          "justification": "Traceability coverage for security_conformance_benign."
+        },
+        {
+          "path": "tests/session_store_v2.rs",
+          "justification": "Traceability coverage for session_store_v2."
+        },
+        {
+          "path": "tests/session_store_v2_contract.rs",
+          "justification": "Traceability coverage for session_store_v2_contract."
+        },
+        {
+          "path": "tests/validate_e2e_artifact_schema.rs",
+          "justification": "Traceability coverage for validate_e2e_artifact_schema."
+        },
+        {
+          "path": "tests/vcr_parity_validation.rs",
+          "justification": "Traceability coverage for vcr_parity_validation."
+        },
+        {
+          "path": "tests/vcr_redaction_scan.rs",
+          "justification": "Traceability coverage for vcr_redaction_scan."
         }
       ],
       "e2e_scripts": [

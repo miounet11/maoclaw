@@ -18,11 +18,11 @@ expression: view
   Assistant:
 
     Done.
-
-
-  [100%] ↑/↓ PgUp/PgDn to scroll
+  [100%] ↑/↓ PgUp/PgDn Shift+Up/Down to scroll
 
   Enter: send  Shift+Enter: newline  Alt+Enter: multi-line  [thinking: off]
   │ > Type a message... (/help, /exit)
   │ >
   │ >
+
+  Tokens: 0 in / 0 out  |  Persist: balanced  |  /help  |  Ctrl+C: quit

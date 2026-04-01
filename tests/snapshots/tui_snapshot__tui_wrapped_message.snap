@@ -12,11 +12,9 @@ expression: view
     This is a longer assistant response that
     should wrap across multiple lines.
 
-
-
   Enter: send  Shift+Enter: ne...  [thinking: off]
   │ > Type a message... (/help, /exit)
   │ >
   │ >
 
-  Tokens: 0 in / 0 out  |  /help  |  Ctrl+C: quit
+  Tokens: 0 in / 0 out  |  Persist: balanced  |...

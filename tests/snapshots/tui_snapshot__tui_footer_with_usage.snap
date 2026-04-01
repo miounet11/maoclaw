@@ -11,11 +11,9 @@ expression: view
 
     Usage sample.
 
-
-
   Enter: send  Shift+Enter: newline  Alt+Enter: multi-line  [thinking: off]
   │ > Type a message... (/help, /exit)
   │ >
   │ >
 
-  Tokens: 120 in / 45 out ($0.0030)  |  /help  |  Ctrl+C: quit
+  Tokens: 120 in / 45 out ($0.0030)  |  Persist: balanced  |  /help  |  Ctrl+...

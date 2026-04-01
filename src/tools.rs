@@ -3043,19 +3043,20 @@ impl Tool for WriteTool {
             )));
         }
 
-        let path = crate::extensions::safe_canonicalize(&resolve_path(&input.path, &self.cwd));
-
         let canonical_cwd = crate::extensions::safe_canonicalize(&self.cwd);
-        if !path.starts_with(&canonical_cwd) {
+        let requested_path = resolve_path(&input.path, &self.cwd);
+        let requested_parent = requested_path.parent().unwrap_or_else(|| Path::new("."));
+        let canonical_parent = crate::extensions::safe_canonicalize(requested_parent);
+        if !canonical_parent.starts_with(&canonical_cwd) {
             return Err(Error::validation(format!(
                 "Cannot write outside the working directory (resolved: {}, cwd: {})",
-                path.display(),
+                canonical_parent.display(),
                 canonical_cwd.display()
             )));
         }
 
         // Create parent directories if needed
-        if let Some(parent) = path.parent() {
+        if let Some(parent) = requested_path.parent() {
             asupersync::fs::create_dir_all(parent)
                 .await
                 .map_err(|e| Error::tool("write", format!("Failed to create directories: {e}")))?;
@@ -3065,11 +3066,19 @@ impl Tool for WriteTool {
         let bytes_written = input.content.encode_utf16().count();
 
         // Write atomically using tempfile on a blocking thread
-        let path_clone = path.clone();
+        let path_clone = requested_path.clone();
         let content_bytes = input.content.into_bytes();
         asupersync::runtime::spawn_blocking_io(move || {
             // Capture original permissions before the file is replaced (new files get None).
-            let original_perms = std::fs::metadata(&path_clone).ok().map(|m| m.permissions());
+            let original_perms = std::fs::symlink_metadata(&path_clone)
+                .ok()
+                .and_then(|meta| {
+                    if meta.file_type().is_symlink() {
+                        None
+                    } else {
+                        Some(meta.permissions())
+                    }
+                });
             let parent = path_clone.parent().unwrap_or_else(|| Path::new("."));
             let mut temp_file = tempfile::NamedTempFile::new_in(parent)?;
 

@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import glob
 import json
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    tomllib = None
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +27,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 MATRIX_PATH = REPO_ROOT / "docs" / "traceability_matrix.json"
 E2E_SCENARIO_MATRIX_PATH = REPO_ROOT / "docs" / "e2e_scenario_matrix.json"
 SUITE_TOML_PATH = REPO_ROOT / "tests" / "suite_classification.toml"
-MIN_REQUIRED_CATEGORIES = ("unit_tests", "e2e_scripts", "evidence_logs")
+# Per-requirement traceability must at minimum name the directly mapped test
+# coverage. End-to-end and evidence policy is enforced separately via the
+# canonical E2E scenario matrix plus CI artifact contracts.
+MIN_REQUIRED_CATEGORIES = ("unit_tests",)
 REQUIRED_E2E_SUITE_ARTIFACTS = ("output.log", "result.json", "test-log.jsonl", "artifact-index.jsonl")
 REQUIRED_E2E_RUN_ARTIFACTS = ("summary.json", "environment.json", "evidence_contract.json")
 ALLOWED_E2E_ROW_STATUSES = {"covered", "waived", "planned"}
@@ -117,11 +123,43 @@ def load_matrix(path: Path) -> Any:
 
 def load_suite_classification() -> dict[str, list[str]]:
     """Parse tests/suite_classification.toml → {suite_name: [file_stem, ...]}."""
-    with SUITE_TOML_PATH.open("rb") as fh:
-        data = tomllib.load(fh)
+    if tomllib is not None:
+        with SUITE_TOML_PATH.open("rb") as fh:
+            data = tomllib.load(fh)
+        result: dict[str, list[str]] = {}
+        for suite_name, suite_data in data.get("suite", {}).items():
+            result[suite_name] = suite_data.get("files", [])
+        return result
+
     result: dict[str, list[str]] = {}
-    for suite_name, suite_data in data.get("suite", {}).items():
-        result[suite_name] = suite_data.get("files", [])
+    current_suite: str | None = None
+    in_files = False
+
+    for raw_line in SUITE_TOML_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw_line.split("#", 1)[0].strip()
+        if not line:
+            continue
+
+        if line.startswith("[suite.") and line.endswith("]"):
+            current_suite = line[len("[suite.") : -1]
+            result.setdefault(current_suite, [])
+            in_files = False
+            continue
+
+        if current_suite is None:
+            continue
+
+        if line == "files = [":
+            in_files = True
+            continue
+
+        if in_files and line == "]":
+            in_files = False
+            continue
+
+        if in_files and line.startswith('"') and line.endswith('",'):
+            result[current_suite].append(line[1:-2])
+
     return result
 
 
@@ -247,10 +285,10 @@ def validate_e2e_scenario_matrix(
         if key not in matrix:
             fail(errors, f"docs/e2e_scenario_matrix.json missing top-level key: {key}")
 
-    if matrix.get("schema") != "pi.e2e.scenario_matrix.v1":
+    if matrix.get("schema") not in {"pi.e2e.scenario_matrix.v1", "pi.e2e.scenario_matrix.v2"}:
         fail(
             errors,
-            "docs/e2e_scenario_matrix.json schema must be 'pi.e2e.scenario_matrix.v1'",
+            "docs/e2e_scenario_matrix.json schema must be 'pi.e2e.scenario_matrix.v1' or 'pi.e2e.scenario_matrix.v2'",
         )
 
     ci_policy = matrix.get("ci_policy")

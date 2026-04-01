@@ -810,15 +810,12 @@ impl PiApp {
                     }
                 }
                 self.message_render_cache.invalidate_all();
-                let content = self.build_conversation_content();
-                let effective = self.view_effective_conversation_height().max(1);
-                self.conversation_viewport.height = effective;
-                self.conversation_viewport.set_content(content.trim_end());
                 self.status_message = Some(if self.tools_expanded {
                     "Tool output expanded".to_string()
                 } else {
                     "Tool output collapsed".to_string()
                 });
+                self.scroll_to_latest_tool_block();
                 None
             }
 

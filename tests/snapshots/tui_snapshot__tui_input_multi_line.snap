@@ -6,7 +6,9 @@ expression: view
   ctrl+l: model  ctrl+p: next  ctrl+shift+p: prev  ctrl+o: tools  ctrl+t: thi...
   resources: 0 skills, 0 prompts, 0 themes, 0 extensions
 
-  Welcome to Pi! Type a message to begin, or /help for commands.
+  Welcome to Pi!
+  Type a message to begin, or /help for commands.
+  Use /setup to configure provider, model, API URL, and API key.
 
   Alt+Enter: send  Enter: newline  Esc: single-line  [thinking: off]
   │ > first line
@@ -16,4 +18,4 @@ expression: view
   │ >
   │ >
 
-  Tokens: 0 in / 0 out  |  /help  |  Ctrl+C: quit
+  Tokens: 0 in / 0 out  |  Persist: balanced  |  /help  |  Ctrl+C: quit

@@ -16,11 +16,9 @@ file contents here
 
     Done.
 
-
-
   Enter: send  Shift+Enter: newline  Alt+Enter: multi-line  [thinking: off]
   │ > Type a message... (/help, /exit)
   │ >
   │ >
 
-  Tokens: 0 in / 0 out  |  /help  |  Ctrl+C: quit
+  Tokens: 0 in / 0 out  |  Persist: balanced  |  /help  |  Ctrl+C: quit

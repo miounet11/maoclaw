@@ -621,6 +621,22 @@ impl PiApp {
         }
     }
 
+    fn scroll_to_latest_tool_block(&mut self) {
+        let Some(header) = self
+            .messages
+            .iter()
+            .rev()
+            .find(|msg| msg.role == MessageRole::Tool)
+            .and_then(|msg| msg.content.lines().next())
+            .map(ToOwned::to_owned)
+        else {
+            self.refresh_conversation_viewport(self.follow_stream_tail);
+            return;
+        };
+
+        self.scroll_to_last_match(&header);
+    }
+
     /// Handle a mouse wheel event, routing it to the appropriate overlay or
     /// the conversation viewport.  Returns `None` (no command needed).
     fn handle_mouse_wheel(&mut self, is_up: bool) -> Option<Cmd> {
@@ -1637,7 +1653,7 @@ impl PiApp {
             chrome += 2;
         }
 
-        self.term_height.saturating_sub(chrome)
+        self.term_height.saturating_sub(chrome).max(1)
     }
 
     /// Set the input area height and recalculate the conversation viewport
