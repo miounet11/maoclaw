@@ -7,6 +7,8 @@ APP_OUTPUT="${ROOT}/dist/${APP_NAME}"
 PKG_OUTPUT="${ROOT}/dist/maoclaw.pkg"
 LEGACY_PKG_OUTPUT="${ROOT}/dist/Pi Desktop.pkg"
 PI_BINARY=""
+APP_SIGN_IDENTITY="${MACOS_APP_SIGN_IDENTITY:-${PI_MACOS_APP_SIGN_IDENTITY:-}}"
+PKG_SIGN_IDENTITY="${MACOS_PKG_SIGN_IDENTITY:-${PI_MACOS_PKG_SIGN_IDENTITY:-}}"
 APP_VERSION="$(sed -nE 's/^version = "(.*)"/\1/p' "${ROOT}/Cargo.toml" | head -n 1)"
 
 if [ -z "${APP_VERSION}" ]; then
@@ -71,10 +73,12 @@ usage() {
 Usage: scripts/build_macos_pkg.sh [options]
 
 Options:
-  --pi-binary PATH   Path to the Pi binary to bundle
-  --app PATH         Path to an existing .app bundle to package
-  --output PATH      Output package path (default: dist/maoclaw.pkg)
-  -h, --help         Show this help
+  --pi-binary PATH         Path to the Pi binary to bundle
+  --app PATH               Path to an existing .app bundle to package
+  --output PATH            Output package path (default: dist/maoclaw.pkg)
+  --app-sign-identity NAME codesign identity passed to build_macos_app.sh when app build is needed
+  --sign-identity NAME     pkgbuild signing identity (Developer ID Installer)
+  -h, --help               Show this help
 USAGE
 }
 
@@ -90,6 +94,14 @@ while [ $# -gt 0 ]; do
       ;;
     --output)
       PKG_OUTPUT="$2"
+      shift 2
+      ;;
+    --app-sign-identity)
+      APP_SIGN_IDENTITY="$2"
+      shift 2
+      ;;
+    --sign-identity)
+      PKG_SIGN_IDENTITY="$2"
       shift 2
       ;;
     -h|--help)
@@ -119,14 +131,25 @@ if [ ! -d "${APP_OUTPUT}" ] || ! app_bundle_matches_version "${APP_OUTPUT}"; the
   if [ -n "${PI_BINARY}" ]; then
     build_args+=("--pi-binary" "${PI_BINARY}")
   fi
+  if [ -n "${APP_SIGN_IDENTITY}" ]; then
+    build_args+=("--sign-identity" "${APP_SIGN_IDENTITY}")
+  fi
   bash "${build_args[@]}"
 fi
 
-pkgbuild \
+pkgbuild_args=(
   --component "${APP_OUTPUT}" \
   --identifier "com.maoclaw.desktop" \
   --version "${APP_VERSION}" \
-  --install-location "/Applications" \
+  --install-location "/Applications"
+)
+
+if [ -n "${PKG_SIGN_IDENTITY}" ]; then
+  pkgbuild_args+=(--sign "${PKG_SIGN_IDENTITY}")
+fi
+
+pkgbuild \
+  "${pkgbuild_args[@]}" \
   "${PKG_OUTPUT}"
 
 sync_legacy_pkg_copy

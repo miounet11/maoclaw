@@ -9,6 +9,7 @@ LEGACY_APP_DIR="${ROOT}/dist/${LEGACY_APP_NAME}"
 PI_BINARY=""
 PI_DESKTOP_BINARY=""
 INSTALL_APP=0
+APP_SIGN_IDENTITY="${MACOS_APP_SIGN_IDENTITY:-${PI_MACOS_APP_SIGN_IDENTITY:-}}"
 APP_VERSION="$(sed -nE 's/^version = "(.*)"/\1/p' "${ROOT}/Cargo.toml" | head -n 1)"
 
 if [ -z "${APP_VERSION}" ]; then
@@ -72,6 +73,30 @@ ensure_binary_is_fresh() {
   fi
 }
 
+ensure_codesign_available() {
+  if ! command -v codesign >/dev/null 2>&1; then
+    echo "codesign is required when --sign-identity is used." >&2
+    exit 1
+  fi
+}
+
+codesign_app_bundle() {
+  local app_path="$1"
+  local identity="$2"
+  [ -n "${identity}" ] || return 0
+
+  ensure_codesign_available
+  echo "Signing app bundle with identity: ${identity}"
+  codesign \
+    --force \
+    --deep \
+    --options runtime \
+    --timestamp \
+    --sign "${identity}" \
+    "${app_path}"
+  codesign --verify --deep --strict --verbose=2 "${app_path}"
+}
+
 usage() {
   cat <<'USAGE'
 Usage: scripts/build_macos_app.sh [options]
@@ -79,8 +104,9 @@ Usage: scripts/build_macos_app.sh [options]
 Options:
   --pi-binary PATH         Path to the Pi CLI binary to bundle
   --pi-desktop-binary PATH Path to the pi_desktop (iced) binary to bundle
-  --output PATH      Output .app bundle path (default: dist/maoclaw.app)
-  --install          Copy the built app into ~/Applications
+  --output PATH            Output .app bundle path (default: dist/maoclaw.app)
+  --sign-identity NAME     codesign the .app with Developer ID Application identity
+  --install                Copy the built app into ~/Applications
   -h, --help         Show this help
 USAGE
 }
@@ -97,6 +123,10 @@ while [ $# -gt 0 ]; do
       ;;
     --output)
       APP_DIR="$2"
+      shift 2
+      ;;
+    --sign-identity)
+      APP_SIGN_IDENTITY="$2"
       shift 2
       ;;
     --install)
@@ -220,6 +250,8 @@ while IFS='|' read -r catalog_id _title _description _tags source_path; do
     echo "warning: skill catalog source missing for ${catalog_id}: ${source_root}" >&2
   fi
 done < "${ROOT}/desktop/macos/Resources/skill_catalog.tsv"
+
+codesign_app_bundle "${APP_DIR}" "${APP_SIGN_IDENTITY}"
 
 sync_legacy_dist_app_copy
 

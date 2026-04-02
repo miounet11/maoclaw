@@ -48,6 +48,16 @@ Note: dependencies that specify both `version` and `path` are expected to publis
 Release notes are extracted from `CHANGELOG.md` on a best-effort basis; ensure the changelog contains a `##` heading with the version string for the tag you are cutting.
 The macOS packaging scripts also refuse stale `pi` binaries whose reported version does not match `Cargo.toml`, and reject `pi_desktop` / `.app` artifacts that predate the current manifest version.
 
+For signed macOS releases, use:
+
+- `MACOS_APP_SIGN_IDENTITY` or `PI_MACOS_APP_SIGN_IDENTITY` for the `.app` bundle
+- `MACOS_PKG_SIGN_IDENTITY` or `PI_MACOS_PKG_SIGN_IDENTITY` for the `.pkg` installer
+
+`scripts/build_macos_app.sh` accepts `--sign-identity`, and `scripts/build_macos_pkg.sh` accepts:
+
+- `--app-sign-identity`
+- `--sign-identity`
+
 ## Distribution compatibility strategy (DROPIN-146)
 Goal: keep packaging and invocation ergonomics compatible enough for frictionless migration from upstream Pi while shipping under the `maoclaw` repository and product identity.
 

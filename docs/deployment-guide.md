@@ -112,6 +112,14 @@ Build the installer package:
 bash scripts/build_macos_pkg.sh
 ```
 
+To build signed artifacts, provide Developer ID identities:
+
+```bash
+MACOS_APP_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
+MACOS_PKG_SIGN_IDENTITY="Developer ID Installer: Your Name (TEAMID)" \
+bash scripts/build_macos_pkg.sh
+```
+
 Outputs:
 
 - `~/Applications/maoclaw.app`
