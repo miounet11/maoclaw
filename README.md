@@ -332,9 +332,12 @@ Start here:
 - [docs/README.md](docs/README.md) - canonical documentation map
 - [docs/open-source-overview.md](docs/open-source-overview.md) - project positioning and OSS posture
 - [docs/deployment-guide.md](docs/deployment-guide.md) - installation and rollout
+- [docs/learn-and-use-guide.md](docs/learn-and-use-guide.md) - fastest path from install to productive use
+- [docs/reskin-guide.md](docs/reskin-guide.md) - how to fork, rebrand, and ship a coherent product shell
 
 Usage and operator docs:
 
+- [docs/learn-and-use-guide.md](docs/learn-and-use-guide.md)
 - [docs/settings.md](docs/settings.md)
 - [docs/models.md](docs/models.md)
 - [docs/session.md](docs/session.md)
@@ -347,6 +350,7 @@ Usage and operator docs:
 
 Customization and extension docs:
 
+- [docs/reskin-guide.md](docs/reskin-guide.md)
 - [docs/skills.md](docs/skills.md)
 - [docs/prompt-templates.md](docs/prompt-templates.md)
 - [docs/themes.md](docs/themes.md)

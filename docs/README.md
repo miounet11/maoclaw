@@ -34,6 +34,8 @@ These are the pages that should shape first impression for GitHub readers, integ
 - [../STATUS.md](../STATUS.md) - current public truth snapshot
 - [open-source-overview.md](open-source-overview.md) - concise open-source positioning and scope
 - [deployment-guide.md](deployment-guide.md) - install, packaging, and deployment paths
+- [learn-and-use-guide.md](learn-and-use-guide.md) - fastest path for first-time users
+- [reskin-guide.md](reskin-guide.md) - how to fork, rebrand, and keep the product coherent
 - [maozhua-v0.1-quick-start.md](maozhua-v0.1-quick-start.md) - shortest path to first successful use
 - [maozhua-v0.1-support-scope.md](maozhua-v0.1-support-scope.md) - what is in scope for the current release
 - [maozhua-v0.1-known-limitations.md](maozhua-v0.1-known-limitations.md) - explicit boundaries and non-promises
