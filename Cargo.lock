@@ -4530,7 +4530,7 @@ dependencies = [
 
 [[package]]
 name = "maoclaw"
-version = "0.1.14"
+version = "0.1.16"
 dependencies = [
  "anyhow",
  "arbitrary",

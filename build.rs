@@ -15,7 +15,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let build = BuildBuilder::default().build_timestamp(true).build()?;
     let cargo = CargoBuilder::default().target_triple(true).build()?;
-    let gix = GixBuilder::default().sha(true).dirty(true).build()?;
     let rustc = RustcBuilder::default().semver(true).build()?;
 
     let mut emitter = Emitter::default();
@@ -25,9 +24,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .quiet()
         .add_instructions(&build)?
         .add_instructions(&cargo)?
-        .add_instructions(&gix)?
-        .add_instructions(&rustc)?
-        .emit()?;
+        .add_instructions(&rustc)?;
+
+    // Git metadata is nice-to-have for release provenance, but CI packaging must
+    // still succeed when the checkout shape or git safety rules make vergen-gix
+    // unable to inspect the repository.
+    match GixBuilder::default().sha(true).dirty(true).build() {
+        Ok(gix) => {
+            if let Err(err) = emitter.add_instructions(&gix) {
+                println!("cargo:warning=git metadata unavailable: {err}");
+            }
+        }
+        Err(err) => {
+            println!("cargo:warning=git metadata unavailable: {err}");
+        }
+    }
+
+    emitter.emit()?;
 
     Ok(())
 }

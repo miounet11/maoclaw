@@ -8,7 +8,17 @@ Pre-release migration notes and transition-era launch materials are not treated 
 
 Highlights:
 
-- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.15` baseline.
+- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.16` baseline.
+
+## 0.1.16 - Release Pipeline Repair And Download Consistency
+
+Released: 2026-04-02
+
+Highlights:
+
+- Fixed release CI so missing Git metadata no longer aborts public artifact builds on GitHub Actions.
+- Synchronized the checked-in Cargo lockfile with the package version so `--locked` release builds now succeed consistently across the matrix.
+- Moved the public direct-download links forward to the repaired release tag so the homepage points at live macOS and Windows packages instead of a failed candidate.
 
 ## 0.1.15 - Mao Command Release And Direct Download UX
 
