@@ -103,12 +103,12 @@ Interactive editor parity (autocomplete/bang/paste) is tracked by **bd-1iwi**.
 
 ## macOS launch behavior
 
-**Symptom:** double-clicking `~/.local/bin/pi` appears to do nothing.
+**Symptom:** double-clicking the installed CLI binary appears to do nothing.
 
 **Cause:** that file is the terminal binary, not a macOS `.app` bundle.
 
 **Fixes:**
-- Run `pi` from Terminal.
+- Run `mao` from Terminal.
 - Open `~/Applications/maoclaw.app` if the desktop app is installed.
 - Or double-click `~/Applications/maoclaw.command`, which the installer can create on macOS.
 - If the launcher is missing, rerun `install.sh` and it will recreate it.

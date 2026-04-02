@@ -3003,7 +3003,7 @@ print_summary() {
     desktop_app_path="$(find_installed_macos_app || true)"
     if [ -n "$desktop_app_path" ]; then
       lines+=("Desktop:   $desktop_app_path")
-      next_steps+=("Open the desktop client: open \"$desktop_app_path\"")
+      next_steps+=("Open the desktop app: open \"$desktop_app_path\"")
     else
       lines+=("Desktop:   not installed")
       next_steps+=("Desktop app downloads/builds: ${releases_url}")

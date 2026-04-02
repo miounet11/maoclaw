@@ -49,6 +49,8 @@ open ~/Applications/maoclaw.app
 
 If Finder does not show it in `/Applications`, check `~/Applications` first.
 
+The packaging scripts also refresh compatibility copies named `Pi Desktop.app` and `Pi Desktop.pkg`, but the branded artifacts remain the canonical product outputs.
+
 What normal users should do next:
 
 1. run `mao --version`
