@@ -265,6 +265,20 @@ body.v2-body,
   gap: 12px;
 }
 
+.v2-flow-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.05);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
 .v2-stat-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -278,6 +292,21 @@ body.v2-body,
 }
 
 .v2-action-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.v2-action-cluster {
+  display: grid;
+  gap: 12px;
+}
+
+.v2-action-cluster.primary .v2-button,
+.v2-action-cluster.primary .v2-soft,
+.v2-action-cluster.primary .v2-ghost {
+  width: 100%;
+}
+
+.v2-action-cluster.secondary {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -299,6 +328,11 @@ body.v2-body,
   padding: 16px;
 }
 
+.v2-provider-tile {
+  min-height: 108px;
+  align-content: start;
+}
+
 .v2-stat strong,
 .v2-summary strong,
 .v2-provider-tile strong,
@@ -306,6 +340,14 @@ body.v2-body,
 .v2-session-row strong {
   display: block;
   color: #111827;
+}
+
+.v2-provider-tile span {
+  display: block;
+  margin-top: 8px;
+  color: #5b6473;
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .v2-stat strong {
@@ -609,6 +651,26 @@ body.v2-body,
   text-align: center;
 }
 
+.v2-empty > div {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.v2-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.v2-empty-actions .v2-chip-button {
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.84);
+}
+
 .v2-log-list {
   display: grid;
   gap: 8px;
@@ -674,6 +736,16 @@ body.v2-body,
 .v2-status-copy {
   color: #475569;
   font-size: 13px;
+}
+
+.v2-setup-panel .v2-copy,
+.v2-setup-panel .v2-flow-label {
+  margin-bottom: 2px;
+}
+
+.v2-setup-panel .v2-field-row + .v2-flow-label,
+.v2-setup-panel .v2-provider-grid + .v2-flow-label {
+  margin-top: 6px;
 }
 
 .mono {
@@ -1026,6 +1098,7 @@ body.v2-body,
   .v2-summary-grid,
   .v2-provider-grid,
   .v2-action-grid,
+  .v2-action-cluster.secondary,
   .v2-field-row,
   .v2-choice-grid {
     grid-template-columns: 1fr;

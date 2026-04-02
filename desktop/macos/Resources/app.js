@@ -12606,6 +12606,7 @@ function v2RenderOnboarding() {
             </div>
           </div>
           <p class="v2-copy">${escapeHtml(v2Text("setupCardBody"))}</p>
+          <div class="v2-flow-label">${escapeHtml(v2LocaleText("1. 选择服务商", "1. Choose a provider"))}</div>
           <div class="v2-provider-grid">
             ${providers
               .map((preset) => `
@@ -12620,6 +12621,7 @@ function v2RenderOnboarding() {
               `)
               .join("")}
           </div>
+          <div class="v2-flow-label">${escapeHtml(v2LocaleText("2. 填入默认配置", "2. Set your defaults"))}</div>
           <div class="v2-field-row">
             <div class="v2-field">
               <label for="v2-model-id">${escapeHtml(v2Text("modelId"))}</label>
@@ -12700,8 +12702,11 @@ function v2RenderOnboarding() {
             </div>
           </div>
           ${v2RenderStatusLine()}
-          <div class="v2-action-grid">
+          <div class="v2-flow-label">${escapeHtml(v2LocaleText("3. 启动桌面端", "3. Launch the desktop"))}</div>
+          <div class="v2-action-cluster primary">
             <button class="v2-button" type="button" onclick="saveOnboarding()">${escapeHtml(v2Text("saveAndLaunch"))}</button>
+          </div>
+          <div class="v2-action-cluster secondary">
             <button class="v2-ghost" type="button" onclick="v2ImportExistingSetup()" ${importCandidate.available ? "" : "disabled"}>${escapeHtml(v2Text("importSetup"))}</button>
             <button class="v2-soft" type="button" onclick="v2RemoveSavedCredential()" ${v2HasSavedCredential() ? "" : "disabled"}>${escapeHtml(v2Text("removeCredential"))}</button>
             <button class="v2-ghost" type="button" onclick="v2OpenHostedWorkspace()">${escapeHtml(v2Text("openHostedWeb"))}</button>
@@ -12750,6 +12755,15 @@ function v2RenderMessages() {
         <div>
           <strong>${escapeHtml(v2Text("emptyChatTitle"))}</strong>
           <p class="v2-empty-copy">${escapeHtml(v2Text("emptyChatBody"))}</p>
+          <div class="v2-empty-actions">
+            ${v2QuickPrompts()
+              .map((prompt) => `
+                <button class="v2-chip-button" type="button" onclick="v2ApplyQuickPrompt('${escapeJsSingle(prompt)}')">
+                  ${escapeHtml(prompt)}
+                </button>
+              `)
+              .join("")}
+          </div>
         </div>
       </div>
     `;
