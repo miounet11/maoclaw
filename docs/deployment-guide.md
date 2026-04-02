@@ -49,6 +49,14 @@ open ~/Applications/maoclaw.app
 
 If Finder does not show it in `/Applications`, check `~/Applications` first.
 
+What normal users should do next:
+
+1. run `mao --version`
+2. set one provider key
+3. run `mao`
+4. if you want a desktop window, run `open ~/Applications/maoclaw.app`
+5. run `mao doctor` if anything looks off
+
 ### 2. Version-pinned rollout
 
 Best for:
@@ -148,6 +156,17 @@ Use [rpc.md](rpc.md) for the message contract.
 
 The desktop app uses the same Rust runtime and provider/session model as the CLI.
 It is a product surface, not a different backend.
+
+For a first successful desktop run on macOS:
+
+1. open `~/Applications/maoclaw.app`
+2. choose one provider preset
+3. paste one API key
+4. select one default model
+5. save and launch
+
+If the app opens but you are unsure what to do next, the entire goal is simple:
+get one working local conversation first, then customize later.
 
 ## Provider Setup
 

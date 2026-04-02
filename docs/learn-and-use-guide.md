@@ -33,6 +33,14 @@ mao --version
 mao --help
 ```
 
+If you are on macOS and want the desktop client, check:
+
+```bash
+open ~/Applications/maoclaw.app
+```
+
+If the app is not visible in `/Applications`, look in `~/Applications` first.
+
 If you are migrating from older docs or older habits, you may still see `pi` in some compatibility paths.
 For new users, prefer `mao`.
 
@@ -83,6 +91,19 @@ mao --mode json -p "Return a structured summary"
 ```
 
 At this point, you are already using the real runtime.
+
+If you prefer a desktop window on macOS, launch:
+
+```bash
+open ~/Applications/maoclaw.app
+```
+
+Then finish the onboarding flow:
+
+1. choose one provider preset
+2. enter one API key
+3. choose one default model
+4. save and launch
 
 ## Step 4: Learn the core daily workflow
 
@@ -244,6 +265,15 @@ mao config --show
 
 It is not a separate backend.
 The desktop surface uses the same core runtime model.
+
+### 5. Expecting the app to always appear in `/Applications`
+
+On macOS, the current install flow may place the desktop app in `~/Applications`.
+If you do not see it in Finder where you expected, check:
+
+```bash
+open ~/Applications/maoclaw.app
+```
 
 ## A 10-minute learning plan
 

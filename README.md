@@ -37,6 +37,19 @@
 curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 ```
 
+## Start Here
+
+If this is your first time, use this order:
+
+1. Run the installer.
+2. Confirm `mao --version` works.
+3. Set one provider key.
+4. Run `mao`.
+5. If you want the desktop app on macOS, open `~/Applications/maoclaw.app`.
+
+If you install successfully but do not immediately see a Finder app in `/Applications`, that is not necessarily a failed install.
+The current macOS flow can install the desktop app to `~/Applications/maoclaw.app`.
+
 ## In 5 Minutes
 
 If you want to evaluate `maoclaw` fast, do this:
@@ -45,9 +58,21 @@ If you want to evaluate `maoclaw` fast, do this:
 2. Set one provider key.
 3. Run `mao`.
 4. Ask one real question against a real repository.
-5. Run `mao doctor` if anything feels wrong.
+5. Open the desktop app if you want a local GUI on macOS.
+6. Run `mao doctor` if anything feels wrong.
 
 That is enough to tell whether the runtime, install path, and provider wiring are healthy on your machine.
+
+## After Install
+
+What to do next depends on how you want to use it:
+
+- Terminal first: run `mao`
+- One-shot usage: run `mao "Summarize this repository"`
+- Health check: run `mao doctor`
+- macOS desktop: run `open ~/Applications/maoclaw.app`
+
+If you are looking for a download page, release assets, or packaging details, start with [docs/deployment-guide.md](docs/deployment-guide.md).
 
 ## Overview
 
