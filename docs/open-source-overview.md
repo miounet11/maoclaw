@@ -59,6 +59,13 @@ The public story should lead with engineering quality and runtime discipline:
 - explicit operator control
 - explicit governance and release boundaries
 
+It should also lead with product coherence:
+
+- one command taught consistently
+- one release identity across homepage, README, installer, and GitHub releases
+- one docs path for new users
+- one explicit path for forks and branded derivatives
+
 ## What The Project Is For
 
 `maoclaw` should be understood as infrastructure for building and operating customized agent systems.
@@ -114,4 +121,6 @@ Avoid weaker language like this:
 - [../STATUS.md](../STATUS.md) for the current public truth snapshot
 - [README.md](README.md) for the canonical docs map
 - [deployment-guide.md](deployment-guide.md) for installation and deployment
+- [learn-and-use-guide.md](learn-and-use-guide.md) for first-time usage
+- [reskin-guide.md](reskin-guide.md) for forks and branding work
 - [releasing.md](releasing.md) for release process and artifacts

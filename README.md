@@ -37,6 +37,18 @@
 curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | bash
 ```
 
+## In 5 Minutes
+
+If you want to evaluate `maoclaw` fast, do this:
+
+1. Install with the one-line installer.
+2. Set one provider key.
+3. Run `mao`.
+4. Ask one real question against a real repository.
+5. Run `mao doctor` if anything feels wrong.
+
+That is enough to tell whether the runtime, install path, and provider wiring are healthy on your machine.
+
 ## Overview
 
 `maoclaw` is a fully open-source, local-first AI agent runtime built in Rust.
@@ -66,6 +78,20 @@ That includes software engineering, research, operations, support, internal assi
 
 The nickname `机器猫` is community-facing and informal.
 The official product and repository identity remains `maoclaw / 猫爪`.
+
+## Why Teams Pick It
+
+Teams usually adopt `maoclaw` for one of three reasons:
+
+- they want a serious local-first agent runtime instead of a thin demo shell
+- they need one execution core across CLI, RPC, SDK, and desktop surfaces
+- they want to fork, re-skin, and ship their own product without rebuilding the runtime from zero
+
+That combination is the core product promise:
+
+- open source at the runtime layer
+- productizable at the shell layer
+- explicit at the operator layer
 
 ## Why maoclaw
 
@@ -131,6 +157,21 @@ The runtime is intentionally engineered for serious long-lived usage:
 - jemalloc enabled by default on supported targets
 
 That gives the project a credible base for speed, deployability, and operational simplicity.
+
+## First-Contact Standard
+
+`maoclaw` should feel like a top-tier product from the first screen.
+
+That means the first public surfaces must stay aligned:
+
+- the README teaches the same command the installer prints
+- the GitHub release page exposes the same artifacts the homepage links to
+- the desktop package, CLI binary, and docs use one coherent product identity
+- the docs map tells new users exactly where to start instead of making them dig
+- the fork/re-skin path is explicit for teams that want to ship their own branded build
+
+This repo should not merely contain strong runtime code.
+It should present a strong product story with the same level of discipline.
 
 ## Open Source Posture
 
@@ -209,30 +250,30 @@ export ANTHROPIC_API_KEY="your-key"
 Start interactive mode:
 
 ```bash
-pi
-pi "Summarize this repository"
-pi --continue
+mao
+mao "Summarize this repository"
+mao --continue
 ```
 
 Run single-shot mode:
 
 ```bash
-pi -p "Explain this error"
-pi --mode json -p "Return a structured summary"
+mao -p "Explain this error"
+mao --mode json -p "Return a structured summary"
 ```
 
 Inspect available providers and models:
 
 ```bash
 mao --list-providers
-pi --list-models
+mao --list-models
 ```
 
 Run health checks:
 
 ```bash
-pi doctor
-pi config --show
+mao doctor
+mao config --show
 ```
 
 ### Desktop Setup For OpenAI-Compatible Routes
@@ -260,6 +301,13 @@ Desktop release downloads are published on GitHub Releases and mirrored on `xinx
 - macOS Apple Silicon installer: `.pkg`
 - macOS portable desktop archive: `.zip`
 - Windows x86_64 portable desktop archive: `.zip`
+
+Recommended user path:
+
+- want the fastest start: use the installer and then run `mao`
+- want a native Mac app: download the `.pkg`
+- want a portable desktop build: download the `.zip`
+- want to integrate from your own client or editor: use `mao --mode rpc`
 
 Current direct download URLs for `v0.1.16`:
 
@@ -323,6 +371,8 @@ It also defaults to a fast lint scope (`lib+bins` and `tests`); set `SMOKE_LINT_
 It now stops early on lint failure by default to avoid wasting compile/test time; set `SMOKE_CONTINUE_AFTER_LINT_FAIL=1` if you explicitly want both lint and test results in one smoke run.
 
 For deployment details, use [docs/deployment-guide.md](docs/deployment-guide.md).
+For the fastest first-use path, use [docs/learn-and-use-guide.md](docs/learn-and-use-guide.md).
+If you want to ship your own branded fork, use [docs/reskin-guide.md](docs/reskin-guide.md).
 
 ## Documentation
 

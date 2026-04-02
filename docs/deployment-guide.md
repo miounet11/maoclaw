@@ -10,6 +10,15 @@ Official website:
 
 `maoclaw` currently supports four practical deployment shapes.
 
+If you are evaluating the product for the first time, start with:
+
+1. local CLI install
+2. one provider key
+3. `mao`
+4. `mao doctor`
+
+Do not begin with desktop packaging, deep extension work, or RPC integration unless you already know the base runtime works for you.
+
 ### 1. Local CLI install
 
 Best for:
@@ -51,7 +60,7 @@ Best for:
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | \
-  bash -s -- --version v0.1.9 --yes --easy-mode
+  bash -s -- --version v0.1.16 --yes --easy-mode
 ```
 
 ### 3. Source build
@@ -114,6 +123,8 @@ mao
 mao "Summarize this repository"
 mao --continue
 ```
+
+This is the recommended default mode for most users.
 
 ### Print / automation mode
 
@@ -234,3 +245,13 @@ For open-source launch, present `maoclaw` as:
 - a project with explicit release boundaries instead of inflated parity claims
 
 That positioning is strong enough to publish and honest enough to defend.
+
+## Premium Product Checklist
+
+If you want the product to feel top-tier to normal users, not only contributors, keep these details tight:
+
+1. The install command, README quick start, and runtime help output must all teach `mao`, not mixed command names.
+2. The homepage, README, and GitHub release page must point to the same current version and the same download assets.
+3. The desktop package name, CLI brand, and hero image must present one clear product identity.
+4. New users must have one obvious doc for learning and one obvious doc for re-skinning.
+5. Release quality should be visible in public through CI, release artifacts, and explicit verification language.
