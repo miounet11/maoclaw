@@ -28,9 +28,17 @@ curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?
 After install:
 
 ```bash
-pi --version
-pi --help
+mao --version
+mao --help
 ```
+
+On macOS, if the desktop app is already installed locally, launch it with:
+
+```bash
+open ~/Applications/maoclaw.app
+```
+
+If Finder does not show it in `/Applications`, check `~/Applications` first.
 
 ### 2. Version-pinned rollout
 
@@ -60,7 +68,7 @@ git clone https://github.com/miounet11/maoclaw.git
 cd maoclaw
 cargo build --release
 
-./target/release/pi --version
+./target/release/mao --version
 ./target/release/maoclaw --version
 ```
 
@@ -91,21 +99,27 @@ Outputs:
 - `dist/maoclaw.app`
 - `dist/maoclaw.pkg`
 
+After packaging with `--install`, you can launch it with:
+
+```bash
+open ~/Applications/maoclaw.app
+```
+
 ## Runtime Surfaces
 
 ### Interactive CLI
 
 ```bash
-pi
-pi "Summarize this repository"
-pi --continue
+mao
+mao "Summarize this repository"
+mao --continue
 ```
 
 ### Print / automation mode
 
 ```bash
-pi -p "Explain this error"
-pi --mode json -p "Return a structured summary"
+mao -p "Explain this error"
+mao --mode json -p "Return a structured summary"
 ```
 
 ### RPC backend mode
@@ -113,7 +127,7 @@ pi --mode json -p "Return a structured summary"
 Best for IDEs, wrappers, or external clients.
 
 ```bash
-pi --mode rpc
+mao --mode rpc
 ```
 
 This exposes a line-delimited JSON protocol over stdin/stdout.
@@ -140,8 +154,8 @@ export AZURE_OPENAI_API_KEY="your-key"
 Then verify available providers/models:
 
 ```bash
-pi --list-providers
-pi --list-models
+mao --list-providers
+mao --list-models
 ```
 
 For provider-specific setup details:
@@ -175,19 +189,19 @@ Relevant docs:
 
 - install with `install.sh`
 - set one provider API key
-- use `pi` interactively
+- use `mao` interactively
 - use `--continue` and sessions as the default workflow
 
 ### Pattern B: Team canary rollout
 
 - pin a release with `install.sh --version`
-- validate install, auth, and `pi --help`
+- validate install, auth, and `mao --help`
 - smoke test a few real repositories
 - promote only after the rollout checklist in [releasing.md](releasing.md) is satisfied
 
 ### Pattern C: IDE or wrapper integration
 
-- run `pi --mode rpc`
+- run `mao --mode rpc`
 - keep your UI as a separate process
 - render prompts/state/events client-side
 - use RPC as the stable integration seam instead of scraping TUI output

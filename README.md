@@ -224,7 +224,7 @@ pi --mode json -p "Return a structured summary"
 Inspect available providers and models:
 
 ```bash
-pi --list-providers
+mao --list-providers
 pi --list-models
 ```
 
@@ -261,12 +261,21 @@ Desktop release downloads are published on GitHub Releases and mirrored on `xinx
 - macOS portable desktop archive: `.zip`
 - Windows x86_64 portable desktop archive: `.zip`
 
+Current direct download URLs for `v0.1.15`:
+
+- Latest release page: `https://github.com/miounet11/maoclaw/releases/tag/v0.1.15`
+- macOS installer: `https://github.com/miounet11/maoclaw/releases/download/v0.1.15/maoclaw-macos-arm64-0.1.15.pkg`
+- macOS desktop archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.15/maoclaw-macos-arm64-0.1.15.zip`
+- Windows desktop package: `https://github.com/miounet11/maoclaw/releases/download/v0.1.15/maoclaw-windows-amd64-0.1.15-portable.zip`
+- macOS CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.15/mao-darwin-arm64.tar.xz`
+- Windows CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.15/mao-windows-amd64.zip`
+
 Build from source:
 
 ```bash
 cargo build --release
 
-./target/release/pi --version
+./target/release/mao --version
 ./target/release/maoclaw --version
 ```
 

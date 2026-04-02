@@ -1,6 +1,6 @@
 [package]
 name = "maoclaw"
-version = "0.1.14"
+version = "0.1.15"
 edition = "2024"
 rust-version = "1.85"
 description = "maoclaw - AI agent framework and development solution with local-first runtime surfaces"
@@ -32,6 +32,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "pi"
 path = "src/main.rs"
+
+[[bin]]
+name = "mao"
+path = "src/bin/mao.rs"
 
 [[bin]]
 name = "maoclaw"

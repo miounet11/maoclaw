@@ -69,7 +69,7 @@ TS_PI_DETECTED=0
 ADOPT_TS=0
 ADOPT_CANONICAL=0
 
-FINAL_BIN_NAME="pi"
+FINAL_BIN_NAME="mao"
 INSTALL_BIN_PATH=""
 
 LEGACY_ALIAS_PATH=""
@@ -531,29 +531,27 @@ remove_path_recursively() {
   return 1
 }
 
-pi_ascii_logo() {
+maoclaw_ascii_logo() {
   cat <<'ASCII'
-                                                                 
-                                                                 
-   ██████╗ ██╗     █████╗  ██████╗ ███████╗███╗   ██╗████████╗   
-   ██╔══██╗██║    ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝   
-   ██████╔╝██║    ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║      
-   ██╔═══╝ ██║    ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║      
-   ██║     ██║    ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║      
-   ╚═╝     ╚═╝    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝      
-                                                                 
-                                             /\                  
-                                            ( /   @ @    ()      
-      ██████╗ ██╗   ██╗███████╗████████╗     \  __| |__  /       
-      ██╔══██╗██║   ██║██╔════╝╚══██╔══╝      -/   "   \-        
-      ██████╔╝██║   ██║███████╗   ██║        /-|       |-\       
-      ██╔══██╗██║   ██║╚════██║   ██║       / /-\     /-\ \      
-      ██║  ██║╚██████╔╝███████║   ██║        / /-`---'-\\ \      
-      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝          /         \        
+                                                             
+                                                             
+      ███╗   ███╗  █████╗   ██████╗   ██████╗ ██╗      █████╗ ██╗    ██╗
+      ████╗ ████║ ██╔══██╗ ██╔═══██╗ ██╔════╝ ██║     ██╔══██╗██║    ██║
+      ██╔████╔██║ ███████║ ██║   ██║ ██║      ██║     ███████║██║ █╗ ██║
+      ██║╚██╔╝██║ ██╔══██║ ██║   ██║ ██║      ██║     ██╔══██║██║███╗██║
+      ██║ ╚═╝ ██║ ██║  ██║ ╚██████╔╝ ╚██████╗ ███████╗██║  ██║╚███╔███╔╝
+      ╚═╝     ╚═╝ ╚═╝  ╚═╝  ╚═════╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝ ╚══╝╚══╝
+                                                             
+                            猫爪                               
+                                                             
+                           /\_/\                             
+                        .-( o.o )-.                         
+                       /   (___)   \                        
+                           /   \                            
 ASCII
 }
 
-pi_ascii_logo_normalized() {
+maoclaw_ascii_logo_normalized() {
   local logo="$1"
   local line=""
   local max_width=0
@@ -569,7 +567,7 @@ pi_ascii_logo_normalized() {
   done <<< "$logo"
 }
 
-pi_ascii_logo_gum() {
+maoclaw_ascii_logo_gum() {
   local logo="$1"
   local line=""
   local idx=0
@@ -585,14 +583,11 @@ pi_ascii_logo_gum() {
       5) color=75 ;;
       6) color=69 ;;
       7) color=63 ;;
-      8) color=69 ;;
-      9|10) color=75 ;;
-      11) color=160 ;;
-      12) color=166 ;;
-      13) color=172 ;;
-      14) color=178 ;;
-      15) color=208 ;;
-      16) color=214 ;;
+      8|9) color=223 ;;
+      10) color=159 ;;
+      11) color=117 ;;
+      12) color=111 ;;
+      13) color=75 ;;
     esac
     local rendered
     rendered="$(gum style --foreground "$color" --bold "$line")"
@@ -606,7 +601,7 @@ pi_ascii_logo_gum() {
   printf '%s\n' "$styled"
 }
 
-pi_ascii_logo_ansi() {
+maoclaw_ascii_logo_ansi() {
   local logo="$1"
   local line=""
   local idx=0
@@ -621,14 +616,11 @@ pi_ascii_logo_ansi() {
       5) color=75 ;;
       6) color=69 ;;
       7) color=63 ;;
-      8) color=69 ;;
-      9|10) color=75 ;;
-      11) color=160 ;;
-      12) color=166 ;;
-      13) color=172 ;;
-      14) color=178 ;;
-      15) color=208 ;;
-      16) color=214 ;;
+      8|9) color=223 ;;
+      10) color=159 ;;
+      11) color=117 ;;
+      12) color=111 ;;
+      13) color=75 ;;
     esac
     printf '\033[1;38;5;%sm%s\033[0m\n' "$color" "$line"
     idx=$((idx + 1))
@@ -650,7 +642,7 @@ Options:
   --sigstore-bundle-url URL
                           URL to Sigstore bundle (.sigstore.json)
   --from-source          Build from source instead of downloading release binary
-  --verify               Run `pi --version` after install
+  --verify               Run `mao --version` after install
   --no-verify            Skip checksum + signature verification
   --offline [TARBALL]    Offline mode; optional local artifact path
   --completions SHELL    Install shell completions for auto|off|bash|zsh|fish
@@ -844,12 +836,12 @@ show_header() {
   else
     header_version="latest (auto)"
   fi
-  logo="$(pi_ascii_logo)"
-  logo="$(pi_ascii_logo_normalized "$logo")"
+  logo="$(maoclaw_ascii_logo)"
+  logo="$(maoclaw_ascii_logo_normalized "$logo")"
 
   if [ "$HAS_GUM" -eq 1 ] && [ "$NO_GUM" -eq 0 ]; then
     local styled_logo
-    styled_logo="$(pi_ascii_logo_gum "$logo")"
+    styled_logo="$(maoclaw_ascii_logo_gum "$logo")"
     styled_logo="${styled_logo}"$'\n'
     gum style \
       --border double \
@@ -857,22 +849,20 @@ show_header() {
       --padding "1 3" \
       --margin "1 0" \
       "$styled_logo" \
-      "$(gum style --foreground 51 --bold "${header_indent}maoclaw Installer")" \
+      "$(gum style --foreground 51 --bold "${header_indent}maoclaw / 猫爪")" \
       "$(gum style --foreground 226 --bold "${header_indent}Install target version: ${header_version}")" \
-      "$(gum style --foreground 252 "${header_indent}Based on Pi Agent by Mario Zechner")" \
-      "$(gum style --foreground 252 "${header_indent}Rust version by Jeffrey Emanuel")" \
-      "$(gum style --foreground 248 "${header_indent}Fast Rust-native coding agent installer")" \
+      "$(gum style --foreground 252 "${header_indent}High-performance local AI agent runtime")" \
+      "$(gum style --foreground 248 "${header_indent}Desktop app + CLI install path with guided first run")" \
       "$(gum style --foreground 248 "${header_indent}Checksum verification by default | Optional Sigstore/cosign")" \
       "$(gum style --foreground 111 "${header_indent}Repository: ${OWNER}/${REPO}")"
   else
     echo ""
-    pi_ascii_logo_ansi "$logo"
+    maoclaw_ascii_logo_ansi "$logo"
     echo ""
-    echo -e "\033[1;38;5;51m${header_indent}maoclaw Installer\033[0m"
+    echo -e "\033[1;38;5;51m${header_indent}maoclaw / 猫爪\033[0m"
     echo -e "\033[1;38;5;226m${header_indent}Install target version: ${header_version}\033[0m"
-    echo -e "\033[0;38;5;252m${header_indent}Based on Pi Agent by Mario Zechner\033[0m"
-    echo -e "\033[0;38;5;252m${header_indent}Rust version by Jeffrey Emanuel\033[0m"
-    echo -e "\033[0;38;5;248m${header_indent}Fast Rust-native coding agent installer\033[0m"
+    echo -e "\033[0;38;5;252m${header_indent}High-performance local AI agent runtime\033[0m"
+    echo -e "\033[0;38;5;248m${header_indent}Desktop app + CLI install path with guided first run\033[0m"
     echo -e "\033[0;38;5;248m${header_indent}Checksum verification by default | Optional Sigstore/cosign\033[0m"
     echo -e "\033[0;38;5;111m${header_indent}Repository: ${OWNER}/${REPO}\033[0m"
     echo ""
@@ -1324,7 +1314,7 @@ trap cleanup EXIT
 
 is_rust_pi_output() {
   local out="$1"
-  [[ "$out" =~ ^pi[[:space:]][0-9]+\.[0-9]+\.[0-9]+[[:space:]]\( ]]
+  [[ "$out" =~ ^(pi|mao)[[:space:]][0-9]+\.[0-9]+\.[0-9]+[[:space:]]\( ]]
 }
 
 looks_like_node_script() {
@@ -1424,7 +1414,7 @@ detect_existing_pi() {
 choose_adoption_mode() {
   ADOPT_TS=0
   ADOPT_CANONICAL=0
-  FINAL_BIN_NAME="pi"
+  FINAL_BIN_NAME="mao"
 
   if [ "$TS_PI_DETECTED" -eq 0 ]; then
     return 0
@@ -1433,6 +1423,11 @@ choose_adoption_mode() {
   info "Detected existing non-Rust pi command at: $CURRENT_PI_PATH"
   if [ -n "$CURRENT_PI_VERSION" ]; then
     info "Existing pi reports: $CURRENT_PI_VERSION"
+  fi
+
+  if [ "$ADOPT_MODE" = "ask" ]; then
+    info "Primary maoclaw CLI now installs as 'mao'; the existing pi command can stay unchanged."
+    return 0
   fi
 
   local decision=""
@@ -1458,6 +1453,7 @@ choose_adoption_mode() {
   if [ "$decision" = "yes" ]; then
     ADOPT_TS=1
     ADOPT_CANONICAL=1
+    FINAL_BIN_NAME="pi"
   else
     ADOPT_TS=0
     ADOPT_CANONICAL=0
@@ -1685,9 +1681,9 @@ extract_release_artifact() {
       return 1
     fi
     local found_bin=""
-    found_bin="$(find "$extract_dir" -type f \( -name "pi${EXE_EXT}" -o -name "pi" -o -name "pi.exe" \) | head -1)"
+    found_bin="$(find "$extract_dir" -type f \( -name "mao${EXE_EXT}" -o -name "maoclaw${EXE_EXT}" -o -name "pi${EXE_EXT}" -o -name "mao" -o -name "maoclaw" -o -name "pi" -o -name "mao.exe" -o -name "maoclaw.exe" -o -name "pi.exe" \) | head -1)"
     if [ -z "$found_bin" ]; then
-      warn "archive '$candidate' did not contain a pi binary"
+      warn "archive '$candidate' did not contain a supported CLI binary"
       return 1
     fi
     chmod +x "$found_bin" 2>/dev/null || true
@@ -1707,9 +1703,9 @@ extract_release_artifact() {
       return 1
     fi
     local found_bin=""
-    found_bin="$(find "$extract_dir" -type f \( -name "pi${EXE_EXT}" -o -name "pi" -o -name "pi.exe" \) | head -1)"
+    found_bin="$(find "$extract_dir" -type f \( -name "mao${EXE_EXT}" -o -name "maoclaw${EXE_EXT}" -o -name "pi${EXE_EXT}" -o -name "mao" -o -name "maoclaw" -o -name "pi" -o -name "mao.exe" -o -name "maoclaw.exe" -o -name "pi.exe" \) | head -1)"
     if [ -z "$found_bin" ]; then
-      warn "archive '$candidate' did not contain a pi binary"
+      warn "archive '$candidate' did not contain a supported CLI binary"
       return 1
     fi
     chmod +x "$found_bin" 2>/dev/null || true
@@ -1729,9 +1725,9 @@ extract_release_artifact() {
       return 1
     fi
     local found_bin=""
-    found_bin="$(find "$extract_dir" -type f \( -name "pi${EXE_EXT}" -o -name "pi" -o -name "pi.exe" \) | head -1)"
+    found_bin="$(find "$extract_dir" -type f \( -name "mao${EXE_EXT}" -o -name "maoclaw${EXE_EXT}" -o -name "pi${EXE_EXT}" -o -name "mao" -o -name "maoclaw" -o -name "pi" -o -name "mao.exe" -o -name "maoclaw.exe" -o -name "pi.exe" \) | head -1)"
     if [ -z "$found_bin" ]; then
-      warn "archive '$candidate' did not contain a pi binary"
+      warn "archive '$candidate' did not contain a supported CLI binary"
       return 1
     fi
     chmod +x "$found_bin" 2>/dev/null || true
@@ -1752,23 +1748,30 @@ download_release_binary() {
     # for local releases), then archive formats, then Rust target-triple names.
     local base_v="https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}"
     local base_l="https://github.com/${OWNER}/${REPO}/releases/latest/download"
-    # dsr-style naming: pi_<os>_<arch> with underscores (e.g. pi_darwin_arm64)
+    # Prefer the branded release names first, then keep compatibility fallbacks.
     if [ -n "$ASSET_PLATFORM" ]; then
+      local dsr_mao_name="mao_${ASSET_PLATFORM//-/_}${EXE_EXT}"
+      candidates+=("${dsr_mao_name}|${base_v}/${dsr_mao_name}")
       local dsr_name="pi_${ASSET_PLATFORM//-/_}${EXE_EXT}"
       candidates+=("${dsr_name}|${base_v}/${dsr_name}")
     fi
-    # Bare binary name (dsr uploads Linux as just "pi")
+    candidates+=("mao${EXE_EXT}|${base_v}/mao${EXE_EXT}")
     candidates+=("pi${EXE_EXT}|${base_v}/pi${EXE_EXT}")
     # Archive formats (GH Actions output)
     if [ -n "$ASSET_PLATFORM" ]; then
       if [ -n "$EXE_EXT" ]; then
+        candidates+=("mao-${ASSET_PLATFORM}.zip|${base_v}/mao-${ASSET_PLATFORM}.zip")
         candidates+=("pi-${ASSET_PLATFORM}.zip|${base_v}/pi-${ASSET_PLATFORM}.zip")
       else
+        candidates+=("mao-${ASSET_PLATFORM}.tar.xz|${base_v}/mao-${ASSET_PLATFORM}.tar.xz")
+        candidates+=("mao-${ASSET_PLATFORM}.tar.gz|${base_v}/mao-${ASSET_PLATFORM}.tar.gz")
         candidates+=("pi-${ASSET_PLATFORM}.tar.xz|${base_v}/pi-${ASSET_PLATFORM}.tar.xz")
         candidates+=("pi-${ASSET_PLATFORM}.tar.gz|${base_v}/pi-${ASSET_PLATFORM}.tar.gz")
       fi
     fi
     # Rust target-triple naming
+    candidates+=("mao-${TARGET}${EXE_EXT}|${base_v}/mao-${TARGET}${EXE_EXT}")
+    candidates+=("mao-${OS}-${ARCH}${EXE_EXT}|${base_v}/mao-${OS}-${ARCH}${EXE_EXT}")
     candidates+=("pi-${TARGET}${EXE_EXT}|${base_v}/pi-${TARGET}${EXE_EXT}")
     candidates+=("pi-${OS}-${ARCH}${EXE_EXT}|${base_v}/pi-${OS}-${ARCH}${EXE_EXT}")
   fi
@@ -1829,9 +1832,9 @@ build_from_source() {
 
   local src_dir="$TMP/src"
   git clone --depth 1 --branch "$VERSION" "https://github.com/${OWNER}/${REPO}.git" "$src_dir" >&2
-  (cd "$src_dir" && cargo build --release --locked --bin pi >&2)
+  (cd "$src_dir" && cargo build --release --locked --bin mao >&2)
 
-  local built_bin="$src_dir/target/release/pi${EXE_EXT}"
+  local built_bin="$src_dir/target/release/mao${EXE_EXT}"
   if [ ! -x "$built_bin" ]; then
     err "Source build succeeded but binary was not found: $built_bin"
     return 1
@@ -2071,7 +2074,7 @@ install_completions_for_shell() {
   fi
 
   if [ -z "$subcommand" ]; then
-    COMPLETIONS_STATUS="skipped (unsupported by this pi build)"
+    COMPLETIONS_STATUS="skipped (unsupported by this ${FINAL_BIN_NAME} build)"
     info "Shell completions: skipped (binary has no completion subcommand)"
     return 0
   fi
@@ -2983,17 +2986,33 @@ should_skip_reinstall() {
 print_summary() {
   [ "$QUIET" -eq 1 ] && return 0
 
+  local repo_url="https://github.com/${OWNER}/${REPO}"
+  local releases_url="${repo_url}/releases"
   local lines=()
+  local next_steps=()
+  local first_run=()
+  local desktop_app_path=""
   lines+=("Installed: $INSTALL_BIN_PATH")
   lines+=("Version:   $VERSION")
   lines+=("Source:    $INSTALL_SOURCE")
   lines+=("Checksum:  $CHECKSUM_STATUS")
   lines+=("Signature: $SIGSTORE_STATUS")
   lines+=("Shell:     $COMPLETIONS_STATUS")
+  next_steps+=("Start the CLI now: mao")
   if [ "$OS" = "darwin" ]; then
+    desktop_app_path="$(find_installed_macos_app || true)"
+    if [ -n "$desktop_app_path" ]; then
+      lines+=("Desktop:   $desktop_app_path")
+      next_steps+=("Open the desktop client: open \"$desktop_app_path\"")
+    else
+      lines+=("Desktop:   not installed")
+      next_steps+=("Desktop app downloads/builds: ${releases_url}")
+      next_steps+=("If you are in a source checkout, build it with: bash scripts/build_macos_app.sh --install")
+    fi
     lines+=("Launcher:  $MACOS_LAUNCHER_STATUS")
     if [ -n "$MACOS_LAUNCHER_PATH" ] && [ -f "$MACOS_LAUNCHER_PATH" ]; then
       lines+=("Finder:    $MACOS_LAUNCHER_PATH")
+      next_steps+=("Double-click the Finder launcher if preferred: $MACOS_LAUNCHER_PATH")
     fi
   fi
   if [ -n "$PROXY_SOURCE" ]; then
@@ -3023,12 +3042,31 @@ print_summary() {
     lines+=("Mode:      Existing pi kept; Rust installed as pi-rust")
   fi
 
+  next_steps+=("Check the install: mao --version")
+  next_steps+=("Open interactive setup: mao")
+  next_steps+=("Release notes and downloads: ${releases_url}")
+  first_run+=("1. Launch maoclaw with the desktop app or run: mao")
+  first_run+=("2. Configure one working provider with /setup or /login")
+  first_run+=("3. If you use env vars, set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, or AZURE_OPENAI_API_KEY")
+  first_run+=("4. Verify readiness with: mao --list-providers")
+  first_run+=("5. Start your first session and confirm you get a real model response")
+
   if [ "$HAS_GUM" -eq 1 ] && [ "$NO_GUM" -eq 0 ]; then
     {
-      gum style --foreground 42 --bold "pi installed successfully"
+      gum style --foreground 42 --bold "${FINAL_BIN_NAME} installed successfully"
       echo ""
       for line in "${lines[@]}"; do
         gum style --foreground 245 "$line"
+      done
+      echo ""
+      gum style --foreground 51 --bold "Next steps"
+      for step in "${next_steps[@]}"; do
+        gum style --foreground 159 "• $step"
+      done
+      echo ""
+      gum style --foreground 51 --bold "First run checklist"
+      for step in "${first_run[@]}"; do
+        gum style --foreground 222 "$step"
       done
       echo ""
       gum style --foreground 245 "Uninstall: curl -fsSL https://raw.githubusercontent.com/${OWNER}/${REPO}/main/uninstall.sh | bash"
@@ -3041,8 +3079,34 @@ print_summary() {
       echo -e "  \033[0;37m$line\033[0m"
     done
     echo ""
+    echo -e "  \033[1;36mNext steps\033[0m"
+    for step in "${next_steps[@]}"; do
+      echo -e "  \033[0;37m- $step\033[0m"
+    done
+    echo ""
+    echo -e "  \033[1;36mFirst run checklist\033[0m"
+    for step in "${first_run[@]}"; do
+      echo -e "  \033[0;37m$step\033[0m"
+    done
+    echo ""
     echo -e "  \033[0;90mUninstall: curl -fsSL https://raw.githubusercontent.com/${OWNER}/${REPO}/main/uninstall.sh | bash\033[0m"
   fi
+}
+
+find_installed_macos_app() {
+  local candidate=""
+  for candidate in \
+    "$HOME/Applications/maoclaw.app" \
+    "$HOME/Applications/Pi Desktop.app" \
+    "/Applications/maoclaw.app" \
+    "/Applications/Pi Desktop.app"
+  do
+    if [ -d "$candidate" ] && [ -x "$candidate/Contents/MacOS/maoclaw" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
 }
 
 main() {

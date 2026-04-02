@@ -126,6 +126,19 @@ EOF
   chmod +x "${dir}/fakebin/uname"
 }
 
+write_fake_macos_app_bundle() {
+  local dir="$1"
+  local app_name="$2"
+  local app_bin="${dir}/home/Applications/${app_name}.app/Contents/MacOS/maoclaw"
+  mkdir -p "$(dirname "$app_bin")"
+  cat > "$app_bin" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "maoclaw desktop fixture"
+STUB
+  chmod +x "$app_bin"
+}
+
 write_timeout_unusable_stubs() {
   local dir="$1"
   cat > "${dir}/fakebin/timeout" <<'STUB'
@@ -395,6 +408,17 @@ state_value() {
   ' bash "$state_file" "$key"
 }
 
+installer_state_file() {
+  local dir="$1"
+  local current="${dir}/state/maoclaw/install-state.env"
+  local legacy="${dir}/state/pi-agent-rust/install-state.env"
+  if [ -f "$current" ]; then
+    printf '%s\n' "$current"
+    return 0
+  fi
+  printf '%s\n' "$legacy"
+}
+
 assert_exit_code() {
   local dir="$1"
   local expected="$2"
@@ -536,7 +560,7 @@ test_offline_tarball_mode_installs_local_artifact() {
     --no-completions \
     --no-agent-skills
 
-  installed="${dir}/dest/pi"
+  installed="${dir}/dest/mao"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Offline artifact mode enabled"
@@ -586,7 +610,7 @@ test_offline_relative_tarball_path_is_accepted() {
       --no-agent-skills
   )
 
-  installed="${dir}/dest/pi"
+  installed="${dir}/dest/mao"
   assert_exit_code "$dir" 0
   [ -x "$installed" ] || { echo "expected installed binary at ${installed}" >&2; return 1; }
 }
@@ -610,8 +634,8 @@ test_macos_launcher_installed_for_darwin() {
     --no-completions \
     --no-agent-skills
 
-  launcher="${dir}/home/Applications/Pi.command"
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  launcher="${dir}/home/Applications/maoclaw.command"
+  state_file="$(installer_state_file "$dir")"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Installed macOS launcher to ${launcher}"
@@ -625,6 +649,64 @@ test_macos_launcher_installed_for_darwin() {
     cat "$state_file" >&2
     return 1
   }
+}
+
+test_summary_surfaces_installed_desktop_app_and_first_run_guidance() {
+  local dir artifact checksum desktop_app
+  dir="$(case_dir "summary-with-desktop-app")"
+  write_existing_pi_stub "$dir"
+  write_uname_stub "$dir" "Darwin" "arm64"
+  write_fake_macos_app_bundle "$dir" "maoclaw"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  checksum="$(sha256_file "$artifact")"
+  desktop_app="${dir}/home/Applications/maoclaw.app"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/dest" \
+    --artifact-url "file://${artifact}" \
+    --checksum "${checksum}" \
+    --no-completions \
+    --no-agent-skills
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Desktop:   ${desktop_app}"
+  assert_output_contains "$dir" "Next steps"
+  assert_output_contains "$dir" "Open the desktop client: open \"${desktop_app}\""
+  assert_output_contains "$dir" "First run checklist"
+  assert_output_contains "$dir" "1. Launch maoclaw with the desktop app or run: mao"
+  assert_output_contains "$dir" "4. Verify readiness with: mao --list-providers"
+}
+
+test_summary_surfaces_desktop_fallback_guidance_when_app_missing() {
+  local dir artifact checksum
+  dir="$(case_dir "summary-without-desktop-app")"
+  write_existing_pi_stub "$dir"
+  write_uname_stub "$dir" "Darwin" "arm64"
+
+  artifact="${dir}/fixtures/pi-fixture"
+  write_artifact_binary "$artifact" "unsupported"
+  checksum="$(sha256_file "$artifact")"
+
+  run_installer "$dir" \
+    --yes --no-gum --offline \
+    --version v9.9.9 \
+    --dest "${dir}/dest" \
+    --artifact-url "file://${artifact}" \
+    --checksum "${checksum}" \
+    --no-completions \
+    --no-agent-skills
+
+  assert_exit_code "$dir" 0
+  assert_output_contains "$dir" "Desktop:   not installed"
+  assert_output_contains "$dir" "Next steps"
+  assert_output_contains "$dir" "Desktop app downloads/builds: https://github.com/miounet11/maoclaw/releases"
+  assert_output_contains "$dir" "If you are in a source checkout, build it with: bash scripts/build_macos_app.sh --install"
+  assert_output_contains "$dir" "First run checklist"
+  assert_output_contains "$dir" "5. Start your first session and confirm you get a real model response"
 }
 
 test_proxy_args_are_applied_to_curl_downloads() {
@@ -682,8 +764,8 @@ test_linux_target_uses_supported_linux_artifact_naming() {
     --no-agent-skills
 
   assert_exit_code "$dir" 0
-  if ! grep -Eq "pi_linux_amd64|x86_64-unknown-linux-musl" "$curl_log"; then
-    echo "expected linux-amd64 or musl artifact URL candidate" >&2
+  if ! grep -Eq "mao_linux_amd64|pi_linux_amd64|x86_64-unknown-linux-musl" "$curl_log"; then
+    echo "expected mao linux-amd64, legacy pi linux-amd64, or musl artifact URL candidate" >&2
     cat "$curl_log" >&2
     return 1
   fi
@@ -738,7 +820,7 @@ test_adopt_existing_pi_creates_legacy_alias_and_records_adoption_state() {
   install_bin="${real_fakebin}/pi"
   legacy_alias="${real_fakebin}/legacy-pi"
   preserved_pi="${real_fakebin}/.pi-legacy-typescript"
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Mode:      Rust is canonical 'pi'"
@@ -797,7 +879,7 @@ test_keep_existing_pi_installs_pi_rust_side_by_side() {
 
   canonical_pi="${dir}/fakebin/pi"
   rust_pi="${dir}/fakebin/pi-rust"
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Mode:      Existing pi kept; Rust installed as pi-rust"
@@ -841,8 +923,8 @@ test_pinned_version_is_recorded_for_fresh_install() {
     --no-completions \
     --no-agent-skills
 
-  install_bin="${dir}/dest/pi"
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  install_bin="${dir}/dest/mao"
+  state_file="$(installer_state_file "$dir")"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Version:   v9.9.9"
@@ -853,7 +935,7 @@ test_pinned_version_is_recorded_for_fresh_install() {
     cat "$state_file" >&2
     return 1
   fi
-  if [ "$(state_value "$state_file" PIAR_INSTALL_BIN)" != "$(cd "${dir}/dest" && pwd -P)/pi" ]; then
+  if [ "$(state_value "$state_file" PIAR_INSTALL_BIN)" != "$(cd "${dir}/dest" && pwd -P)/mao" ]; then
     echo "expected installed binary path recorded in installer state" >&2
     cat "$state_file" >&2
     return 1
@@ -865,7 +947,7 @@ test_legacy_agent_settings_cleanup_is_safe_and_idempotent() {
   dir="$(case_dir "legacy-agent-settings-cleanup")"
   write_existing_pi_stub "$dir"
 
-  install_bin="${dir}/dest/pi"
+  install_bin="${dir}/dest/mao"
   claude_settings="${dir}/home/.claude/settings.json"
   gemini_settings="${dir}/home/.gemini/settings.json"
   mkdir -p "$(dirname "$claude_settings")" "$(dirname "$gemini_settings")"
@@ -904,7 +986,7 @@ JSON
 }
 JSON
 
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
   mkdir -p "$(dirname "$state_file")"
   cat > "$state_file" <<STATE
 PIAR_INSTALL_BIN='${install_bin}'
@@ -974,7 +1056,7 @@ test_legacy_cleanup_skips_unexpected_settings_paths() {
   dir="$(case_dir "legacy-agent-settings-unexpected-path")"
   write_existing_pi_stub "$dir"
 
-  install_bin="${dir}/dest/pi"
+  install_bin="${dir}/dest/mao"
   unexpected_settings="${dir}/home/custom/settings.json"
   mkdir -p "$(dirname "$unexpected_settings")"
   cat > "$unexpected_settings" <<JSON
@@ -992,7 +1074,7 @@ test_legacy_cleanup_skips_unexpected_settings_paths() {
 }
 JSON
 
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
   mkdir -p "$(dirname "$state_file")"
   cat > "$state_file" <<STATE
 PIAR_INSTALL_BIN='${install_bin}'
@@ -1039,8 +1121,8 @@ test_agent_skills_install_by_default() {
     --checksum "${checksum}" \
     --no-completions
 
-  claude_skill="${dir}/home/.claude/skills/pi-agent-rust/SKILL.md"
-  codex_skill="${dir}/home/.codex/skills/pi-agent-rust/SKILL.md"
+  claude_skill="${dir}/home/.claude/skills/maoclaw/SKILL.md"
+  codex_skill="${dir}/home/.codex/skills/maoclaw/SKILL.md"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Skills:    installed (claude,codex)"
@@ -1081,11 +1163,11 @@ test_no_agent_skills_opt_out() {
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Skills:    skipped (--no-agent-skills)"
-  if [ -e "${dir}/home/.claude/skills/pi-agent-rust/SKILL.md" ]; then
+  if [ -e "${dir}/home/.claude/skills/maoclaw/SKILL.md" ]; then
     echo "Claude skill should not be installed when --no-agent-skills is used" >&2
     return 1
   fi
-  if [ -e "${dir}/home/.codex/skills/pi-agent-rust/SKILL.md" ]; then
+  if [ -e "${dir}/home/.codex/skills/maoclaw/SKILL.md" ]; then
     echo "Codex skill should not be installed when --no-agent-skills is used" >&2
     return 1
   fi
@@ -1096,10 +1178,10 @@ test_existing_custom_skill_dirs_are_not_overwritten() {
   dir="$(case_dir "agent-skills-custom-preserve")"
   write_existing_pi_stub "$dir"
 
-  mkdir -p "${dir}/home/.claude/skills/pi-agent-rust"
-  mkdir -p "${dir}/home/.codex/skills/pi-agent-rust"
-  printf 'custom\n' > "${dir}/home/.claude/skills/pi-agent-rust/NOT_A_SKILL.txt"
-  printf 'custom\n' > "${dir}/home/.codex/skills/pi-agent-rust/NOT_A_SKILL.txt"
+  mkdir -p "${dir}/home/.claude/skills/maoclaw"
+  mkdir -p "${dir}/home/.codex/skills/maoclaw"
+  printf 'custom\n' > "${dir}/home/.claude/skills/maoclaw/NOT_A_SKILL.txt"
+  printf 'custom\n' > "${dir}/home/.codex/skills/maoclaw/NOT_A_SKILL.txt"
 
   artifact="${dir}/fixtures/pi-fixture"
   write_artifact_binary "$artifact" "unsupported"
@@ -1116,11 +1198,11 @@ test_existing_custom_skill_dirs_are_not_overwritten() {
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Skills:    skipped (existing custom skill)"
-  [ -f "${dir}/home/.claude/skills/pi-agent-rust/NOT_A_SKILL.txt" ] || {
+  [ -f "${dir}/home/.claude/skills/maoclaw/NOT_A_SKILL.txt" ] || {
     echo "Claude custom skill dir should be preserved" >&2
     return 1
   }
-  [ -f "${dir}/home/.codex/skills/pi-agent-rust/NOT_A_SKILL.txt" ] || {
+  [ -f "${dir}/home/.codex/skills/maoclaw/NOT_A_SKILL.txt" ] || {
     echo "Codex custom skill dir should be preserved" >&2
     return 1
   }
@@ -1132,8 +1214,8 @@ test_skill_copy_failure_preserves_existing_managed_skills() {
   write_existing_pi_stub "$dir"
   write_cp_fail_stub "$dir"
 
-  claude_skill="${dir}/home/.claude/skills/pi-agent-rust/SKILL.md"
-  codex_skill="${dir}/home/.codex/skills/pi-agent-rust/SKILL.md"
+  claude_skill="${dir}/home/.claude/skills/maoclaw/SKILL.md"
+  codex_skill="${dir}/home/.codex/skills/maoclaw/SKILL.md"
   mkdir -p "$(dirname "$claude_skill")" "$(dirname "$codex_skill")"
   cat > "$claude_skill" <<'SKILL'
 <!-- maoclaw installer managed skill -->
@@ -1175,7 +1257,7 @@ test_skill_custom_plus_copy_failure_reports_partial() {
   write_existing_pi_stub "$dir"
   write_cp_fail_stub "$dir"
 
-  codex_custom="${dir}/home/.codex/skills/pi-agent-rust/SKILL.md"
+  codex_custom="${dir}/home/.codex/skills/maoclaw/SKILL.md"
   mkdir -p "$(dirname "$codex_custom")"
   cat > "$codex_custom" <<'SKILL'
 # Custom Codex skill without installer marker
@@ -1200,7 +1282,7 @@ SKILL
     echo "custom Codex skill should be preserved" >&2
     return 1
   }
-  if [ -f "${dir}/home/.claude/skills/pi-agent-rust/SKILL.md" ]; then
+  if [ -f "${dir}/home/.claude/skills/maoclaw/SKILL.md" ]; then
     echo "Claude skill should not be created when copy fails" >&2
     return 1
   fi
@@ -1210,8 +1292,8 @@ test_uninstall_removes_only_installer_managed_skills() {
   local dir managed_skill custom_skill
   dir="$(case_dir "uninstall-managed-skills-only")"
 
-  managed_skill="${dir}/home/.claude/skills/pi-agent-rust/SKILL.md"
-  custom_skill="${dir}/home/.codex/skills/pi-agent-rust/SKILL.md"
+  managed_skill="${dir}/home/.claude/skills/maoclaw/SKILL.md"
+  custom_skill="${dir}/home/.codex/skills/maoclaw/SKILL.md"
   mkdir -p "$(dirname "$managed_skill")" "$(dirname "$custom_skill")"
 
   cat > "$managed_skill" <<'SKILL'
@@ -1225,13 +1307,13 @@ SKILL
   run_uninstaller "$dir" --yes --no-gum
 
   assert_exit_code "$dir" 0
-  assert_output_contains "$dir" "Removed installer-managed skill: ${dir}/home/.claude/skills/pi-agent-rust"
-  assert_output_contains "$dir" "Skipping non-managed skill directory: ${dir}/home/.codex/skills/pi-agent-rust"
-  if [ -e "${dir}/home/.claude/skills/pi-agent-rust" ]; then
+  assert_output_contains "$dir" "Removed installer-managed skill: ${dir}/home/.claude/skills/maoclaw"
+  assert_output_contains "$dir" "Skipping non-managed skill directory: ${dir}/home/.codex/skills/maoclaw"
+  if [ -e "${dir}/home/.claude/skills/maoclaw" ]; then
     echo "installer-managed Claude skill directory should be removed" >&2
     return 1
   fi
-  if [ ! -f "${dir}/home/.codex/skills/pi-agent-rust/SKILL.md" ]; then
+  if [ ! -f "${dir}/home/.codex/skills/maoclaw/SKILL.md" ]; then
     echo "custom Codex skill directory should be preserved" >&2
     return 1
   fi
@@ -1241,7 +1323,7 @@ test_uninstall_cleans_legacy_agent_settings_hooks() {
   local dir state_file install_bin claude_settings gemini_settings
   dir="$(case_dir "uninstall-legacy-agent-settings-cleanup")"
 
-  install_bin="${dir}/dest/pi"
+  install_bin="${dir}/dest/mao"
   claude_settings="${dir}/home/.claude/settings.json"
   gemini_settings="${dir}/home/.gemini/settings.json"
   mkdir -p "$(dirname "$claude_settings")" "$(dirname "$gemini_settings")"
@@ -1278,7 +1360,7 @@ JSON
 }
 JSON
 
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
   mkdir -p "$(dirname "$state_file")"
   cat > "$state_file" <<STATE
 PIAR_INSTALL_BIN='${install_bin}'
@@ -1336,9 +1418,9 @@ STATE
 test_uninstall_uses_recorded_skill_paths() {
   local dir state_file recorded_codex managed_claude managed_codex
   dir="$(case_dir "uninstall-recorded-skill-paths")"
-  recorded_codex="${dir}/home/custom-codex-home/skills/pi-agent-rust"
+  recorded_codex="${dir}/home/custom-codex-home/skills/maoclaw"
 
-  managed_claude="${dir}/home/.claude/skills/pi-agent-rust/SKILL.md"
+  managed_claude="${dir}/home/.claude/skills/maoclaw/SKILL.md"
   managed_codex="${recorded_codex}/SKILL.md"
   mkdir -p "$(dirname "$managed_claude")" "$(dirname "$managed_codex")"
 
@@ -1351,20 +1433,20 @@ SKILL
 # Managed Codex skill (recorded path)
 SKILL
 
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
   mkdir -p "$(dirname "$state_file")"
   cat > "$state_file" <<STATE
 PIAR_AGENT_SKILL_STATUS='installed (claude,codex)'
-PIAR_AGENT_SKILL_CLAUDE_PATH='${dir}/home/.claude/skills/pi-agent-rust'
+PIAR_AGENT_SKILL_CLAUDE_PATH='${dir}/home/.claude/skills/maoclaw'
 PIAR_AGENT_SKILL_CODEX_PATH='${recorded_codex}'
 STATE
 
   run_uninstaller "$dir" --yes --no-gum
 
   assert_exit_code "$dir" 0
-  assert_output_contains "$dir" "Removed installer-managed skill: ${dir}/home/.claude/skills/pi-agent-rust"
+  assert_output_contains "$dir" "Removed installer-managed skill: ${dir}/home/.claude/skills/maoclaw"
   assert_output_contains "$dir" "Removed installer-managed skill: ${recorded_codex}"
-  if [ -e "${dir}/home/.claude/skills/pi-agent-rust" ]; then
+  if [ -e "${dir}/home/.claude/skills/maoclaw" ]; then
     echo "installer-managed Claude skill should be removed" >&2
     return 1
   fi
@@ -1386,7 +1468,7 @@ test_uninstall_skips_unexpected_skill_paths() {
 # Managed marker on unexpected path
 SKILL
 
-  state_file="${dir}/state/pi-agent-rust/install-state.env"
+  state_file="$(installer_state_file "$dir")"
   mkdir -p "$(dirname "$state_file")"
   cat > "$state_file" <<STATE
 PIAR_AGENT_SKILL_CODEX_PATH='${unexpected_dir}'
@@ -1421,7 +1503,7 @@ test_uninstall_removes_managed_macos_launcher() {
     --no-completions \
     --no-agent-skills
 
-  launcher="${dir}/home/Applications/Pi.command"
+  launcher="${dir}/home/Applications/maoclaw.command"
   [ -x "$launcher" ] || { echo "expected macOS launcher before uninstall at ${launcher}" >&2; return 1; }
 
   run_uninstaller "$dir" --yes --no-gum
@@ -1606,7 +1688,7 @@ test_completions_unsupported_build_soft_skip() {
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Shell completions: skipped (binary has no completion subcommand)"
-  assert_output_contains "$dir" "Shell:     skipped (unsupported by this pi build)"
+  assert_output_contains "$dir" "Shell:     skipped (unsupported by this mao build)"
 }
 
 test_completions_generation_failure_recorded() {
@@ -1650,7 +1732,7 @@ test_completions_success_writes_file() {
     --checksum "${checksum}" \
     --completions bash
 
-  completion_file="${dir}/data/bash-completion/completions/pi"
+  completion_file="${dir}/data/bash-completion/completions/mao"
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Installed bash completions to"
@@ -1684,7 +1766,7 @@ test_completions_help_discovery_path_succeeds() {
     --checksum "${checksum}" \
     --completions bash
 
-  completion_file="${dir}/data/bash-completion/completions/pi"
+  completion_file="${dir}/data/bash-completion/completions/mao"
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Installed bash completions to"
   assert_output_contains "$dir" "Shell:     installed (bash)"
@@ -1709,7 +1791,7 @@ test_completions_help_inconclusive_falls_back_to_probe() {
     --checksum "${checksum}" \
     --completions bash
 
-  completion_file="${dir}/data/bash-completion/completions/pi"
+  completion_file="${dir}/data/bash-completion/completions/mao"
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Installed bash completions to"
   assert_output_contains "$dir" "Shell:     installed (bash)"
@@ -1738,7 +1820,7 @@ test_completions_help_conclusive_no_command_skips_fast() {
 
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Shell completions: skipped (binary has no completion subcommand)"
-  assert_output_contains "$dir" "Shell:     skipped (unsupported by this pi build)"
+  assert_output_contains "$dir" "Shell:     skipped (unsupported by this mao build)"
 }
 
 test_completions_internal_timeout_fallback_succeeds() {
@@ -1760,7 +1842,7 @@ test_completions_internal_timeout_fallback_succeeds() {
     --checksum "${checksum}" \
     --completions bash
 
-  completion_file="${dir}/data/bash-completion/completions/pi"
+  completion_file="${dir}/data/bash-completion/completions/mao"
   assert_exit_code "$dir" 0
   assert_output_contains "$dir" "Installed bash completions to"
   assert_output_contains "$dir" "Shell:     installed (bash)"
@@ -1834,6 +1916,8 @@ main() {
   run_test test_offline_mode_blocks_network_artifact_urls
   run_test test_offline_relative_tarball_path_is_accepted
   run_test test_macos_launcher_installed_for_darwin
+  run_test test_summary_surfaces_installed_desktop_app_and_first_run_guidance
+  run_test test_summary_surfaces_desktop_fallback_guidance_when_app_missing
   run_test test_proxy_args_are_applied_to_curl_downloads
   run_test test_linux_target_uses_supported_linux_artifact_naming
   run_test test_wsl_detection_warning_is_emitted

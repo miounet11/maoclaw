@@ -8,7 +8,17 @@ Pre-release migration notes and transition-era launch materials are not treated 
 
 Highlights:
 
-- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.14` baseline.
+- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.15` baseline.
+
+## 0.1.15 - Mao Command Release And Direct Download UX
+
+Released: 2026-04-02
+
+Highlights:
+
+- Promoted `mao` to the primary CLI command and aligned install, docs, and examples around the branded invocation path.
+- Updated release packaging so public downloads expose current branded assets and clearer first-run guidance instead of legacy `pi`-only archive naming.
+- Added direct current-version download URLs to the public README so users can find the macOS package and Windows desktop package immediately after release.
 
 ## 0.1.14 - Verification Closure And Release Gate Reliability
 

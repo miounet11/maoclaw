@@ -112,7 +112,7 @@ fn cli_program_name_from_raw_args(raw_args: &[String]) -> String {
         .and_then(|arg0| Path::new(arg0).file_stem())
         .and_then(|stem| stem.to_str())
         .filter(|name| !name.is_empty())
-        .unwrap_or("pi")
+        .unwrap_or("mao")
         .to_string()
 }
 
@@ -138,7 +138,7 @@ fn parse_runtime_cli(raw_args: Vec<String>) -> Result<Cli, clap::Error> {
 #[allow(clippy::too_many_lines)] // Argument normalization needs single-pass stateful parsing.
 fn preprocess_extension_flags(raw_args: &[String]) -> (Vec<String>, Vec<ExtensionCliFlag>) {
     if raw_args.is_empty() {
-        return (vec!["pi".to_string()], Vec::new());
+        return (vec!["mao".to_string()], Vec::new());
     }
     let mut filtered = Vec::with_capacity(raw_args.len());
     filtered.push(raw_args[0].clone());
@@ -243,7 +243,7 @@ fn preprocess_extension_flags(raw_args: &[String]) -> (Vec<String>, Vec<Extensio
 
 pub fn parse_with_extension_flags(raw_args: Vec<String>) -> Result<ParsedCli, clap::Error> {
     if raw_args.is_empty() {
-        let cli = parse_runtime_cli(vec!["pi".to_string()])?;
+        let cli = parse_runtime_cli(vec!["mao".to_string()])?;
         return Ok(ParsedCli {
             cli,
             extension_flags: Vec::new(),
@@ -283,18 +283,18 @@ pub fn parse_with_extension_flags(raw_args: Vec<String>) -> Result<ParsedCli, cl
     })
 }
 
-/// Pi - AI coding agent CLI
+/// maoclaw / 猫爪 - AI coding agent CLI
 #[derive(Parser, Debug)]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally boolean
-#[command(name = "pi")]
+#[command(name = "mao")]
 #[command(version, about, long_about = None, disable_version_flag = true)]
 #[command(after_help = "Examples:
-  pi \"explain this code\"              Start new session with message
-  pi @file.rs \"review this\"           Include file in context
-  pi -c                                Continue previous session
-  pi -r                                Resume from session picker
-  pi -p \"what is 2+2\"                 Print mode (non-interactive)
-  pi --model claude-opus-4 \"help\"     Use specific model
+  mao \"explain this code\"             Start new session with message
+  mao @file.rs \"review this\"          Include file in context
+  mao -c                               Continue previous session
+  mao -r                               Resume from session picker
+  mao -p \"what is 2+2\"                Print mode (non-interactive)
+  mao --model claude-opus-4 \"help\"    Use specific model
 ")]
 pub struct Cli {
     // === Help & Version ===
@@ -314,6 +314,10 @@ pub struct Cli {
     /// API key (overrides environment variable)
     #[arg(long)]
     pub api_key: Option<String>,
+
+    /// Override provider API base URL for this run
+    #[arg(long)]
+    pub base_url: Option<String>,
 
     /// Model patterns for Ctrl+P cycling (comma-separated, supports globs)
     #[arg(long)]
@@ -586,6 +590,12 @@ mod tests {
     fn parse_session_path() {
         let cli = Cli::parse_from(["pi", "--session", "/tmp/session.jsonl"]);
         assert_eq!(cli.session.as_deref(), Some("/tmp/session.jsonl"));
+    }
+
+    #[test]
+    fn parse_base_url() {
+        let cli = Cli::parse_from(["pi", "--base-url", "https://proxy.example/v1"]);
+        assert_eq!(cli.base_url.as_deref(), Some("https://proxy.example/v1"));
     }
 
     #[test]
@@ -1169,6 +1179,25 @@ mod tests {
     }
 
     #[test]
+    fn parse_with_extension_flags_recognizes_base_url_as_builtin() {
+        let parsed = parse_with_extension_flags(vec![
+            "pi".to_string(),
+            "--base-url".to_string(),
+            "https://proxy.example/v1".to_string(),
+            "--print".to_string(),
+            "hello".to_string(),
+        ])
+        .expect("parse with base url");
+
+        assert_eq!(
+            parsed.cli.base_url.as_deref(),
+            Some("https://proxy.example/v1")
+        );
+        assert!(parsed.extension_flags.is_empty());
+        assert!(parsed.cli.print);
+    }
+
+    #[test]
     fn extension_flag_parser_does_not_bypass_subcommand_validation() {
         let result = parse_with_extension_flags(vec![
             "pi".to_string(),
@@ -1642,9 +1671,9 @@ mod tests {
             }
 
             #[test]
-            fn preprocess_empty_returns_pi_program_name(_dummy in Just(())) {
+            fn preprocess_empty_returns_mao_program_name(_dummy in Just(())) {
                 let result = preprocess_extension_flags(&[]);
-                assert_eq!(result.0, vec!["pi"]);
+                assert_eq!(result.0, vec!["mao"]);
                 let extracted: &[ExtensionCliFlag] = &result.1;
                 assert!(extracted.is_empty());
             }
@@ -1833,7 +1862,7 @@ pub enum Commands {
         /// Automatically fix safe issues (missing dirs, permissions)
         #[arg(long)]
         fix: bool,
-        /// Run specific categories: config,dirs,auth,shell,sessions,extensions
+        /// Run specific categories: config,dirs,auth,shell,sessions,extensions,permissions
         #[arg(long)]
         only: Option<String>,
     },
