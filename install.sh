@@ -2207,7 +2207,7 @@ install_macos_launcher() {
     printf '  fi\n'
     printf 'done\n'
     printf 'if [ ! -x "$PI_BIN" ]; then\n'
-    printf '  echo "pi launcher error: binary not found at $PI_BIN"\n'
+    printf '  echo "maoclaw launcher error: binary not found at $PI_BIN"\n'
     printf '  echo "Re-run install.sh to repair the local installation."\n'
     printf '  exit 1\n'
     printf 'fi\n'
@@ -2216,7 +2216,7 @@ install_macos_launcher() {
   chmod 0755 "$launcher_path"
   MACOS_LAUNCHER_PATH="$launcher_path"
   MACOS_LAUNCHER_STATUS="installed"
-  ok "Installed macOS launcher to $launcher_path"
+  ok "Installed macOS Finder launcher to $launcher_path"
 }
 
 maybe_install_macos_launcher() {
@@ -3012,7 +3012,7 @@ print_summary() {
     lines+=("Launcher:  $MACOS_LAUNCHER_STATUS")
     if [ -n "$MACOS_LAUNCHER_PATH" ] && [ -f "$MACOS_LAUNCHER_PATH" ]; then
       lines+=("Finder:    $MACOS_LAUNCHER_PATH")
-      next_steps+=("Double-click the Finder launcher if preferred: $MACOS_LAUNCHER_PATH")
+      next_steps+=("Use the Finder launcher if you prefer one-click startup: $MACOS_LAUNCHER_PATH")
     fi
   fi
   if [ -n "$PROXY_SOURCE" ]; then
@@ -3045,11 +3045,19 @@ print_summary() {
   next_steps+=("Check the install: mao --version")
   next_steps+=("Open interactive setup: mao")
   next_steps+=("Release notes and downloads: ${releases_url}")
-  first_run+=("1. Launch maoclaw with the desktop app or run: mao")
-  first_run+=("2. Configure one working provider with /setup or /login")
-  first_run+=("3. If you use env vars, set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, or AZURE_OPENAI_API_KEY")
-  first_run+=("4. Verify readiness with: mao --list-providers")
-  first_run+=("5. Start your first session and confirm you get a real model response")
+  if [ "$OS" = "darwin" ] && [ -n "$desktop_app_path" ]; then
+    first_run+=("1. Open the desktop app: open \"$desktop_app_path\"")
+    first_run+=("2. Choose one provider, enter one key, and save the setup")
+    first_run+=("3. Start one real conversation in a real repository")
+    first_run+=("4. If you prefer Terminal, you can also run: mao")
+    first_run+=("5. If anything feels wrong, run: mao doctor")
+  else
+    first_run+=("1. Launch maoclaw in Terminal: mao")
+    first_run+=("2. Configure one working provider with /setup or /login")
+    first_run+=("3. If you use env vars, set one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, or AZURE_OPENAI_API_KEY")
+    first_run+=("4. Verify readiness with: mao --list-providers")
+    first_run+=("5. Start your first session and confirm you get a real model response")
+  fi
 
   if [ "$HAS_GUM" -eq 1 ] && [ "$NO_GUM" -eq 0 ]; then
     {
