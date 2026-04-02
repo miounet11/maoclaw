@@ -11,6 +11,11 @@ This repo ships:
 - A macOS desktop app/package: `maoclaw.app` / `maoclaw.pkg`
 - A Windows portable desktop archive: `maoclaw-windows-amd64-<version>-portable.zip`
 
+Release packaging note:
+
+- macOS desktop artifacts are built by the repository packaging scripts.
+- Windows desktop artifacts are currently assembled by the GitHub release workflow as portable bundles.
+
 The branded desktop artifacts are the canonical release outputs. The macOS packaging scripts also refresh compatibility copies at `dist/Pi Desktop.app` and `dist/Pi Desktop.pkg` from the same build so stale legacy bundle names do not expose older versions.
 
 ## Versioning + tags (source of truth)

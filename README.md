@@ -327,6 +327,11 @@ Desktop release downloads are published on GitHub Releases and mirrored on `xinx
 - macOS portable desktop archive: `.zip`
 - Windows x86_64 portable desktop archive: `.zip`
 
+Platform note:
+
+- macOS desktop packaging is built directly from this repository.
+- Windows desktop release artifacts are currently produced by the GitHub release pipeline as portable archives.
+
 Recommended user path:
 
 - want the fastest start: use the installer and then run `mao`

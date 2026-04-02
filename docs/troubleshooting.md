@@ -109,7 +109,8 @@ Interactive editor parity (autocomplete/bang/paste) is tracked by **bd-1iwi**.
 
 **Fixes:**
 - Run `pi` from Terminal.
-- Or double-click `~/Applications/Pi.command`, which the installer creates on macOS.
+- Open `~/Applications/maoclaw.app` if the desktop app is installed.
+- Or double-click `~/Applications/maoclaw.command`, which the installer can create on macOS.
 - If the launcher is missing, rerun `install.sh` and it will recreate it.
 
 ## Missing system dependencies
