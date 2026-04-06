@@ -1,0 +1,90 @@
+{
+  "schema": "pi.e2e.extension_profile_matrix.v1",
+  "generated_at": "2026-04-06T09:25:05.882636+00:00",
+  "source_files": {
+    "conformance_events": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_events.jsonl",
+    "negative_events": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/negative/negative_events.jsonl"
+  },
+  "profiles": {
+    "safe": {
+      "requested_profile": "permissive",
+      "effective_profile": "permissive",
+      "profile_source": "cli",
+      "decision_counts": {
+        "allow": 5,
+        "prompt": 0,
+        "deny": 5
+      },
+      "projected": {
+        "testable_extensions": 0,
+        "pass": 0,
+        "fail_existing": 0,
+        "blocked": 0,
+        "pass_rate_pct": 0.0
+      },
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    },
+    "balanced": {
+      "requested_profile": "permissive",
+      "effective_profile": "permissive",
+      "profile_source": "cli",
+      "decision_counts": {
+        "allow": 5,
+        "prompt": 3,
+        "deny": 2
+      },
+      "projected": {
+        "testable_extensions": 0,
+        "pass": 0,
+        "fail_existing": 0,
+        "blocked": 0,
+        "pass_rate_pct": 0.0
+      },
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    },
+    "permissive": {
+      "requested_profile": "permissive",
+      "effective_profile": "permissive",
+      "profile_source": "cli",
+      "decision_counts": {
+        "allow": 10,
+        "prompt": 0,
+        "deny": 0
+      },
+      "projected": {
+        "testable_extensions": 0,
+        "pass": 0,
+        "fail_existing": 0,
+        "blocked": 0,
+        "pass_rate_pct": 0.0
+      },
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    }
+  },
+  "preflight_runtime_consistency": {
+    "checked_capability_decisions": 19,
+    "matched_capability_decisions": 19,
+    "mismatched_capability_decisions": 0,
+    "mismatches": [],
+    "skipped_unknown_capabilities": {
+      "custom": 3,
+      "gpu": 3
+    },
+    "skipped_fixture_overrides": {
+      "env": 1,
+      "exec": 1
+    }
+  }
+}

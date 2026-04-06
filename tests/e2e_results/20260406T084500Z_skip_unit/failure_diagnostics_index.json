@@ -1,0 +1,9 @@
+{
+  "schema": "pi.e2e.failure_diagnostics_index.v1",
+  "generated_at": "2026-04-06T09:23:11.759434+00:00",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "artifact_dir": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit",
+  "failed_suite_count": 0,
+  "suites": [],
+  "run_timeline_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl"
+}

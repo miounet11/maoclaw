@@ -1,0 +1,16 @@
+{
+  "schema": "pi.e2e.result.v1",
+  "result_kind": "suite",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "suite": "e2e_extension_registration",
+  "exit_code": 0,
+  "duration_ms": 49240,
+  "passed": 123,
+  "failed": 0,
+  "ignored": 0,
+  "total": 123,
+  "log_file": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/output.log",
+  "test_log_jsonl": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+  "artifact_index_jsonl": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+  "timestamp": "20260406T091126Z"
+}

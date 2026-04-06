@@ -1177,7 +1177,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/community/mitsuhiko-uv",
       "checksum": {
-        "sha256": "aa2baf20eddb875e8b923063384b3d86a8856cba835395f63eccc4c01db7c30a"
+        "sha256": "7390445b8024d0218c49da095dd72bcaf3c5390bfc5c63260df960898a0c1b05"
       },
       "source": {
         "type": "git",
@@ -1747,7 +1747,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/community/qualisero-background-notify",
       "checksum": {
-        "sha256": "c9ad30c099446cd31a5ae46ef1b96e12ff0cec1739af0c49cc0cb5ce990bb84b"
+        "sha256": "55e911e7742c67d26cfdd81f3a3451a98af02a328300607fdf0f3b31c1391c1c"
       },
       "source": {
         "type": "git",
@@ -1861,7 +1861,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/community/qualisero-safe-git",
       "checksum": {
-        "sha256": "011a8bcaa77ccddcccc8dfba59cf9593242e5718401fc88592677d6623b64f26"
+        "sha256": "8591ad4674b466e4d09a4ff538151295c8a4a2151b3513d8c6bb767a7c9f20ad"
       },
       "source": {
         "type": "git",
@@ -2773,7 +2773,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/doom-overlay",
       "checksum": {
-        "sha256": "e1bfb470c443d962bfca79a8863d0a01caf2c2041ee4b7e93988a94335c69b10"
+        "sha256": "38785b5018df258cd07cbcb2566da93f0c6eda4bb5f56cf3671a8575aff0ca5d"
       },
       "source": {
         "type": "git",
@@ -4006,7 +4006,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/npm/marckrenn-pi-sub-bar",
       "checksum": {
-        "sha256": "4c8d489332cd87e504ce064a2cfe32dfe3e9dec4cca1e8b1452a3533b4aeab6c"
+        "sha256": "684b860fbc30ff6493bc665e41720b116d7e3f86b28bb7e84b7bb9ce63e85379"
       },
       "source": {
         "type": "npm",
@@ -4123,7 +4123,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/npm/ogulcancelik-pi-sketch",
       "checksum": {
-        "sha256": "a4e95b67e0cc2dd1a0147dd9efcf09d775bb1550c3aee8358329dac16442d399"
+        "sha256": "101dc9871cb4edb92a70a150a448dbc9a9b725e1a3e71fcdabc8ff7353c04258"
       },
       "source": {
         "type": "npm",
@@ -7863,7 +7863,7 @@
       "retrieved": "2026-02-05",
       "artifact_path": "tests/ext_conformance/artifacts/third-party/ogulcancelik-pi-sketch",
       "checksum": {
-        "sha256": "893ecf1c25c7c23b5b2a65c1b9812144fbd4b42a87a838b11b93f538c8e98568"
+        "sha256": "64060313b1939dbb9a51446473701929fc18e1e7a15abb47a48671e75a801528"
       },
       "source": {
         "type": "url",

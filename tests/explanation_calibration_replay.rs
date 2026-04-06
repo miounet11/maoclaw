@@ -117,6 +117,28 @@ fn recovery_call(idx: usize) -> HostCallPayload {
     }
 }
 
+/// Prime one-time process-local setup for runtime-risk dispatch/replay so the
+/// budgeted tests measure the calibrated replay path rather than the first test
+/// process paying all lazy initialization overhead.
+fn warm_runtime_risk_replay_bootstrap() {
+    let harness = TestHarness::new("runtime_risk_replay_bootstrap");
+    let (tools, http, manager, policy) = setup(&harness, default_risk_config());
+    let ctx = make_ctx(&tools, &http, &manager, &policy, "ext.replay.bootstrap");
+
+    futures::executor::block_on(async {
+        let _ = dispatch_host_call_shared(&ctx, benign_call(0)).await;
+        let _ = dispatch_host_call_shared(&ctx, adversarial_call(0)).await;
+    });
+
+    let artifact = manager.runtime_risk_ledger_artifact();
+    let replay = replay_runtime_risk_ledger_artifact(&artifact).expect("bootstrap replay");
+    assert_eq!(
+        replay.steps.len(),
+        artifact.entries.len(),
+        "bootstrap replay must preserve entry count"
+    );
+}
+
 // ============================================================================
 // Test 1: Replay parity — same trace twice yields identical explanation payloads
 // ============================================================================
@@ -126,6 +148,7 @@ fn recovery_call(idx: usize) -> HostCallPayload {
 fn replay_parity_identical_explanation_payloads() {
     let harness = TestHarness::new("replay_parity_identical_explanation_payloads");
     let budget_ms = 10_000u128;
+    warm_runtime_risk_replay_bootstrap();
     let started = Instant::now();
 
     // Run the same trace twice with fresh managers
@@ -985,6 +1008,7 @@ fn jsonl_logging_contract_explanation_fields() {
 fn budget_bounded_replay_runtime() {
     let harness = TestHarness::new("budget_bounded_replay_runtime");
     let budget_ms = 10_000u128;
+    warm_runtime_risk_replay_bootstrap();
     let started = Instant::now();
 
     let (tools, http, manager, policy) = setup(&harness, default_risk_config());

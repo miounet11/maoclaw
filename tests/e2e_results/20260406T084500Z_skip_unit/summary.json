@@ -1,0 +1,162 @@
+{
+  "schema": "pi.e2e.summary.v1",
+  "timestamp": "20260406T091126Z",
+  "profile": "ci",
+  "rerun_from": null,
+  "diff_from": null,
+  "artifact_dir": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "shard": {
+    "kind": "none",
+    "name": "unsharded",
+    "index": null,
+    "total": null
+  },
+  "total_units": 0,
+  "passed_units": 0,
+  "failed_units": 0,
+  "failed_unit_names": [],
+  "total_suites": 1,
+  "passed_suites": 1,
+  "failed_suites": 0,
+  "failed_names": [],
+  "unit_targets": [],
+  "suites": [
+    {
+      "schema": "pi.e2e.result.v1",
+      "result_kind": "suite",
+      "correlation_id": "20260406T091126Z-unsharded",
+      "suite": "e2e_extension_registration",
+      "exit_code": 0,
+      "duration_ms": 49240,
+      "passed": 123,
+      "failed": 0,
+      "ignored": 0,
+      "total": 123,
+      "log_file": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/output.log",
+      "test_log_jsonl": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "artifact_index_jsonl": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "timestamp": "20260406T091126Z"
+    }
+  ],
+  "failure_diagnostics": {
+    "schema": "pi.e2e.failure_diagnostics.v1",
+    "correlation_id": "20260406T091126Z-unsharded",
+    "index_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+    "run_timeline_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+    "failed_suite_count": 0,
+    "suites": []
+  },
+  "replay_bundle": {
+    "schema": "pi.e2e.replay_bundle.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/replay_bundle.json",
+    "one_command_replay": "./scripts/e2e/run_all.sh --rerun-from /Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+    "failed_suite_count": 0,
+    "failed_unit_count": 0
+  },
+  "extension_profile_matrix": {
+    "schema": "pi.e2e.extension_profile_matrix.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+    "markdown_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.md",
+    "preflight_runtime_mismatches": 0,
+    "checked_capability_decisions": 19,
+    "profiles": {
+      "safe": {
+        "projected_pass_rate_pct": 0.0,
+        "blocked_extensions": 0
+      },
+      "balanced": {
+        "projected_pass_rate_pct": 0.0,
+        "blocked_extensions": 0
+      },
+      "permissive": {
+        "projected_pass_rate_pct": 0.0,
+        "blocked_extensions": 0
+      }
+    }
+  },
+  "soak_longevity": {
+    "schema": "pi.e2e.soak_longevity.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+    "markdown_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.md",
+    "events_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_events.jsonl",
+    "status": "missing_prerequisites",
+    "pass": false,
+    "failed_checks": [
+      "prerequisites.required_targets_executed"
+    ]
+  },
+  "release_readiness": {
+    "schema": "pi.e2e.release_readiness.v1",
+    "correlation_id": "20260406T091126Z-unsharded",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+    "markdown_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.md",
+    "status": "not_ready",
+    "overall_ready": false,
+    "risk_count": 2,
+    "failing_suites": [],
+    "failing_unit_targets": []
+  },
+  "evidence_contract": {
+    "schema": "pi.evidence.contract.v1",
+    "correlation_id": "20260406T091126Z-unsharded",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/evidence_contract.json",
+    "status": "pass",
+    "strict_conformance": false,
+    "error_count": 0,
+    "warning_count": 5
+  },
+  "franken_node_claim_gate_status": {
+    "schema": "pi.franken_node.claim_gate_status.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/franken_node_claim_gate_status.json",
+    "requested_claim_tier": "extension_host_dropin",
+    "requested_tier_allowed": false,
+    "requested_tier_blocking_reasons": [
+      "claim_integrity gate inactive; cannot certify extension_host_dropin tier",
+      "evidence adjudication matrix overall_status must be pass (got missing)",
+      "release_readiness.overall_ready must be true (got False)",
+      "scenario cell status overall_status must be pass (got missing)"
+    ],
+    "tiers": {
+      "extension_host_dropin": {
+        "ready": false,
+        "blocking_reasons": [
+          "claim_integrity gate inactive; cannot certify extension_host_dropin tier",
+          "evidence adjudication matrix overall_status must be pass (got missing)",
+          "release_readiness.overall_ready must be true (got False)",
+          "scenario cell status overall_status must be pass (got missing)"
+        ]
+      },
+      "full_runtime_replacement": {
+        "ready": false,
+        "blocking_reasons": [
+          "strict replacement verdict must be CERTIFIED (got NOT_CERTIFIED)"
+        ],
+        "required_beads": [
+          "bd-3ar8v.7.2",
+          "bd-3ar8v.7.3",
+          "bd-3ar8v.7.4",
+          "bd-3ar8v.7.5",
+          "bd-3ar8v.7.6",
+          "bd-3ar8v.7.15",
+          "bd-3ar8v.7.16"
+        ]
+      }
+    }
+  },
+  "franken_node_kernel_boundary_drift_report": {
+    "schema": "pi.franken_node.kernel_boundary_drift_report.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+    "summary": {
+      "required_checks_count": 5,
+      "passing_checks": 5,
+      "failing_checks": 0,
+      "pass_count": 5,
+      "fail_count": 0,
+      "replacement_targets_count": 7,
+      "module_mappings_count": 7,
+      "verdict": "pass",
+      "overall_status": "pass"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Extension Remediation Backlog
 
-> Generated: 2026-03-17T01:22:51.595Z
+> Generated: 2026-04-06T12:26:01.949Z
 > Schema: `pi.qa.extension_remediation_backlog.v1`
 
 ## Summary

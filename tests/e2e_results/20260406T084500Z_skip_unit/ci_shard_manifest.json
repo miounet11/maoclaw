@@ -1,0 +1,19 @@
+{
+  "schema": "pi.verify.shard_manifest.v1",
+  "generated_at": "20260406T091126Z",
+  "profile": "ci",
+  "artifact_dir": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "cargo_runner": "cargo",
+  "cargo_exec_prefix": [],
+  "shard": {
+    "kind": "none",
+    "name": "unsharded",
+    "index": null,
+    "total": null
+  },
+  "selection": {
+    "unit_targets": [],
+    "e2e_suites": ["e2e_extension_registration"]
+  }
+}

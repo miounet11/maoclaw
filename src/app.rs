@@ -91,6 +91,9 @@ pub fn normalize_cli(cli: &mut cli::Cli) {
     if let Some(provider) = &mut cli.provider {
         *provider = provider.to_ascii_lowercase();
     }
+    if cli.print {
+        cli.no_session = true;
+    }
 }
 
 pub fn validate_rpc_args(cli: &cli::Cli) -> Result<()> {
@@ -1285,14 +1288,14 @@ mod tests {
     }
 
     #[test]
-    fn normalize_cli_lowercases_provider_without_forcing_no_session_for_print() {
+    fn normalize_cli_lowercases_provider_and_forces_no_session_for_print() {
         let mut cli = cli::Cli::parse_from(["pi", "--provider", "OpenAI", "--print", "hello"]);
         assert!(!cli.no_session);
         assert_eq!(cli.provider.as_deref(), Some("OpenAI"));
 
         normalize_cli(&mut cli);
 
-        assert!(!cli.no_session);
+        assert!(cli.no_session);
         assert_eq!(cli.provider.as_deref(), Some("openai"));
     }
 
@@ -1877,9 +1880,10 @@ mod tests {
                 normalize_cli(&mut cli);
 
                 let expected_provider = provider.map(|value: String| value.to_ascii_lowercase());
+                let expected_no_session = initial_no_session || print;
 
                 prop_assert_eq!(cli.provider, expected_provider);
-                prop_assert_eq!(cli.no_session, initial_no_session);
+                prop_assert_eq!(cli.no_session, expected_no_session);
             }
 
             #[test]

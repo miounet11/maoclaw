@@ -1639,7 +1639,9 @@ impl Session {
             _ => self.store_kind,
         };
 
-        if self.path.is_none() {
+        let generated_path = self.path.is_none();
+
+        if generated_path {
             // Create a new path
             let base_dir = self
                 .session_dir
@@ -1683,8 +1685,10 @@ impl Session {
 
         match store_kind {
             SessionStoreKind::Jsonl => {
-                if let Some(parent) = path.parent() {
-                    asupersync::fs::create_dir_all(parent).await?;
+                if generated_path {
+                    if let Some(parent) = path.parent() {
+                        asupersync::fs::create_dir_all(parent).await?;
+                    }
                 }
                 let sessions_root = session_dir_clone.unwrap_or_else(Config::sessions_dir);
 

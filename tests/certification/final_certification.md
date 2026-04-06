@@ -1,7 +1,7 @@
 # Final QA Certification Report
 
 **Schema**: pi.qa.final_certification.v1
-**Generated**: 2026-03-17T01:22:56Z
+**Generated**: 2026-04-06T12:28:33Z
 **Certification Verdict**: FAIL
 
 ## Evidence Gates
@@ -9,11 +9,11 @@
 | Gate | Bead | Status | Artifact | Detail |
 |------|------|--------|----------|--------|
 | non_mock_compliance | bd-1f42.2.6 | FAIL | docs/non-mock-rubric.json | Invalid non-mock rubric schema |
-| e2e_evidence | bd-1f42.3 | PASS | tests/ext_conformance/reports/conformance_summary.json | E2E conformance: 217/224 extensions tested |
-| must_pass_208 | bd-1f42.4 | FAIL | tests/ext_conformance/reports/gate/must_pass_gate_verdict.json | 125/125 must-pass (pass) |
-| evidence_bundle | bd-1f42.6.8 | FAIL | tests/evidence_bundle/index.json | Evidence bundle incomplete or missing (insufficient, artifacts=94) |
+| e2e_evidence | bd-1f42.3 | PASS | tests/ext_conformance/reports/conformance_summary.json | E2E conformance: 218/224 extensions tested |
+| must_pass_208 | bd-1f42.4 | FAIL | tests/ext_conformance/reports/gate/must_pass_gate_verdict.json | 123/123 must-pass (pass) |
+| evidence_bundle | bd-1f42.6.8 | FAIL | tests/evidence_bundle/index.json | Evidence bundle incomplete or missing (insufficient, artifacts=125) |
 | cross_platform | bd-1f42.6.7 | WARN | tests/cross_platform_reports/macos/platform_report.json | 9/10 platform checks pass |
-| full_suite_gate | bd-1f42.6.5 | WARN | tests/full_suite_gate/full_suite_verdict.json | 16/0 gates pass (fail) |
+| full_suite_gate | bd-1f42.6.5 | WARN | tests/full_suite_gate/full_suite_verdict.json | 18/0 gates pass (warn) |
 | extension_remediation_backlog | bd-3ar8v.6.8.3 | PASS | tests/full_suite_gate/extension_remediation_backlog.json | Remediation backlog valid: 36 entries (31 actionable, 5 non-actionable) |
 | practical_finish_checkpoint | bd-3ar8v.6.9 | PASS | tests/full_suite_gate/practical_finish_checkpoint.json | Practical-finish checkpoint satisfied: 0 docs/report residual issue(s) |
 | parameter_sweeps_integrity | bd-3ar8v.6.5.1 | PASS | tests/perf/reports/parameter_sweeps.json | Parameter sweeps contract valid: readiness=blocked, dimensions=3 |
@@ -37,10 +37,10 @@
 | ID | Severity | Description | Mitigation |
 |----|----------|-------------|------------|
 | bd-1f42.2.6 | high | non_mock_compliance: Invalid non-mock rubric schema | Investigate and fix before release (bead bd-1f42.2.6) |
-| bd-1f42.4 | high | must_pass_208: 125/125 must-pass (pass) | Investigate and fix before release (bead bd-1f42.4) |
-| bd-1f42.6.8 | high | evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=94) | Investigate and fix before release (bead bd-1f42.6.8) |
+| bd-1f42.4 | high | must_pass_208: 123/123 must-pass (pass) | Investigate and fix before release (bead bd-1f42.4) |
+| bd-1f42.6.8 | high | evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=125) | Investigate and fix before release (bead bd-1f42.6.8) |
 | bd-1f42.6.7 | medium | cross_platform: 9/10 platform checks pass | Monitor and track in bead bd-1f42.6.7 |
-| bd-1f42.6.5 | medium | full_suite_gate: 16/0 gates pass (fail) | Monitor and track in bead bd-1f42.6.5 |
+| bd-1f42.6.5 | medium | full_suite_gate: 18/0 gates pass (warn) | Monitor and track in bead bd-1f42.6.5 |
 | bd-1f42.4.5 | medium | health_delta: Baseline: 187/223 (83.9%) | Monitor and track in bead bd-1f42.4.5 |
 
 ## Reproduction Commands

@@ -1,0 +1,14 @@
+{
+  "schema": "pi.e2e.result.v1",
+  "result_kind": "lib",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "target": "lib",
+  "exit_code": 0,
+  "duration_ms": 302990,
+  "passed": 6169,
+  "failed": 0,
+  "ignored": 3,
+  "total": 6172,
+  "log_file": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/lib/output.log",
+  "timestamp": "20260406T091126Z"
+}

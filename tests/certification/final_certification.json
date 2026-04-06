@@ -1,6 +1,6 @@
 {
   "schema": "pi.qa.final_certification.v1",
-  "generated_at": "2026-03-17T01:22:56Z",
+  "generated_at": "2026-04-06T12:28:33Z",
   "certification_verdict": "FAIL",
   "evidence": [
     {
@@ -15,25 +15,25 @@
       "gate": "e2e_evidence",
       "bead": "bd-1f42.3",
       "status": "PASS",
-      "detail": "E2E conformance: 217/224 extensions tested",
+      "detail": "E2E conformance: 218/224 extensions tested",
       "artifact_path": "tests/ext_conformance/reports/conformance_summary.json",
-      "artifact_sha256": "content-hash-16ef7231de137b7a-len-1043"
+      "artifact_sha256": "content-hash-bd0ba4df51a3220d-len-1054"
     },
     {
       "gate": "must_pass_208",
       "bead": "bd-1f42.4",
       "status": "FAIL",
-      "detail": "125/125 must-pass (pass)",
+      "detail": "123/123 must-pass (pass)",
       "artifact_path": "tests/ext_conformance/reports/gate/must_pass_gate_verdict.json",
-      "artifact_sha256": "content-hash-ef4820763c9c28af-len-1229"
+      "artifact_sha256": "content-hash-53cb836a7c8e52ae-len-1235"
     },
     {
       "gate": "evidence_bundle",
       "bead": "bd-1f42.6.8",
       "status": "FAIL",
-      "detail": "Evidence bundle incomplete or missing (insufficient, artifacts=94)",
+      "detail": "Evidence bundle incomplete or missing (insufficient, artifacts=125)",
       "artifact_path": "tests/evidence_bundle/index.json",
-      "artifact_sha256": "content-hash-53dcb2fe2d9259fd-len-10760"
+      "artifact_sha256": "content-hash-2f7e54d16580db35-len-10900"
     },
     {
       "gate": "cross_platform",
@@ -41,15 +41,15 @@
       "status": "WARN",
       "detail": "9/10 platform checks pass",
       "artifact_path": "tests/cross_platform_reports/macos/platform_report.json",
-      "artifact_sha256": "content-hash-0c416e13acbeb7cd-len-4303"
+      "artifact_sha256": "content-hash-756d853444555899-len-4303"
     },
     {
       "gate": "full_suite_gate",
       "bead": "bd-1f42.6.5",
       "status": "WARN",
-      "detail": "16/0 gates pass (fail)",
+      "detail": "18/0 gates pass (warn)",
       "artifact_path": "tests/full_suite_gate/full_suite_verdict.json",
-      "artifact_sha256": "content-hash-ff29e6a9e66840ba-len-8309"
+      "artifact_sha256": "content-hash-2b646d5ac102d2cc-len-8000"
     },
     {
       "gate": "extension_remediation_backlog",
@@ -57,7 +57,7 @@
       "status": "PASS",
       "detail": "Remediation backlog valid: 36 entries (31 actionable, 5 non-actionable)",
       "artifact_path": "tests/full_suite_gate/extension_remediation_backlog.json",
-      "artifact_sha256": "content-hash-65db21b1a97fe1b7-len-56760"
+      "artifact_sha256": "content-hash-2b8348c3d6044d86-len-56760"
     },
     {
       "gate": "practical_finish_checkpoint",
@@ -65,7 +65,7 @@
       "status": "PASS",
       "detail": "Practical-finish checkpoint satisfied: 0 docs/report residual issue(s)",
       "artifact_path": "tests/full_suite_gate/practical_finish_checkpoint.json",
-      "artifact_sha256": "content-hash-2376dfd4ff2f7f0a-len-436"
+      "artifact_sha256": "content-hash-3033a21965d23037-len-436"
     },
     {
       "gate": "parameter_sweeps_integrity",
@@ -102,13 +102,13 @@
     {
       "id": "bd-1f42.4",
       "severity": "high",
-      "description": "must_pass_208: 125/125 must-pass (pass)",
+      "description": "must_pass_208: 123/123 must-pass (pass)",
       "mitigation": "Investigate and fix before release (bead bd-1f42.4)"
     },
     {
       "id": "bd-1f42.6.8",
       "severity": "high",
-      "description": "evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=94)",
+      "description": "evidence_bundle: Evidence bundle incomplete or missing (insufficient, artifacts=125)",
       "mitigation": "Investigate and fix before release (bead bd-1f42.6.8)"
     },
     {
@@ -120,7 +120,7 @@
     {
       "id": "bd-1f42.6.5",
       "severity": "medium",
-      "description": "full_suite_gate: 16/0 gates pass (fail)",
+      "description": "full_suite_gate: 18/0 gates pass (warn)",
       "mitigation": "Monitor and track in bead bd-1f42.6.5"
     },
     {

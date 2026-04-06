@@ -1,6 +1,6 @@
 # Performance Budgets
 
-> Generated: 2026-03-17T01:38:22Z
+> Generated: 2026-04-06T12:14:14Z
 
 ## Summary
 
@@ -43,7 +43,7 @@
 
 | Budget | Metric | Threshold | Actual | Status | CI |
 |---|---|---|---|---|---|
-| `event_dispatch_p99` | p99 dispatch latency | 5000 us | 33 | PASS | No |
+| `event_dispatch_p99` | p99 dispatch latency | 5000 us | 20 | PASS | No |
 
 ## Policy
 
@@ -55,7 +55,7 @@
 
 | Budget | Metric | Threshold | Actual | Status | CI |
 |---|---|---|---|---|---|
-| `idle_memory_rss` | RSS at idle | 50 MB | 13.7 | PASS | Yes |
+| `idle_memory_rss` | RSS at idle | 50 MB | 14.3 | PASS | Yes |
 | `sustained_load_rss_growth` | RSS growth under 30s sustained load | 5 percent | 0.0 | PASS | No |
 
 ## Binary
@@ -72,22 +72,22 @@
 
 ## Failing Data Contracts
 
-- `missing_or_stale_budget_artifact` (`startup_version_p95`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/criterion/startup/version/warm/new/estimates.json]
+- `missing_or_stale_budget_artifact` (`startup_version_p95`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/criterion/startup/version/warm/new/estimates.json]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`ext_cold_load_simple_p95`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/criterion/ext_load_init/load_init_cold/hello/new/estimates.json]
+- `missing_or_stale_budget_artifact` (`ext_cold_load_simple_p95`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/criterion/ext_load_init/load_init_cold/hello/new/estimates.json]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`tool_call_latency_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/perf/perf/pijs_workload_perf.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/release/pijs_workload_release.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/debug/pijs_workload_debug.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/pijs_workload.jsonl]
+- `missing_or_stale_budget_artifact` (`tool_call_latency_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/perf/pijs_workload_perf.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/release/pijs_workload_release.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/debug/pijs_workload_debug.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/pijs_workload.jsonl]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`tool_call_throughput_min`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/perf/perf/pijs_workload_perf.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/release/pijs_workload_release.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/debug/pijs_workload_debug.jsonl, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/pijs_workload.jsonl]
+- `missing_or_stale_budget_artifact` (`tool_call_throughput_min`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/perf/pijs_workload_perf.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/release/pijs_workload_release.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/debug/pijs_workload_debug.jsonl, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/pijs_workload.jsonl]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`policy_eval_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/criterion/ext_policy/evaluate]
+- `missing_or_stale_budget_artifact` (`policy_eval_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/criterion/ext_policy/evaluate]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`binary_size_release`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/release/pi, /Users/lu/开发项目/claw/pi_agent_rust/target/perf/pi]
+- `missing_or_stale_budget_artifact` (`binary_size_release`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/release/pi, /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/perf/pi]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_budget_artifact` (`protocol_parse_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust/target/criterion/ext_protocol/parse_and_validate]
+- `missing_or_stale_budget_artifact` (`protocol_parse_p99`): missing artifacts; expected one of [/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/target/criterion/ext_protocol/parse_and_validate]
   - Remediation: Regenerate benchmark artifacts in the same CI/perf run before evaluating budgets.
-- `missing_or_stale_e2e_matrix_evidence` (`global`): all candidate artifacts are stale/invalid (>24.00h): /Users/lu/开发项目/claw/pi_agent_rust/tests/perf/reports/extension_benchmark_stratification.json (177.43h old)
-  - Remediation: Generate fresh extension_benchmark_stratification.json in the current perf run.
+- `bun_killer_ratio_release_gate` (`global`): full_e2e_long_session rust_vs_bun_ratio=1.500000 exceeds Bun-killer release gate <= 0.33 in /Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/perf/reports/extension_benchmark_stratification.json
+  - Remediation: Reduce full_e2e_long_session rust_vs_bun_ratio to <= 0.33 before release promotion.
 
 ## Measurement Methodology
 

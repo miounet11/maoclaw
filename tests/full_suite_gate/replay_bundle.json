@@ -1,7 +1,7 @@
 {
   "schema": "pi.e2e.replay_bundle.v1",
-  "generated_at": "2026-03-17T01:35:16.028Z",
-  "correlation_id": "replay-bundle-20260317T013516Z",
+  "generated_at": "2026-04-06T11:27:19.387Z",
+  "correlation_id": "replay-bundle-20260406T112719Z",
   "source_summary_path": "tests/full_suite_gate/full_suite_verdict.json",
   "one_command_replay": "cargo test --test ci_full_suite_gate -- full_suite_gate --nocapture --exact",
   "environment": {
@@ -10,35 +10,25 @@
     "shard_index": null,
     "shard_total": null,
     "rustc_version": "rustc 1.96.0-nightly (b41f22de2 2026-03-08)",
-    "cargo_target_dir": "/tmp/maoclaw-preflight-target",
+    "cargo_target_dir": "/tmp/maoclaw-release-lu/target",
     "vcr_mode": "unset",
-    "git_sha": "debfd1dc",
-    "git_branch": "main",
+    "git_sha": "e3eb4607",
+    "git_branch": "release/v0.1.17",
     "os": "macos"
   },
   "failed_suites": [],
   "failed_unit_targets": [],
   "failed_gates": [
     {
-      "gate_id": "ext_must_pass",
-      "gate_name": "Extension must-pass gate (208 extensions)",
-      "reproduce_command": "cargo test --test ext_conformance_generated --features ext-conformance -- conformance_must_pass_gate --nocapture --exact"
-    },
-    {
       "gate_id": "evidence_bundle",
       "gate_name": "Unified evidence bundle",
       "reproduce_command": "cargo test --test ci_evidence_bundle -- build_evidence_bundle --nocapture --exact"
-    },
-    {
-      "gate_id": "conformance_regression",
-      "gate_name": "Conformance regression gate",
-      "reproduce_command": "cargo test --test conformance_regression_gate -- --nocapture"
     }
   ],
   "summary": {
     "total_failed_suites": 0,
     "total_failed_units": 0,
-    "total_failed_gates": 3,
+    "total_failed_gates": 1,
     "all_commands_reference_valid_targets": true
   }
 }

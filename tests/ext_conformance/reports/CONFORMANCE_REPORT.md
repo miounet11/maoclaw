@@ -1,17 +1,17 @@
 # Extension Conformance Report
 
-> Generated: 2026-03-30T05:04:33Z
+> Generated: 2026-04-06T11:13:54Z
 
 ## Summary
 
 | Metric | Value |
 |----|----|
 | Total extensions | 224 |
-| PASS | 23 |
+| PASS | 0 |
 | FAIL | 0 |
-| N/A (not yet tested) | 201 |
-| Pass rate (tested only) | 100.0% |
-| Coverage (tested/total) | 10.3% |
+| N/A (not yet tested) | 224 |
+| Pass rate (tested only) | 0.0% |
+| Coverage (tested/total) | 0.0% |
 | Policy negative tests | 30 pass, 0 fail |
 | Source tiers | 5 |
 
@@ -173,34 +173,34 @@
 
 ## official-pi-mono
 
-66 extensions (23 pass, 0 fail, 43 untested)
+66 extensions (0 pass, 0 fail, 66 untested)
 
 | Extension | Version | Tier | Status | Evidence | Load (Rust) | Scenarios | Failures |
 |---|---|---|---|---|---|---|---|
-| [`antigravity-image-gen`](tests/ext_conformance/artifacts/antigravity-image-gen/antigravity-image-gen.ts) | - | T1 (simple single-file) | PASS | [fixture](tests/ext_conformance/fixtures/antigravity-image-gen.json) [smoke](tests/ext_conformance/reports/extensions/antigravity-image-gen.jsonl) | 90ms | 2/2 pass |  |
-| [`auto-commit-on-exit`](tests/ext_conformance/artifacts/auto-commit-on-exit/auto-commit-on-exit.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/auto-commit-on-exit.json) | 9ms | - |  |
-| [`base_fixtures`](tests/ext_conformance/artifacts/base_fixtures/minimal_command/index.ts) | - | T3 (multi-file) | PASS | - | 16ms | - |  |
-| [`bash-spawn-hook`](tests/ext_conformance/artifacts/bash-spawn-hook/bash-spawn-hook.ts) | - | T1 (simple single-file) | PASS | [fixture](tests/ext_conformance/fixtures/bash-spawn-hook.json) | 10ms | - |  |
-| [`bookmark`](tests/ext_conformance/artifacts/bookmark/bookmark.ts) | - | T1 (simple single-file) | PASS | [fixture](tests/ext_conformance/fixtures/bookmark.json) | 9ms | - |  |
-| [`claude-rules`](tests/ext_conformance/artifacts/claude-rules/claude-rules.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/claude-rules.json) | 15ms | - |  |
-| [`confirm-destructive`](tests/ext_conformance/artifacts/confirm-destructive/confirm-destructive.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/confirm-destructive.json) | 9ms | - |  |
-| [`custom-compaction`](tests/ext_conformance/artifacts/custom-compaction/custom-compaction.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/custom-compaction.json) | 11ms | - |  |
+| [`antigravity-image-gen`](tests/ext_conformance/artifacts/antigravity-image-gen/antigravity-image-gen.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/antigravity-image-gen.json) | - | - |  |
+| [`auto-commit-on-exit`](tests/ext_conformance/artifacts/auto-commit-on-exit/auto-commit-on-exit.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/auto-commit-on-exit.json) | - | - |  |
+| [`base_fixtures`](tests/ext_conformance/artifacts/base_fixtures/minimal_command/index.ts) | - | T3 (multi-file) | N/A | - | - | - |  |
+| [`bash-spawn-hook`](tests/ext_conformance/artifacts/bash-spawn-hook/bash-spawn-hook.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/bash-spawn-hook.json) | - | - |  |
+| [`bookmark`](tests/ext_conformance/artifacts/bookmark/bookmark.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/bookmark.json) | - | - |  |
+| [`claude-rules`](tests/ext_conformance/artifacts/claude-rules/claude-rules.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/claude-rules.json) | - | - |  |
+| [`confirm-destructive`](tests/ext_conformance/artifacts/confirm-destructive/confirm-destructive.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/confirm-destructive.json) | - | - |  |
+| [`custom-compaction`](tests/ext_conformance/artifacts/custom-compaction/custom-compaction.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/custom-compaction.json) | - | - |  |
 | [`custom-footer`](tests/ext_conformance/artifacts/custom-footer/custom-footer.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/custom-footer.json) | - | - |  |
 | [`custom-header`](tests/ext_conformance/artifacts/custom-header/custom-header.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/custom-header.json) | - | - |  |
-| [`custom-provider-anthropic`](tests/ext_conformance/artifacts/custom-provider-anthropic/index.ts) | `1.2.0` | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/custom-provider-anthropic.json) [smoke](tests/ext_conformance/reports/extensions/custom-provider-anthropic.jsonl) | - | 1/1 pass |  |
+| [`custom-provider-anthropic`](tests/ext_conformance/artifacts/custom-provider-anthropic/index.ts) | `1.2.0` | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/custom-provider-anthropic.json) | - | - |  |
 | [`custom-provider-gitlab-duo`](tests/ext_conformance/artifacts/custom-provider-gitlab-duo/index.ts) | `1.2.0` | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/custom-provider-gitlab-duo.json) | - | - |  |
-| [`custom-provider-qwen-cli`](tests/ext_conformance/artifacts/custom-provider-qwen-cli/index.ts) | `1.1.0` | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/custom-provider-qwen-cli.json) [smoke](tests/ext_conformance/reports/extensions/custom-provider-qwen-cli.jsonl) | - | 1/1 pass |  |
+| [`custom-provider-qwen-cli`](tests/ext_conformance/artifacts/custom-provider-qwen-cli/index.ts) | `1.1.0` | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/custom-provider-qwen-cli.json) | - | - |  |
 | [`diff`](tests/ext_conformance/artifacts/diff/diff.ts) | - | T2 (multi-registration) | N/A | - | - | - |  |
 | [`dirty-repo-guard`](tests/ext_conformance/artifacts/dirty-repo-guard/dirty-repo-guard.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/dirty-repo-guard.json) | - | - |  |
-| [`doom-overlay`](tests/ext_conformance/artifacts/doom-overlay/index.ts) | - | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/doom-overlay.json) [smoke](tests/ext_conformance/reports/extensions/doom-overlay.jsonl) | - | 1/1 pass |  |
-| [`dynamic-resources`](tests/ext_conformance/artifacts/dynamic-resources/index.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/dynamic-resources.json) [smoke](tests/ext_conformance/reports/extensions/dynamic-resources.jsonl) | - | 1/1 pass |  |
+| [`doom-overlay`](tests/ext_conformance/artifacts/doom-overlay/index.ts) | - | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/doom-overlay.json) | - | - |  |
+| [`dynamic-resources`](tests/ext_conformance/artifacts/dynamic-resources/index.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/dynamic-resources.json) | - | - |  |
 | [`event-bus`](tests/ext_conformance/artifacts/event-bus/event-bus.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/event-bus.json) | - | - |  |
 | [`file-trigger`](tests/ext_conformance/artifacts/file-trigger/file-trigger.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/file-trigger.json) | - | - |  |
 | [`files`](tests/ext_conformance/artifacts/files/files.ts) | - | T2 (multi-registration) | N/A | - | - | - |  |
-| [`git-checkpoint`](tests/ext_conformance/artifacts/git-checkpoint/git-checkpoint.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/git-checkpoint.json) [smoke](tests/ext_conformance/reports/extensions/git-checkpoint.jsonl) | - | 1/1 pass |  |
+| [`git-checkpoint`](tests/ext_conformance/artifacts/git-checkpoint/git-checkpoint.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/git-checkpoint.json) | - | - |  |
 | [`handoff`](tests/ext_conformance/artifacts/handoff/handoff.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/handoff.json) | - | - |  |
-| [`hello`](tests/ext_conformance/artifacts/hello/hello.ts) | - | T1 (simple single-file) | PASS | [fixture](tests/ext_conformance/fixtures/hello.json) [smoke](tests/ext_conformance/reports/extensions/hello.jsonl) | - | 1/1 pass |  |
-| [`inline-bash`](tests/ext_conformance/artifacts/inline-bash/inline-bash.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/inline-bash.json) [smoke](tests/ext_conformance/reports/extensions/inline-bash.jsonl) | - | 1/1 pass |  |
+| [`hello`](tests/ext_conformance/artifacts/hello/hello.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/hello.json) | - | - |  |
+| [`inline-bash`](tests/ext_conformance/artifacts/inline-bash/inline-bash.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/inline-bash.json) | - | - |  |
 | [`input-transform`](tests/ext_conformance/artifacts/input-transform/input-transform.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/input-transform.json) | - | - |  |
 | [`interactive-shell`](tests/ext_conformance/artifacts/interactive-shell/interactive-shell.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/interactive-shell.json) | - | - |  |
 | [`mac-system-theme`](tests/ext_conformance/artifacts/mac-system-theme/mac-system-theme.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/mac-system-theme.json) | - | - |  |
@@ -211,38 +211,38 @@
 | [`notify`](tests/ext_conformance/artifacts/notify/notify.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/notify.json) | - | - |  |
 | [`overlay-qa-tests`](tests/ext_conformance/artifacts/overlay-qa-tests/overlay-qa-tests.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/overlay-qa-tests.json) | - | - |  |
 | [`overlay-test`](tests/ext_conformance/artifacts/overlay-test/overlay-test.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/overlay-test.json) | - | - |  |
-| [`permission-gate`](tests/ext_conformance/artifacts/permission-gate/permission-gate.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/permission-gate.json) [smoke](tests/ext_conformance/reports/extensions/permission-gate.jsonl) | - | 2/2 pass |  |
+| [`permission-gate`](tests/ext_conformance/artifacts/permission-gate/permission-gate.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/permission-gate.json) | - | - |  |
 | [`pirate`](tests/ext_conformance/artifacts/pirate/pirate.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/pirate.json) | - | - |  |
-| [`plan-mode`](tests/ext_conformance/artifacts/plan-mode/index.ts) | - | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/plan-mode.json) [smoke](tests/ext_conformance/reports/extensions/plan-mode.jsonl) | - | 3/3 pass |  |
+| [`plan-mode`](tests/ext_conformance/artifacts/plan-mode/index.ts) | - | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/plan-mode.json) | - | - |  |
 | [`preset`](tests/ext_conformance/artifacts/preset/preset.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/preset.json) | - | - |  |
 | [`prompt-url-widget`](tests/ext_conformance/artifacts/prompt-url-widget/prompt-url-widget.ts) | - | T2 (multi-registration) | N/A | - | - | - |  |
-| [`protected-paths`](tests/ext_conformance/artifacts/protected-paths/protected-paths.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/protected-paths.json) [smoke](tests/ext_conformance/reports/extensions/protected-paths.jsonl) | - | 1/1 pass |  |
+| [`protected-paths`](tests/ext_conformance/artifacts/protected-paths/protected-paths.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/protected-paths.json) | - | - |  |
 | [`qna`](tests/ext_conformance/artifacts/qna/qna.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/qna.json) | - | - |  |
 | [`question`](tests/ext_conformance/artifacts/question/question.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/question.json) | - | - |  |
 | [`questionnaire`](tests/ext_conformance/artifacts/questionnaire/questionnaire.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/questionnaire.json) | - | - |  |
 | [`rainbow-editor`](tests/ext_conformance/artifacts/rainbow-editor/rainbow-editor.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/rainbow-editor.json) | - | - |  |
 | [`redraws`](tests/ext_conformance/artifacts/redraws/redraws.ts) | - | T1 (simple single-file) | N/A | - | - | - |  |
 | [`rpc-demo`](tests/ext_conformance/artifacts/rpc-demo/rpc-demo.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/rpc-demo.json) | - | - |  |
-| [`sandbox`](tests/ext_conformance/artifacts/sandbox/index.ts) | `1.0.0` | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/sandbox.json) [smoke](tests/ext_conformance/reports/extensions/sandbox.jsonl) | - | 4/4 pass |  |
+| [`sandbox`](tests/ext_conformance/artifacts/sandbox/index.ts) | `1.0.0` | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/sandbox.json) | - | - |  |
 | [`send-user-message`](tests/ext_conformance/artifacts/send-user-message/send-user-message.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/send-user-message.json) | - | - |  |
 | [`session-name`](tests/ext_conformance/artifacts/session-name/session-name.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/session-name.json) | - | - |  |
 | [`shutdown-command`](tests/ext_conformance/artifacts/shutdown-command/shutdown-command.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/shutdown-command.json) | - | - |  |
 | [`snake`](tests/ext_conformance/artifacts/snake/snake.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/snake.json) | - | - |  |
 | [`space-invaders`](tests/ext_conformance/artifacts/space-invaders/space-invaders.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/space-invaders.json) | - | - |  |
 | [`ssh`](tests/ext_conformance/artifacts/ssh/ssh.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/ssh.json) | - | - |  |
-| [`status-line`](tests/ext_conformance/artifacts/status-line/status-line.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/status-line.json) [smoke](tests/ext_conformance/reports/extensions/status-line.jsonl) | - | 1/1 pass |  |
-| [`subagent`](tests/ext_conformance/artifacts/subagent/index.ts) | - | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/subagent.json) [smoke](tests/ext_conformance/reports/extensions/subagent.jsonl) | - | 1/1 pass |  |
+| [`status-line`](tests/ext_conformance/artifacts/status-line/status-line.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/status-line.json) | - | - |  |
+| [`subagent`](tests/ext_conformance/artifacts/subagent/index.ts) | - | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/subagent.json) | - | - |  |
 | [`summarize`](tests/ext_conformance/artifacts/summarize/summarize.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/summarize.json) | - | - |  |
 | [`system-prompt-header`](tests/ext_conformance/artifacts/system-prompt-header/system-prompt-header.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/system-prompt-header.json) | - | - |  |
 | [`timed-confirm`](tests/ext_conformance/artifacts/timed-confirm/timed-confirm.ts) | - | T1 (simple single-file) | N/A | [fixture](tests/ext_conformance/fixtures/timed-confirm.json) | - | - |  |
 | [`titlebar-spinner`](tests/ext_conformance/artifacts/titlebar-spinner/titlebar-spinner.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/titlebar-spinner.json) | - | - |  |
-| [`todo`](tests/ext_conformance/artifacts/todo/todo.ts) | - | T2 (multi-registration) | PASS | [fixture](tests/ext_conformance/fixtures/todo.json) [smoke](tests/ext_conformance/reports/extensions/todo.jsonl) | - | 3/3 pass |  |
+| [`todo`](tests/ext_conformance/artifacts/todo/todo.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/todo.json) | - | - |  |
 | [`tool-override`](tests/ext_conformance/artifacts/tool-override/tool-override.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/tool-override.json) | - | - |  |
 | [`tools`](tests/ext_conformance/artifacts/tools/tools.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/tools.json) | - | - |  |
 | [`trigger-compact`](tests/ext_conformance/artifacts/trigger-compact/trigger-compact.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/trigger-compact.json) | - | - |  |
 | [`truncated-tool`](tests/ext_conformance/artifacts/truncated-tool/truncated-tool.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/truncated-tool.json) | - | - |  |
 | [`widget-placement`](tests/ext_conformance/artifacts/widget-placement/widget-placement.ts) | - | T2 (multi-registration) | N/A | [fixture](tests/ext_conformance/fixtures/widget-placement.json) | - | - |  |
-| [`with-deps`](tests/ext_conformance/artifacts/with-deps/index.ts) | `1.15.0` | T3 (multi-file) | PASS | [fixture](tests/ext_conformance/fixtures/with-deps.json) [smoke](tests/ext_conformance/reports/extensions/with-deps.jsonl) | - | 1/1 pass |  |
+| [`with-deps`](tests/ext_conformance/artifacts/with-deps/index.ts) | `1.15.0` | T3 (multi-file) | N/A | [fixture](tests/ext_conformance/fixtures/with-deps.json) | - | - |  |
 
 ## third-party-github
 
@@ -279,16 +279,17 @@
 | Evidence Type | Count | Location |
 |---|---|---|
 | Golden fixtures | 60 | `tests/ext_conformance/fixtures/*.json` |
-| Smoke test logs | 16 | `tests/ext_conformance/reports/extensions/` (legacy fallback: `tests/ext_conformance/reports/smoke/extensions/`) |
+| Smoke test logs | 0 | `tests/ext_conformance/reports/extensions/` (legacy fallback: `tests/ext_conformance/reports/smoke/extensions/`) |
 | Parity diff logs | 0 | `tests/ext_conformance/reports/parity/extensions/` |
-| Load time benchmarks | 8 | `tests/ext_conformance/reports/load_time_benchmark.json` |
+| Load time benchmarks | 0 | `tests/ext_conformance/reports/load_time_benchmark.json` |
 | Negative policy tests | 30 | `tests/ext_conformance/reports/negative/` |
 
 ## Coverage Gaps
 
-201 extensions have not been tested yet.
+224 extensions have not been tested yet.
 
-**Multi-file extension (T3)** (85 extensions):
+**Multi-file extension (T3)** (93 extensions):
+- `base_fixtures`
 - `community/jyaunches-canvas`
 - `community/nicobailon-interactive-shell`
 - `community/nicobailon-mcp-adapter`
@@ -304,7 +305,10 @@
 - `community/qualisero-safe-git`
 - `community/tmustier-code-actions`
 - `community/tmustier-files-widget`
+- `custom-provider-anthropic`
 - `custom-provider-gitlab-duo`
+- `custom-provider-qwen-cli`
+- `doom-overlay`
 - `npm/agentsbox`
 - `npm/aliou-pi-extension-dev`
 - `npm/aliou-pi-guardrails`
@@ -361,6 +365,9 @@
 - `npm/walterra-pi-charts`
 - `npm/walterra-pi-graphviz`
 - `npm/zenobius-pi-dcp`
+- `plan-mode`
+- `sandbox`
+- `subagent`
 - `third-party/aliou-pi-extensions`
 - `third-party/ben-vargas-pi-packages`
 - `third-party/charles-cooper-pi-extensions`
@@ -374,8 +381,14 @@
 - `third-party/rytswd-slow-mode`
 - `third-party/w-winter-dot314`
 - `third-party/zenobi-us-pi-dcp`
+- `with-deps`
 
-**Not yet scheduled** (108 extensions):
+**Not yet scheduled** (123 extensions):
+- `antigravity-image-gen`
+- `auto-commit-on-exit`
+- `bash-spawn-hook`
+- `bookmark`
+- `claude-rules`
 - `community/ferologics-notify`
 - `community/hjanuschka-clipboard`
 - `community/hjanuschka-cost-tracker`
@@ -417,14 +430,20 @@
 - `community/tmustier-raw-paste`
 - `community/tmustier-tab-status`
 - `community/tmustier-usage-extension`
+- `confirm-destructive`
+- `custom-compaction`
 - `custom-footer`
 - `custom-header`
 - `diff`
 - `dirty-repo-guard`
+- `dynamic-resources`
 - `event-bus`
 - `file-trigger`
 - `files`
+- `git-checkpoint`
 - `handoff`
+- `hello`
+- `inline-bash`
 - `input-transform`
 - `interactive-shell`
 - `mac-system-theme`
@@ -452,9 +471,11 @@
 - `npm/vpellegrino-pi-skills`
 - `overlay-qa-tests`
 - `overlay-test`
+- `permission-gate`
 - `pirate`
 - `preset`
 - `prompt-url-widget`
+- `protected-paths`
 - `qna`
 - `question`
 - `questionnaire`
@@ -467,6 +488,7 @@
 - `snake`
 - `space-invaders`
 - `ssh`
+- `status-line`
 - `summarize`
 - `system-prompt-header`
 - `third-party/graffioh-pi-screenshots-picker`
@@ -479,6 +501,7 @@
 - `third-party/rytswd-questionnaire`
 - `timed-confirm`
 - `titlebar-spinner`
+- `todo`
 - `tool-override`
 - `tools`
 - `trigger-compact`

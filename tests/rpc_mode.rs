@@ -288,10 +288,11 @@ fn rpc_get_state_and_prompt() {
 
         // Collect events until agent_end.
         let mut saw_agent_end = false;
+        let mut saw_prompt_complete = false;
         let mut message_end_count = 0usize;
         let mut event_timeline = Vec::new();
         let log_events = env_truthy("RPC_TEST_LOG");
-        for _ in 0..100 {
+        for _ in 0..120 {
             let line = recv_line(&out_rx, "event stream")
                 .await
                 .expect("recv event stream");
@@ -316,10 +317,14 @@ fn rpc_get_state_and_prompt() {
             }
             if event["type"] == "agent_end" {
                 saw_agent_end = true;
+            }
+            if event["type"] == "prompt_complete" {
+                saw_prompt_complete = true;
                 break;
             }
         }
         assert!(saw_agent_end, "did not receive agent_end event");
+        assert!(saw_prompt_complete, "did not receive prompt_complete event");
         assert!(
             message_end_count >= 2,
             "expected at least user+assistant message_end events"

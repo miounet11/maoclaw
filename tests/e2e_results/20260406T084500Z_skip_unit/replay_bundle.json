@@ -1,0 +1,28 @@
+{
+  "schema": "pi.e2e.replay_bundle.v1",
+  "generated_at": "2026-04-06T09:23:11.851936+00:00",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "source_summary_path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+  "one_command_replay": "./scripts/e2e/run_all.sh --rerun-from /Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+  "environment": {
+    "profile": "ci",
+    "shard_kind": "none",
+    "shard_index": null,
+    "shard_total": null,
+    "rustc_version": "rustc 1.96.0-nightly (b41f22de2 2026-03-08)",
+    "cargo_target_dir": "/tmp/maoclaw-release-lu/target",
+    "vcr_mode": "unset",
+    "git_sha": "e3eb4607",
+    "git_branch": "release/v0.1.17",
+    "os": "Darwin 25.4.0 arm64"
+  },
+  "failed_suites": [],
+  "failed_unit_targets": [],
+  "failed_gates": [],
+  "summary": {
+    "total_failed_suites": 0,
+    "total_failed_units": 0,
+    "total_failed_gates": 0,
+    "all_commands_reference_valid_targets": true
+  }
+}

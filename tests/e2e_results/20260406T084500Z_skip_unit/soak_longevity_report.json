@@ -1,0 +1,200 @@
+{
+  "schema": "pi.e2e.soak_longevity.v1",
+  "generated_at": "2026-04-06T09:25:05.934408+00:00",
+  "status": "missing_prerequisites",
+  "pass": false,
+  "prerequisites": {
+    "required_targets": [
+      "ext_memory_stress",
+      "extensions_stress"
+    ],
+    "required_targets_executed": false,
+    "missing_targets": [
+      "ext_memory_stress",
+      "extensions_stress"
+    ],
+    "failed_targets": []
+  },
+  "source_files": {
+    "ext_memory_stress_report": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/ext_memory_stress_report.json",
+    "ext_memory_stress_csv": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/ext_memory_stress.csv",
+    "extensions_stress_triage": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/stress_triage.json",
+    "extensions_stress_events": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/stress_events.jsonl",
+    "profile_rotation_report": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/stress_profile_rotation.json",
+    "ext_stress_report": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/perf/reports/ext_stress_report.json"
+  },
+  "metrics": {
+    "memory": {
+      "rss_baseline_kb": 46656,
+      "rss_peak_kb": 46832,
+      "rss_growth_factor": 1.0037722908093278,
+      "rss_slope_kb_per_sec": 5.333333333333333,
+      "monotonic_rss_growth": false,
+      "quickjs_baseline_kb": 0,
+      "quickjs_peak_kb": 0,
+      "quickjs_growth_factor": 1.0,
+      "quickjs_slope_kb_per_sec": 0.0,
+      "monotonic_quickjs_growth": false,
+      "event_errors": 0,
+      "events_dispatched": 300,
+      "error_rate_pct": 0.0
+    },
+    "timing": {
+      "p99_first_us": 83383,
+      "p99_last_us": 58,
+      "latency_degradation_ratio": 0.0006955854310830745,
+      "latency_ok": true,
+      "events_dispatched": 1484,
+      "error_count": 0,
+      "error_rate_pct": 0.0,
+      "rss_growth_pct": 0.0,
+      "rss_ok": true
+    },
+    "profile_rotation": {
+      "present": true,
+      "overall_pass": true,
+      "slice_count": 3,
+      "profiles": [
+        "safe",
+        "balanced",
+        "permissive"
+      ]
+    },
+    "reactor_comparison": {
+      "report_present": false,
+      "comparison_present": false,
+      "mode": null,
+      "throughput_gain_pct": null,
+      "p95_delta_us": null,
+      "p99_delta_us": null,
+      "rejected_enqueues_delta": null,
+      "max_queue_depth_total_delta": null,
+      "lane_overflow_stalls_delta": null,
+      "throughput_improved": null,
+      "p95_improved": null,
+      "p99_improved": null,
+      "contention_proxy_improved": null
+    }
+  },
+  "thresholds": {
+    "rss_growth_factor_max": 2.0,
+    "quickjs_growth_factor_max": 2.0,
+    "latency_degradation_ratio_max": 2.0,
+    "p99_last_us_max": 25000,
+    "error_rate_pct_max": 25.0,
+    "profile_rotation_required": true,
+    "reactor_comparison_throughput_gain_pct_min": 0.0,
+    "reactor_comparison_p95_delta_us_max": 0,
+    "reactor_comparison_p99_delta_us_max": 0,
+    "reactor_comparison_contention_proxy_required": true
+  },
+  "checks": [
+    {
+      "id": "prerequisites.required_targets_executed",
+      "ok": false,
+      "actual": {
+        "missing_targets": [
+          "ext_memory_stress",
+          "extensions_stress"
+        ],
+        "failed_targets": []
+      },
+      "threshold": "ext_memory_stress + extensions_stress exit_code=0",
+      "required": true
+    },
+    {
+      "id": "inputs.ext_memory_stress_report_present",
+      "ok": true,
+      "actual": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/ext_memory_stress_report.json",
+      "threshold": "report must exist and parse as JSON",
+      "required": true
+    },
+    {
+      "id": "inputs.extensions_stress_triage_present",
+      "ok": true,
+      "actual": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/stress_triage.json",
+      "threshold": "report must exist and parse as JSON",
+      "required": true
+    },
+    {
+      "id": "inputs.profile_rotation_report_present",
+      "ok": true,
+      "actual": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/target/perf/stress_profile_rotation.json",
+      "threshold": "report must exist and parse as JSON",
+      "required": true
+    },
+    {
+      "id": "inputs.ext_stress_report_present",
+      "ok": false,
+      "actual": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/perf/reports/ext_stress_report.json",
+      "threshold": "optional ext_stress report for shard-comparison evidence",
+      "required": false
+    },
+    {
+      "id": "inputs.ext_stress_comparison_present",
+      "ok": false,
+      "actual": "comparison missing (report absent)",
+      "threshold": "optional comparison payload from ext_stress --compare-shard-baseline",
+      "required": false
+    },
+    {
+      "id": "memory.rss_growth_factor",
+      "ok": true,
+      "actual": 1.0037722908093278,
+      "threshold": "<= 2.0",
+      "required": true
+    },
+    {
+      "id": "memory.quickjs_growth_factor",
+      "ok": true,
+      "actual": 1.0,
+      "threshold": "<= 2.0",
+      "required": true
+    },
+    {
+      "id": "memory.no_monotonic_rss_growth",
+      "ok": true,
+      "actual": false,
+      "threshold": "must be false",
+      "required": true
+    },
+    {
+      "id": "memory.no_monotonic_quickjs_growth",
+      "ok": true,
+      "actual": false,
+      "threshold": "must be false",
+      "required": true
+    },
+    {
+      "id": "timing.latency_degradation_ratio",
+      "ok": true,
+      "actual": 0.0006955854310830745,
+      "threshold": "<= 2.0 or p99_last_us <= 25000",
+      "required": true
+    },
+    {
+      "id": "errors.extensions_stress_error_rate_pct",
+      "ok": true,
+      "actual": 0.0,
+      "threshold": "<= 25.0",
+      "required": true
+    },
+    {
+      "id": "errors.ext_memory_stress_error_rate_pct",
+      "ok": true,
+      "actual": 0.0,
+      "threshold": "<= 25.0",
+      "required": true
+    },
+    {
+      "id": "profile_rotation.overall_pass",
+      "ok": true,
+      "actual": true,
+      "threshold": "must be true",
+      "required": true
+    }
+  ],
+  "failed_checks": [
+    "prerequisites.required_targets_executed"
+  ]
+}

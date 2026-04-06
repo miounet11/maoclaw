@@ -1,0 +1,123 @@
+{
+  "schema": "pi.e2e.release_readiness.v1",
+  "generated_at": "2026-04-06T09:25:05.965249+00:00",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "status": "not_ready",
+  "overall_ready": false,
+  "summary": {
+    "profile": "ci",
+    "conformance_total": 224,
+    "conformance_pass": 218,
+    "conformance_fail": 6,
+    "conformance_na": 0,
+    "conformance_pass_rate_pct": 97.32,
+    "total_units": 0,
+    "failed_units": 0,
+    "total_suites": 1,
+    "failed_suites": 0
+  },
+  "profiles": {
+    "safe": {
+      "projected_pass_rate_pct": 0.0,
+      "projected_pass": 0,
+      "projected_fail_existing": 0,
+      "blocked_extensions": 0,
+      "testable_extensions": 0,
+      "recommendation": "Safest default with strongest capability restrictions",
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    },
+    "balanced": {
+      "projected_pass_rate_pct": 0.0,
+      "projected_pass": 0,
+      "projected_fail_existing": 0,
+      "blocked_extensions": 0,
+      "testable_extensions": 0,
+      "recommendation": "Recommended for general extension development",
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    },
+    "permissive": {
+      "projected_pass_rate_pct": 0.0,
+      "projected_pass": 0,
+      "projected_fail_existing": 0,
+      "blocked_extensions": 0,
+      "testable_extensions": 0,
+      "recommendation": "Trusted-only mode; enables dangerous capabilities",
+      "blocked_operation_summary": {
+        "by_capability": {},
+        "blocked_extension_count": 0,
+        "blocked_extension_examples": []
+      }
+    }
+  },
+  "workflow_outcomes": {
+    "passing_suites": [
+      "e2e_extension_registration"
+    ],
+    "failing_suites": [],
+    "failing_unit_targets": [],
+    "suite_pass_rate_pct": 100.0
+  },
+  "known_risks": [
+    {
+      "id": "conformance_failures",
+      "severity": "high",
+      "summary": "Conformance corpus has failing extensions",
+      "details": "6 extension(s) currently fail conformance",
+      "evidence": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json"
+    },
+    {
+      "id": "soak_longevity_failure",
+      "severity": "high",
+      "summary": "Soak/longevity verification failed thresholds",
+      "details": "status=missing_prerequisites, failed_checks=['prerequisites.required_targets_executed']",
+      "evidence": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json"
+    }
+  ],
+  "remediation": {
+    "immediate": [
+      {
+        "risk_id": "conformance_failures",
+        "action": "Conformance corpus has failing extensions",
+        "command": "cargo test --test ext_conformance_generated conformance_full_report --features ext-conformance -- --nocapture"
+      },
+      {
+        "risk_id": "soak_longevity_failure",
+        "action": "Soak/longevity verification failed thresholds",
+        "command": "cargo test --test ext_memory_stress ext_memory_stress_inline -- --nocapture && cargo test --test extensions_stress stress_policy_profile_rotation -- --nocapture"
+      }
+    ],
+    "policy_guidance": [
+      {
+        "profile": "safe",
+        "guidance": "Default profile for untrusted extensions",
+        "diagnostic_command": "./target/debug/pi --explain-extension-policy --extension-policy safe"
+      },
+      {
+        "profile": "balanced",
+        "guidance": "Recommended for general extension development",
+        "diagnostic_command": "./target/debug/pi --explain-extension-policy --extension-policy balanced"
+      },
+      {
+        "profile": "permissive",
+        "guidance": "Use only for trusted local extensions",
+        "diagnostic_command": "./target/debug/pi --explain-extension-policy --extension-policy permissive"
+      }
+    ]
+  },
+  "evidence": {
+    "summary_json": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+    "profile_matrix_json": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+    "soak_longevity_report_json": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+    "conformance_summary_json": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+    "conformance_report_markdown": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/CONFORMANCE_REPORT.md",
+    "evidence_contract_json": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/evidence_contract.json"
+  }
+}

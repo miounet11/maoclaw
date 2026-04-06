@@ -339,14 +339,14 @@ Recommended user path:
 - want a portable desktop build: download the `.zip`
 - want to integrate from your own client or editor: use `mao --mode rpc`
 
-Current direct download URLs for `v0.1.16`:
+Current direct download URLs for `v0.1.17`:
 
-- Latest release page: `https://github.com/miounet11/maoclaw/releases/tag/v0.1.16`
-- macOS installer: `https://github.com/miounet11/maoclaw/releases/download/v0.1.16/maoclaw-macos-arm64-0.1.16.pkg`
-- macOS desktop archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.16/maoclaw-macos-arm64-0.1.16.zip`
-- Windows desktop package: `https://github.com/miounet11/maoclaw/releases/download/v0.1.16/maoclaw-windows-amd64-0.1.16-portable.zip`
-- macOS CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.16/mao-darwin-arm64.tar.xz`
-- Windows CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.16/mao-windows-amd64.zip`
+- Latest release page: `https://github.com/miounet11/maoclaw/releases/tag/v0.1.17`
+- macOS installer: `https://github.com/miounet11/maoclaw/releases/download/v0.1.17/maoclaw-macos-arm64-0.1.17.pkg`
+- macOS desktop archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.17/maoclaw-macos-arm64-0.1.17.zip`
+- Windows desktop package: `https://github.com/miounet11/maoclaw/releases/download/v0.1.17/maoclaw-windows-amd64-0.1.17-portable.zip`
+- macOS CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.17/mao-darwin-arm64.tar.xz`
+- Windows CLI archive: `https://github.com/miounet11/maoclaw/releases/download/v0.1.17/mao-windows-amd64.zip`
 
 Build from source:
 

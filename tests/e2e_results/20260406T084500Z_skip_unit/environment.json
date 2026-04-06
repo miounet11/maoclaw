@@ -1,0 +1,28 @@
+{
+  "schema": "pi.e2e.environment.v1",
+  "timestamp": "20260406T091126Z",
+  "profile": "ci",
+  "rerun_from": null,
+  "diff_from": null,
+  "rustc": "rustc 1.96.0-nightly (b41f22de2 2026-03-08)",
+  "cargo": "cargo 1.96.0-nightly (90ed291a5 2026-03-05)",
+  "cargo_runner": "cargo",
+  "cargo_exec_prefix": [],
+  "os": "Darwin 25.4.0 arm64",
+  "git_sha": "e3eb4607",
+  "git_branch": "release/v0.1.17",
+  "parallelism": 1,
+  "log_level": "info",
+  "artifact_dir": "/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "shard": {
+    "kind": "none",
+    "name": "unsharded",
+    "index": null,
+    "total": null
+  },
+  "cargo_target_dir": "/tmp/maoclaw-release-lu/target",
+  "vcr_mode": "unset",
+  "unit_targets": [],
+  "e2e_suites": ["e2e_extension_registration"]
+}

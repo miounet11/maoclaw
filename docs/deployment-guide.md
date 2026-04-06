@@ -70,7 +70,7 @@ Best for:
 
 ```bash
 curl -fsSL "https://raw.githubusercontent.com/miounet11/maoclaw/main/install.sh?$(date +%s)" | \
-  bash -s -- --version v0.1.16 --yes --easy-mode
+  bash -s -- --version v0.1.17 --yes --easy-mode
 ```
 
 ### 3. Source build

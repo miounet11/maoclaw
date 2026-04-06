@@ -1,18 +1,18 @@
 # Full Certification Report
 
-> Generated: 2026-03-17T04:06:29Z
+> Generated: 2026-04-06T11:10:39Z
 > Lane: **full**
-> Verdict: **PASS**
+> Verdict: **WARN**
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
 | Total gates | 20 |
-| Passed | 20 |
-| Failed | 0 |
+| Passed | 18 |
+| Failed | 1 |
 | Warned | 0 |
-| Skipped | 0 |
+| Skipped | 1 |
 | Waived | 0 |
 | Blocking | 13/13 |
 | Can promote | YES |
@@ -24,8 +24,8 @@
 | Non-mock unit compliance | bd-1f42.2.6 | YES | PASS | - | `docs/non-mock-rubric.json` |
 | E2E log contract and transcripts | bd-1f42.3.6 | no | PASS | - | `tests/e2e_results` |
 | Extension must-pass gate (208 extensions) | bd-1f42.4.4 | YES | PASS | - | `tests/ext_conformance/reports/gate/must_pass_gate_verdict.json` |
-| Extension provider compatibility matrix | bd-1f42.4.6 | no | PASS | - | `tests/ext_conformance/reports/provider_compat/provider_compat_report.json` |
-| Unified evidence bundle | bd-1f42.6.8 | no | PASS | - | `tests/evidence_bundle/index.json` |
+| Extension provider compatibility matrix | bd-1f42.4.6 | no | SKIP | - | `tests/ext_conformance/reports/provider_compat/provider_compat_report.json` |
+| Unified evidence bundle | bd-1f42.6.8 | no | FAIL | - | `tests/evidence_bundle/index.json` |
 | Cross-platform matrix validation | bd-1f42.6.7 | no | PASS | - | `tests/cross_platform_reports/macos/platform_report.json` |
 | Conformance regression gate | bd-1f42.4 | YES | PASS | - | `tests/ext_conformance/reports/regression_verdict.json` |
 | Conformance pass rate >= 80% | bd-1f42.4 | YES | PASS | - | `tests/ext_conformance/reports/conformance_summary.json` |

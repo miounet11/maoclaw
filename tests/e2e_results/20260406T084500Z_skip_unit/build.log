@@ -1,0 +1,8 @@
+   Compiling maoclaw v0.1.17 (/Users/lu/开发项目/claw/pi_agent_rust_release_wt_20260406)
+[bubbletea-macros] Deriving Model for: PiApp
+[bubbletea-macros] Deriving Model for: SessionPicker
+[bubbletea-macros] Deriving Model for: ConfigUiApp
+[bubbletea-macros] Deriving Model for: ConfigUiApp
+[bubbletea-macros] Deriving Model for: ConfigUiApp
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.47s
+  Executable tests/e2e_extension_registration.rs (/tmp/maoclaw-release-lu/target/debug/deps/e2e_extension_registration-24ccf8a5f05cf6e9)

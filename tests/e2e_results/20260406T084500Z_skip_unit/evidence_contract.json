@@ -1,0 +1,3555 @@
+{
+  "schema": "pi.evidence.contract.v1",
+  "generated_at": "2026-04-06T09:25:06.138103+00:00",
+  "profile": "ci",
+  "artifact_dir": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit",
+  "correlation_id": "20260406T091126Z-unsharded",
+  "status": "pass",
+  "strict_conformance": false,
+  "checks": [
+    {
+      "id": "environment",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "environment.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "environment.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "summary.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "summary.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "environment.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "environment schema matches"
+    },
+    {
+      "id": "environment.correlation_id_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "environment correlation_id is set"
+    },
+    {
+      "id": "summary.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary schema matches"
+    },
+    {
+      "id": "summary.correlation_id_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary correlation_id is set"
+    },
+    {
+      "id": "run.correlation_id_matches_environment",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary/environment correlation_id values match"
+    },
+    {
+      "id": "environment.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/environment.json",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "summary.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "result schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.kind",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "result_kind is 'suite'"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.name",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "suite matches selected item"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.correlation_id_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "result correlation_id matches summary correlation_id"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.log_file_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "log_file is non-empty"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.log_file_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "log_file path matches expected artifact path"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.log_file_exists",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/output.log",
+      "ok": true,
+      "diagnostics": "referenced log file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.log_file_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/output.log",
+      "ok": true,
+      "diagnostics": "file size 9527 bytes within budget <= 8388608"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.log_file_redaction",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/output.log",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.test_log_jsonl_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "test_log_jsonl is non-empty"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.test_log_jsonl_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "test_log_jsonl path matches expected artifact path"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.artifact_index_jsonl_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "artifact_index_jsonl is non-empty"
+    },
+    {
+      "id": "suite:e2e_extension_registration:result.artifact_index_jsonl_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/result.json",
+      "ok": true,
+      "diagnostics": "artifact_index_jsonl path matches expected artifact path"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.file_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "file size 5464 bytes within budget <= 4194304"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.file_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "file size 3022 bytes within budget <= 4194304"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 16 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.record_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "test-log record count 16 within budget <= 25000"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.non_empty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "test-log contains 16 records"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_1.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_1.line_1.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_2.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_2.line_2.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_3.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_3.line_3.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_4.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_4.line_4.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_5.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_5.line_5.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_6.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_6.line_6.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_7.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.log.v2'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_7.line_7.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_8.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_8.line_8.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_9.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_9.line_9.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_10.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_10.line_10.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_11.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_11.line_11.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_12.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_12.line_12.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_13.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_13.line_13.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_14.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_14.line_14.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_15.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_15.line_15.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_16.schema_supported",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "supported schema 'pi.test.artifact.v1'"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.line_16.line_16.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.trace_ids_consistent",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id values are consistent per test"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.minimum_signal_harness_category",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "test-log includes harness category signal"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 9 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_1.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_1.line_1.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_1.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_2.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_2.line_2.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_2.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_3.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_3.line_3.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_3.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_4.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_4.line_4.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_4.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_5.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_5.line_5.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_5.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_6.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_6.line_6.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_6.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_7.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_7.line_7.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_7.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_8.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_8.line_8.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_8.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_9.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact-index schema matches"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_9.line_9.required_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.line_9.test_field_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "artifact record includes test name"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_file_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "file size 4705 bytes within budget <= 4194304"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_file_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "file size 2582 bytes within budget <= 4194304"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.raw",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.raw.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 16 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.normalized.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 16 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_count_matches_raw",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized JSONL line count matches raw JSONL"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.record_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized JSONL record count 16 within budget <= 25000"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_1.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_1.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_1.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_1.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_2.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_2.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_2.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_2.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_3.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_3.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_3.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_3.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_4.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_4.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_4.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_4.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_5.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_5.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_5.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_5.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_6.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_6.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_6.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_6.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_7.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.log.v2' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_7.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_7.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_7.trace_id_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "trace_id normalized to <TRACE_ID>"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_8.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_8.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_8.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_9.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_9.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_9.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_10.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_10.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_10.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_11.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_11.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_11.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_12.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_12.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_12.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_13.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_13.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_13.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_14.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_14.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_14.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_15.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_15.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_15.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_16.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_16.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.line_16.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.test_log_jsonl.normalized_contract.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/test-log.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.raw",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.raw.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 9 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.normalized.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 9 non-empty JSONL lines"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_count_matches_raw",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized JSONL line count matches raw JSONL"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.record_budget",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized JSONL record count 9 within budget <= 25000"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_1.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_1.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_1.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_1.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_2.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_2.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_2.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_2.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_3.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_3.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_3.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_3.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_4.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_4.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_4.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_4.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_5.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_5.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_5.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_5.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_6.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_6.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_6.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_6.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_7.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_7.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_7.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_7.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_8.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_8.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_8.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_8.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_9.schema_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "schema 'pi.test.artifact.v1' allowed"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_9.timestamp_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized timestamp placeholder is applied"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_9.elapsed_normalized",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "normalized elapsed t_ms is 0"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.line_9.path_placeholder",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "artifact path uses deterministic placeholders"
+    },
+    {
+      "id": "suite:e2e_extension_registration.artifact_index_jsonl.normalized_contract.redaction_scan",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/e2e_extension_registration/artifact-index.normalized.jsonl",
+      "ok": true,
+      "diagnostics": "no high-confidence secret/token patterns detected"
+    },
+    {
+      "id": "summary.failed_suites_matches_suite_results",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary.failed_suites matches suite result entries"
+    },
+    {
+      "id": "summary.failure_diagnostics_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary includes failure_diagnostics metadata"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics summary schema matches"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.correlation_id_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics summary correlation_id matches run correlation"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.index_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index path matches expected artifact path"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.run_timeline_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics run timeline path matches expected artifact path"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.failed_suite_count",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics failed_suite_count matches failed suites"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.suites_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary failure diagnostics suites is an array"
+    },
+    {
+      "id": "failure_diagnostics.summary_meta.covers_failed_suites",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary failure diagnostics entries cover all failed suites"
+    },
+    {
+      "id": "failure_diagnostics.index_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "failure_diagnostics.index_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "failure_diagnostics.index_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "failure_diagnostics.index_json.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index schema matches"
+    },
+    {
+      "id": "failure_diagnostics.index_json.correlation_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index correlation_id matches summary"
+    },
+    {
+      "id": "failure_diagnostics.index_json.artifact_dir_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index artifact_dir matches run artifact directory"
+    },
+    {
+      "id": "failure_diagnostics.index_json.failed_suite_count",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index failed_suite_count matches failed suites"
+    },
+    {
+      "id": "failure_diagnostics.index_json.run_timeline_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index run_timeline_path matches expected path"
+    },
+    {
+      "id": "failure_diagnostics.index_json.suites_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index suites is an array"
+    },
+    {
+      "id": "failure_diagnostics.index_json.covers_failed_suites",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_diagnostics_index.json",
+      "ok": true,
+      "diagnostics": "failure diagnostics index covers all failed suites"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "jsonl file exists"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.readable",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "loaded 2 non-empty JSONL lines"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.non_empty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline has 2 entries"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_1.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline schema matches"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_1.correlation_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline correlation_id matches summary"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_1.suite_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline event has suite field"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_2.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline schema matches"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_2.correlation_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline correlation_id matches summary"
+    },
+    {
+      "id": "failure_diagnostics.run.timeline_jsonl.line_2.suite_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/failure_timeline.jsonl",
+      "ok": true,
+      "diagnostics": "run timeline event has suite field"
+    },
+    {
+      "id": "conformance.events_jsonl",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_events.jsonl",
+      "ok": true,
+      "diagnostics": "per-extension JSONL evidence log exists"
+    },
+    {
+      "id": "conformance.summary_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "conformance.summary_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "conformance.summary_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "conformance.summary_run_id_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "conformance summary run_id is set"
+    },
+    {
+      "id": "conformance.summary_correlation_id_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "conformance summary correlation_id is set"
+    },
+    {
+      "id": "conformance.summary_correlation_id_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": false,
+      "diagnostics": "conformance summary correlation_id mismatch: expected '20260406T091126Z-unsharded', got 'conformance-summary-local-20260406T075830954Z'"
+    },
+    {
+      "id": "conformance.summary_json.evidence_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "evidence payload is an object"
+    },
+    {
+      "id": "conformance.summary_json.evidence_keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "evidence payload includes required keys"
+    },
+    {
+      "id": "conformance.summary_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_summary.json",
+      "ok": true,
+      "diagnostics": "schema='pi.ext.conformance_summary.v2'"
+    },
+    {
+      "id": "conformance.report_markdown",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/CONFORMANCE_REPORT.md",
+      "ok": true,
+      "diagnostics": "human-readable conformance report exists"
+    },
+    {
+      "id": "conformance.report_markdown.evidence_index",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/CONFORMANCE_REPORT.md",
+      "ok": true,
+      "diagnostics": "contains Evidence Index section"
+    },
+    {
+      "id": "conformance.events_jsonl.non_empty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_events.jsonl",
+      "ok": true,
+      "diagnostics": "224 line(s)"
+    },
+    {
+      "id": "conformance.events_jsonl.valid_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_events.jsonl",
+      "ok": true,
+      "diagnostics": "every JSONL entry parsed successfully"
+    },
+    {
+      "id": "conformance.profile_matrix_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "conformance.profile_matrix_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "conformance.profile_matrix_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "conformance.profile_matrix_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "profile matrix schema matches"
+    },
+    {
+      "id": "conformance.profile_matrix_profiles_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "profiles object exists"
+    },
+    {
+      "id": "conformance.profile_matrix_profiles_complete",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "safe|balanced|permissive profile entries exist"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "safe profile entry is object"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.blocked_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "blocked_operation_summary object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected.testable_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.testable_extensions present"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected.pass",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass present"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected.fail_existing",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.fail_existing present"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected.blocked",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.blocked present"
+    },
+    {
+      "id": "conformance.profile_matrix.safe.projected.pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass_rate_pct present"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "balanced profile entry is object"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.blocked_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "blocked_operation_summary object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected.testable_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.testable_extensions present"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected.pass",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass present"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected.fail_existing",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.fail_existing present"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected.blocked",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.blocked present"
+    },
+    {
+      "id": "conformance.profile_matrix.balanced.projected.pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass_rate_pct present"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "permissive profile entry is object"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.blocked_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "blocked_operation_summary object exists"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected.testable_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.testable_extensions present"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected.pass",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass present"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected.fail_existing",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.fail_existing present"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected.blocked",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.blocked present"
+    },
+    {
+      "id": "conformance.profile_matrix.permissive.projected.pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "projected.pass_rate_pct present"
+    },
+    {
+      "id": "conformance.profile_matrix_consistency_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "preflight_runtime_consistency object exists"
+    },
+    {
+      "id": "conformance.profile_matrix_consistency_checked_nonzero",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "checked_capability_decisions=19"
+    },
+    {
+      "id": "conformance.profile_matrix_consistency_no_mismatch",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/extension_profile_matrix.json",
+      "ok": true,
+      "diagnostics": "preflight/runtime consistency mismatches == 0"
+    },
+    {
+      "id": "conformance.soak_longevity_report_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "conformance.soak_longevity_report_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "conformance.soak_longevity_report_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "conformance.soak_longevity_report_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "soak/longevity schema matches"
+    },
+    {
+      "id": "conformance.soak_longevity_prerequisites_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "prerequisites object exists"
+    },
+    {
+      "id": "conformance.soak_longevity_checks_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_report.json",
+      "ok": true,
+      "diagnostics": "checks list contains 14 entries"
+    },
+    {
+      "id": "conformance.soak_longevity_events_jsonl",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_events.jsonl",
+      "ok": true,
+      "diagnostics": "soak/longevity structured events log exists"
+    },
+    {
+      "id": "conformance.soak_longevity_events_non_empty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/soak_longevity_events.jsonl",
+      "ok": true,
+      "diagnostics": "soak/longevity events contains 15 entries"
+    },
+    {
+      "id": "conformance.release_readiness_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "conformance.release_readiness_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "conformance.release_readiness_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "conformance.release_readiness_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "release-readiness schema matches"
+    },
+    {
+      "id": "conformance.release_readiness_correlation_id_nonempty",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "release-readiness correlation_id is set"
+    },
+    {
+      "id": "conformance.release_readiness_correlation_id_matches_summary",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "release-readiness correlation_id matches summary correlation_id"
+    },
+    {
+      "id": "conformance.release_readiness_profiles_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "profiles object exists"
+    },
+    {
+      "id": "conformance.release_readiness.safe.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "safe profile entry is object"
+    },
+    {
+      "id": "conformance.release_readiness.safe.projected_pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "projected_pass_rate_pct present"
+    },
+    {
+      "id": "conformance.release_readiness.safe.blocked_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "blocked_extensions present"
+    },
+    {
+      "id": "conformance.release_readiness.safe.recommendation",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "recommendation present"
+    },
+    {
+      "id": "conformance.release_readiness.balanced.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "balanced profile entry is object"
+    },
+    {
+      "id": "conformance.release_readiness.balanced.projected_pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "projected_pass_rate_pct present"
+    },
+    {
+      "id": "conformance.release_readiness.balanced.blocked_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "blocked_extensions present"
+    },
+    {
+      "id": "conformance.release_readiness.balanced.recommendation",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "recommendation present"
+    },
+    {
+      "id": "conformance.release_readiness.permissive.object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "permissive profile entry is object"
+    },
+    {
+      "id": "conformance.release_readiness.permissive.projected_pass_rate_pct",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "projected_pass_rate_pct present"
+    },
+    {
+      "id": "conformance.release_readiness.permissive.blocked_extensions",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "blocked_extensions present"
+    },
+    {
+      "id": "conformance.release_readiness.permissive.recommendation",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "recommendation present"
+    },
+    {
+      "id": "conformance.release_readiness.workflow_outcomes_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "workflow_outcomes object exists"
+    },
+    {
+      "id": "conformance.release_readiness.workflow_outcomes.failing_suites_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "failing_suites is an array"
+    },
+    {
+      "id": "conformance.release_readiness.workflow_outcomes.failing_unit_targets_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "failing_unit_targets is an array"
+    },
+    {
+      "id": "conformance.release_readiness.known_risks_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "known_risks is an array"
+    },
+    {
+      "id": "conformance.release_readiness.remediation_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "remediation object exists"
+    },
+    {
+      "id": "conformance.release_readiness.remediation.immediate_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "immediate remediation is an array"
+    },
+    {
+      "id": "conformance.release_readiness.remediation.policy_guidance_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "policy_guidance is an array"
+    },
+    {
+      "id": "conformance.release_readiness.evidence_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "evidence object exists"
+    },
+    {
+      "id": "conformance.release_readiness.evidence.summary_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "summary_json present"
+    },
+    {
+      "id": "conformance.release_readiness.evidence.evidence_contract_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "evidence_contract_json present"
+    },
+    {
+      "id": "conformance.release_readiness.evidence.summary_json_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "evidence.summary_json path matches summary.json"
+    },
+    {
+      "id": "conformance.release_readiness.evidence.evidence_contract_json_path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.json",
+      "ok": true,
+      "diagnostics": "evidence.evidence_contract_json path matches evidence_contract.json"
+    },
+    {
+      "id": "conformance.release_readiness_markdown",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.md",
+      "ok": true,
+      "diagnostics": "user-focused release-readiness markdown exists"
+    },
+    {
+      "id": "conformance.release_readiness_markdown.known_risks_section",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.md",
+      "ok": true,
+      "diagnostics": "contains Known Risks section"
+    },
+    {
+      "id": "conformance.release_readiness_markdown.remediation_section",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/release_readiness_summary.md",
+      "ok": true,
+      "diagnostics": "contains Recommended Remediation section"
+    },
+    {
+      "id": "summary.release_readiness_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary includes release_readiness metadata"
+    },
+    {
+      "id": "summary.release_readiness.path_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary.release_readiness.path matches artifact path"
+    },
+    {
+      "id": "summary.release_readiness.correlation_id_matches",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/summary.json",
+      "ok": true,
+      "diagnostics": "summary.release_readiness.correlation_id matches run correlation_id"
+    },
+    {
+      "id": "claim_integrity.perf_sli_matrix_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "claim_integrity.perf_sli_matrix_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "claim_integrity.perf_sli_matrix_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "claim_integrity.perf_sli_matrix_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "perf SLI matrix schema is versioned"
+    },
+    {
+      "id": "claim_integrity.ci_enforcement_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "ci_enforcement object exists"
+    },
+    {
+      "id": "claim_integrity.fail_closed_conditions_complete",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "ci_enforcement.fail_closed_conditions includes 12 required IDs"
+    },
+    {
+      "id": "claim_integrity.reporting_contract_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "reporting_contract object exists"
+    },
+    {
+      "id": "claim_integrity.benchmark_partitions_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "benchmark_partitions object exists"
+    },
+    {
+      "id": "claim_integrity.scenario_without_sli_mapping",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "every required scenario has workflow_sli_mapping coverage"
+    },
+    {
+      "id": "claim_integrity.sli_without_thresholds",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "every mapped SLI has thresholds in sli_catalog"
+    },
+    {
+      "id": "claim_integrity.gate_active",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/perf_sli_matrix.json",
+      "ok": true,
+      "diagnostics": "claim-integrity artifact validation skipped (no perf evidence paths configured)"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_json.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode mission contract schema matches"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_bead_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode mission contract bead_id is bd-3ar8v.7.1"
+    },
+    {
+      "id": "claim_integrity.franken_node_mission_contract_version_semver",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode mission contract version is semver (1.0.0)"
+    },
+    {
+      "id": "claim_integrity.franken_node_release_claim_policy_object",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode release_claim_policy object exists"
+    },
+    {
+      "id": "claim_integrity.franken_node_release_claim_policy_fail_closed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode release claim policy is fail-closed"
+    },
+    {
+      "id": "claim_integrity.franken_node_claim_tiers_defined",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode claim tiers include default and strict tiers (['extension_host_dropin', 'full_runtime_replacement'])"
+    },
+    {
+      "id": "claim_integrity.franken_node_extension_tier_required_checks",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode extension_host_dropin tier required_check_ids complete"
+    },
+    {
+      "id": "claim_integrity.franken_node_strict_tier_required_checks",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode full_runtime_replacement required_check_ids include strict gates"
+    },
+    {
+      "id": "claim_integrity.franken_node_phase6_runtime_beads_declared",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode strict tier declares required phase-6 runtime beads"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_manifest_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_manifest_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_manifest_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary manifest schema matches expected contract"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_report_artifact_declared",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary manifest declares expected drift report artifact"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_required_checks_declared",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary manifest declares required drift checks"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_failure_policy_hard_fail",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift detection contract is hard_fail"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_module_mappings_present",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary manifest declares explicit reintegration module mappings"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_drift_report_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift report JSON written"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_drift_report_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift report schema matches"
+    },
+    {
+      "id": "claim_integrity.franken_node_kernel_boundary_drift_report_pass",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift report overall_status is pass"
+    },
+    {
+      "id": "claim_integrity.franken_node_strict_tier_required_evidence",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode strict tier required evidence artifacts are present"
+    },
+    {
+      "id": "claim_integrity.franken_node_forbidden_claims_defined",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "FrankenNode mission contract declares strict-tier forbidden claims (['full_runtime_replacement_now', 'strict_dropin_bun', 'strict_dropin_nodejs'])"
+    },
+    {
+      "id": "claim_integrity.franken_node_forbidden_claim_language_coverage",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "forbidden strict-tier claims cover both Node and Bun language"
+    },
+    {
+      "id": "claim_integrity.franken_node_extension_host_tier_evidence",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": false,
+      "diagnostics": "extension_host_dropin tier evidence is insufficient: ['claim_integrity gate inactive; cannot certify extension_host_dropin tier', 'evidence adjudication matrix overall_status must be pass (got missing)', 'release_readiness.overall_ready must be true (got False)', 'scenario cell status overall_status must be pass (got missing)']"
+    },
+    {
+      "id": "claim_integrity.franken_node_strict_replacement_dropin_certified",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/dropin-certification-verdict.json",
+      "ok": false,
+      "diagnostics": "strict replacement verdict artifact is not certified: ['strict replacement verdict must be CERTIFIED (got NOT_CERTIFIED)']"
+    },
+    {
+      "id": "claim_integrity.franken_node_requested_claim_tier_known",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": true,
+      "diagnostics": "requested claim tier is known (extension_host_dropin)"
+    },
+    {
+      "id": "claim_integrity.franken_node_requested_claim_tier_allowed",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-mission-contract.json",
+      "ok": false,
+      "diagnostics": "requested FrankenNode claim tier is blocked: ['claim_integrity gate inactive; cannot certify extension_host_dropin tier', 'evidence adjudication matrix overall_status must be pass (got missing)', 'release_readiness.overall_ready must be true (got False)', 'scenario cell status overall_status must be pass (got missing)']"
+    },
+    {
+      "id": "claim_integrity.franken_node_claim_gate_status_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/franken_node_claim_gate_status.json",
+      "ok": true,
+      "diagnostics": "FrankenNode claim-gate status JSON written: /Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/franken_node_claim_gate_status.json"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_manifest_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_manifest_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/docs/franken-node-kernel-extraction-boundary-manifest.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_drift_report_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_drift_report_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_drift_report_schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift report schema is correct"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_drift_report_verdict_pass",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "kernel-boundary drift report verdict is pass"
+    },
+    {
+      "id": "claim_integrity.kernel_boundary_drift_report_checks_complete",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+      "ok": true,
+      "diagnostics": "all 5 required drift checks present"
+    },
+    {
+      "id": "conformance.full_report_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance/conformance_report.json",
+      "ok": false,
+      "diagnostics": "missing required file: /Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance/conformance_report.json"
+    },
+    {
+      "id": "conformance.baseline_json",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "file exists"
+    },
+    {
+      "id": "conformance.baseline_json.json_parse",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "valid JSON"
+    },
+    {
+      "id": "conformance.exception_policy.exists",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "exception_policy object exists"
+    },
+    {
+      "id": "conformance.exception_policy.keys",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "all required keys present"
+    },
+    {
+      "id": "conformance.exception_policy.schema",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "schema='pi.ext.exception_policy.v1'"
+    },
+    {
+      "id": "conformance.exception_policy.required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "required_fields is a non-empty string list"
+    },
+    {
+      "id": "conformance.exception_policy.entries_array",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entries is an array"
+    },
+    {
+      "id": "conformance.exception_policy.entry[0].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[0].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=base_fixtures"
+    },
+    {
+      "id": "conformance.exception_policy.entry[0].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id base_fixtures is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[0].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=approved"
+    },
+    {
+      "id": "conformance.exception_policy.entry[0].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[1].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[1].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=community/nicobailon-interview-tool"
+    },
+    {
+      "id": "conformance.exception_policy.entry[1].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id community/nicobailon-interview-tool is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[1].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[1].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[2].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[2].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=community/qualisero-background-notify"
+    },
+    {
+      "id": "conformance.exception_policy.entry[2].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id community/qualisero-background-notify is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[2].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[2].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[3].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[3].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=community/qualisero-pi-agent-scip"
+    },
+    {
+      "id": "conformance.exception_policy.entry[3].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id community/qualisero-pi-agent-scip is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[3].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[3].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[4].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[4].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=community/qualisero-safe-git"
+    },
+    {
+      "id": "conformance.exception_policy.entry[4].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id community/qualisero-safe-git is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[4].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[4].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[5].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[5].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/aliou-pi-guardrails"
+    },
+    {
+      "id": "conformance.exception_policy.entry[5].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/aliou-pi-guardrails is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[5].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[5].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[6].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[6].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/aliou-pi-processes"
+    },
+    {
+      "id": "conformance.exception_policy.entry[6].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/aliou-pi-processes is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[6].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[6].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[7].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[7].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/aliou-pi-toolchain"
+    },
+    {
+      "id": "conformance.exception_policy.entry[7].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/aliou-pi-toolchain is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[7].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[7].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[8].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[8].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/marckrenn-pi-sub-core"
+    },
+    {
+      "id": "conformance.exception_policy.entry[8].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/marckrenn-pi-sub-core is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[8].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[8].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[9].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[9].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/ogulcancelik-pi-sketch"
+    },
+    {
+      "id": "conformance.exception_policy.entry[9].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/ogulcancelik-pi-sketch is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[9].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[9].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[10].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[10].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-interview"
+    },
+    {
+      "id": "conformance.exception_policy.entry[10].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-interview is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[10].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[10].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[11].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[11].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-search-agent"
+    },
+    {
+      "id": "conformance.exception_policy.entry[11].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-search-agent is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[11].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[11].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[12].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[12].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-wakatime"
+    },
+    {
+      "id": "conformance.exception_policy.entry[12].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-wakatime is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[12].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[12].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[13].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[13].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-web-access"
+    },
+    {
+      "id": "conformance.exception_policy.entry[13].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-web-access is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[13].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[13].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[14].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[14].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/qualisero-pi-agent-scip"
+    },
+    {
+      "id": "conformance.exception_policy.entry[14].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/qualisero-pi-agent-scip is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[14].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[14].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[15].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[15].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/kcosr-pi-extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[15].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/kcosr-pi-extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[15].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[15].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[16].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[16].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/ogulcancelik-pi-sketch"
+    },
+    {
+      "id": "conformance.exception_policy.entry[16].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/ogulcancelik-pi-sketch is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[16].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[16].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[17].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[17].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/qualisero-pi-agent-scip"
+    },
+    {
+      "id": "conformance.exception_policy.entry[17].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/qualisero-pi-agent-scip is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[17].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[17].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[18].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[18].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=agents-mikeastock/extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[18].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id agents-mikeastock/extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[18].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[18].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[19].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[19].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=community/prateekmedia-lsp"
+    },
+    {
+      "id": "conformance.exception_policy.entry[19].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id community/prateekmedia-lsp is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[19].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[19].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[20].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[20].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/aliou-pi-linkup"
+    },
+    {
+      "id": "conformance.exception_policy.entry[20].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/aliou-pi-linkup is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[20].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[20].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[21].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[21].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/aliou-pi-synthetic"
+    },
+    {
+      "id": "conformance.exception_policy.entry[21].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/aliou-pi-synthetic is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[21].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[21].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[22].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[22].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/lsp-pi"
+    },
+    {
+      "id": "conformance.exception_policy.entry[22].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/lsp-pi is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[22].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[22].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[23].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[23].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/marckrenn-pi-sub-bar"
+    },
+    {
+      "id": "conformance.exception_policy.entry[23].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/marckrenn-pi-sub-bar is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[23].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[23].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[24].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[24].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/mitsupi"
+    },
+    {
+      "id": "conformance.exception_policy.entry[24].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/mitsupi is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[24].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[24].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[25].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[25].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-amplike"
+    },
+    {
+      "id": "conformance.exception_policy.entry[25].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-amplike is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[25].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[25].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[26].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[26].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-bash-confirm"
+    },
+    {
+      "id": "conformance.exception_policy.entry[26].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-bash-confirm is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[26].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[26].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[27].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[27].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[27].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[27].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[27].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[28].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[28].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/pi-package-test"
+    },
+    {
+      "id": "conformance.exception_policy.entry[28].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/pi-package-test is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[28].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[28].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[29].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[29].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/shitty-extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[29].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/shitty-extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[29].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[29].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[30].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[30].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/tmustier-pi-arcade"
+    },
+    {
+      "id": "conformance.exception_policy.entry[30].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/tmustier-pi-arcade is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[30].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[30].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[31].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[31].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=npm/vaayne-agent-kit"
+    },
+    {
+      "id": "conformance.exception_policy.entry[31].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id npm/vaayne-agent-kit is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[31].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[31].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[32].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[32].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/aliou-pi-extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[32].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/aliou-pi-extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[32].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[32].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[33].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[33].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/ben-vargas-pi-packages"
+    },
+    {
+      "id": "conformance.exception_policy.entry[33].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/ben-vargas-pi-packages is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[33].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[33].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[34].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[34].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/charles-cooper-pi-extensions"
+    },
+    {
+      "id": "conformance.exception_policy.entry[34].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/charles-cooper-pi-extensions is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[34].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[34].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[35].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[35].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/marckrenn-pi-sub"
+    },
+    {
+      "id": "conformance.exception_policy.entry[35].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/marckrenn-pi-sub is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[35].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[35].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[36].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[36].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/openclaw-openclaw"
+    },
+    {
+      "id": "conformance.exception_policy.entry[36].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/openclaw-openclaw is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[36].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[36].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[37].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[37].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/pasky-pi-amplike"
+    },
+    {
+      "id": "conformance.exception_policy.entry[37].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/pasky-pi-amplike is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[37].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[37].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    },
+    {
+      "id": "conformance.exception_policy.entry[38].required_fields",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "entry contains all required fields"
+    },
+    {
+      "id": "conformance.exception_policy.entry[38].id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id=third-party/w-winter-dot314"
+    },
+    {
+      "id": "conformance.exception_policy.entry[38].unique_id",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "id third-party/w-winter-dot314 is unique"
+    },
+    {
+      "id": "conformance.exception_policy.entry[38].status",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "status=temporary"
+    },
+    {
+      "id": "conformance.exception_policy.entry[38].review_by",
+      "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance_baseline.json",
+      "ok": true,
+      "diagnostics": "review_by=2026-04-30"
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "conformance.summary_correlation_id_matches_summary: conformance summary correlation_id mismatch: expected '20260406T091126Z-unsharded', got 'conformance-summary-local-20260406T075830954Z' | remediation: Set conformance_summary.correlation_id from run_all summary correlation_id for canonical consolidated lineage.",
+    "claim_integrity.franken_node_extension_host_tier_evidence: extension_host_dropin tier evidence is insufficient: ['claim_integrity gate inactive; cannot certify extension_host_dropin tier', 'evidence adjudication matrix overall_status must be pass (got missing)', 'release_readiness.overall_ready must be true (got False)', 'scenario cell status overall_status must be pass (got missing)'] | remediation: Regenerate full claim-integrity evidence bundle and resolve blocking claim-integrity checks before release-facing extension-host claims.",
+    "claim_integrity.franken_node_strict_replacement_dropin_certified: strict replacement verdict artifact is not certified: ['strict replacement verdict must be CERTIFIED (got NOT_CERTIFIED)'] | remediation: Generate docs/dropin-certification-verdict.json with overall_verdict=CERTIFIED before enabling strict runtime-replacement claims.",
+    "claim_integrity.franken_node_requested_claim_tier_allowed: requested FrankenNode claim tier is blocked: ['claim_integrity gate inactive; cannot certify extension_host_dropin tier', 'evidence adjudication matrix overall_status must be pass (got missing)', 'release_readiness.overall_ready must be true (got False)', 'scenario cell status overall_status must be pass (got missing)'] | remediation: Select a lower claim tier or regenerate missing claim-integrity evidence until mission-contract gating conditions are satisfied.",
+    "conformance.full_report_json: missing /Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/ext_conformance/reports/conformance/conformance_report.json | remediation: Ensure the producer step writes conformance_report.json before validation."
+  ],
+  "remediation_hints": [
+    "Ensure the producer step writes conformance_report.json before validation.",
+    "Generate docs/dropin-certification-verdict.json with overall_verdict=CERTIFIED before enabling strict runtime-replacement claims.",
+    "Regenerate full claim-integrity evidence bundle and resolve blocking claim-integrity checks before release-facing extension-host claims.",
+    "Select a lower claim tier or regenerate missing claim-integrity evidence until mission-contract gating conditions are satisfied.",
+    "Set conformance_summary.correlation_id from run_all summary correlation_id for canonical consolidated lineage."
+  ],
+  "claim_integrity_scenario_cells": null,
+  "claim_integrity_adjudication_matrix": null,
+  "franken_node_claim_gate_status": {
+    "schema": "pi.franken_node.claim_gate_status.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/e2e_results/20260406T084500Z_skip_unit/franken_node_claim_gate_status.json",
+    "requested_claim_tier": "extension_host_dropin",
+    "requested_tier_allowed": false,
+    "requested_tier_blocking_reasons": [
+      "claim_integrity gate inactive; cannot certify extension_host_dropin tier",
+      "evidence adjudication matrix overall_status must be pass (got missing)",
+      "release_readiness.overall_ready must be true (got False)",
+      "scenario cell status overall_status must be pass (got missing)"
+    ],
+    "tiers": {
+      "extension_host_dropin": {
+        "ready": false,
+        "blocking_reasons": [
+          "claim_integrity gate inactive; cannot certify extension_host_dropin tier",
+          "evidence adjudication matrix overall_status must be pass (got missing)",
+          "release_readiness.overall_ready must be true (got False)",
+          "scenario cell status overall_status must be pass (got missing)"
+        ]
+      },
+      "full_runtime_replacement": {
+        "ready": false,
+        "blocking_reasons": [
+          "strict replacement verdict must be CERTIFIED (got NOT_CERTIFIED)"
+        ],
+        "required_beads": [
+          "bd-3ar8v.7.2",
+          "bd-3ar8v.7.3",
+          "bd-3ar8v.7.4",
+          "bd-3ar8v.7.5",
+          "bd-3ar8v.7.6",
+          "bd-3ar8v.7.15",
+          "bd-3ar8v.7.16"
+        ]
+      }
+    }
+  },
+  "franken_node_kernel_boundary_drift_report": {
+    "schema": "pi.franken_node.kernel_boundary_drift_report.v1",
+    "path": "/Users/lu/\u5f00\u53d1\u9879\u76ee/claw/pi_agent_rust_release_wt_20260406/tests/full_suite_gate/franken_node_kernel_boundary_drift_report.json",
+    "summary": {
+      "required_checks_count": 5,
+      "passing_checks": 5,
+      "failing_checks": 0,
+      "pass_count": 5,
+      "fail_count": 0,
+      "replacement_targets_count": 7,
+      "module_mappings_count": 7,
+      "verdict": "pass",
+      "overall_status": "pass"
+    }
+  }
+}

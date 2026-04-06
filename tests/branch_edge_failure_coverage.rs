@@ -722,11 +722,11 @@ fn apply_piped_stdin_prepends_to_existing_args() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn normalize_cli_print_does_not_force_no_session() {
+fn normalize_cli_print_forces_no_session() {
     let mut cli = Cli::parse_from(["pi", "-p", "hello"]);
     assert!(cli.print);
     app::normalize_cli(&mut cli);
-    assert!(!cli.no_session);
+    assert!(cli.no_session);
 }
 
 #[test]

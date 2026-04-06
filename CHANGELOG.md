@@ -8,7 +8,17 @@ Pre-release migration notes and transition-era launch materials are not treated 
 
 Highlights:
 
-- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.16` baseline.
+- Continue tightening onboarding, agent-management ergonomics, and release-quality verification on top of the new `v0.1.17` baseline.
+
+## 0.1.17 - macOS Launch Guidance And Optional Signing
+
+Released: 2026-04-06
+
+Highlights:
+
+- Polished the install-to-first-use path so macOS users get clearer launcher wording, desktop-app guidance, and more explicit next steps after installation.
+- Expanded the public docs with stronger first-contact, learning, deployment, and re-skin guidance so teams can evaluate the runtime or ship a branded fork with less guesswork.
+- Added optional macOS app and package signing hooks to the packaging scripts so release operators can produce Developer ID-signed artifacts when identities are available.
 
 ## 0.1.16 - Release Pipeline Repair And Download Consistency
 
